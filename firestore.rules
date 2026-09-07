@@ -1,0 +1,37 @@
+rules_version = '2';
+
+// Deploy with: firebase deploy --only firestore:rules
+// (or paste into Firebase Console > Firestore Database > Rules)
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    // v1 ships a single staff-facing role set (admin/employee) that can see
+    // and manage all complaints. The "user" role is reserved for a future
+    // customer-facing portal and is intentionally not granted access here.
+    function isStaff() {
+      return isSignedIn() && userRole() in ["admin", "employee"];
+    }
+
+    function isAdmin() {
+      return isSignedIn() && userRole() == "admin";
+    }
+
+    match /users/{userId} {
+      // Any signed-in staff member can read the staff directory (needed for
+      // the "assigned to" dropdown). Only admins can create/edit staff records.
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /complaints/{complaintId} {
+      allow read, create, update, delete: if isStaff();
+    }
+  }
+}
