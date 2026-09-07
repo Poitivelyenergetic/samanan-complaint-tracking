@@ -95,10 +95,13 @@ This uses the Firebase Admin SDK to create:
 - 4 staff accounts (Firebase Auth user + matching Firestore `users` profile):
   | Username | Password | Role | Position |
   |---|---|---|---|
-  | `mhmd` | `123` | admin | Support Team Lead |
-  | `sara` | `123` | employee | Customer Support Agent |
-  | `ali` | `123` | employee | Customer Support Agent |
-  | `huda` | `123` | admin | Quality Assurance Manager |
+  | `mhmd` | `123456` | admin | Support Team Lead |
+  | `sara` | `123456` | employee | Customer Support Agent |
+  | `ali` | `123456` | employee | Customer Support Agent |
+  | `huda` | `123456` | admin | Quality Assurance Manager |
+
+  (Firebase Auth requires passwords to be at least 6 characters, so the demo password is
+  `123456` rather than the shorter `123` you might expect.)
 - 5 sample complaints spread across every status (`Open`, `Assigned`, `Processing`, `Cancel`,
   `Closed`) and assigned across the staff above.
 
@@ -111,7 +114,7 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) — you'll be redirected to `/ar/login`
-(Arabic is the default locale). Sign in with `mhmd` / `123`, or switch to English with the
+(Arabic is the default locale). Sign in with `mhmd` / `123456`, or switch to English with the
 language switcher in the top corner first.
 
 ## Project structure

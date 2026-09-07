@@ -54,7 +54,7 @@ const STAFF: SeedStaff[] = [
     uid: "seed-mhmd",
     name: "Mohammed Al-Otaibi",
     username: "mhmd",
-    password: "123",
+    password: "123456",
     number: "1001",
     position: "Support Team Lead",
     administration: "Customer Support",
@@ -64,7 +64,7 @@ const STAFF: SeedStaff[] = [
     uid: "seed-sara",
     name: "Sara Al-Harbi",
     username: "sara",
-    password: "123",
+    password: "123456",
     number: "1002",
     position: "Customer Support Agent",
     administration: "Customer Support",
@@ -74,7 +74,7 @@ const STAFF: SeedStaff[] = [
     uid: "seed-ali",
     name: "Ali Al-Qahtani",
     username: "ali",
-    password: "123",
+    password: "123456",
     number: "1003",
     position: "Customer Support Agent",
     administration: "Customer Support",
@@ -84,7 +84,7 @@ const STAFF: SeedStaff[] = [
     uid: "seed-huda",
     name: "Huda Al-Zahrani",
     username: "huda",
-    password: "123",
+    password: "123456",
     number: "1004",
     position: "Quality Assurance Manager",
     administration: "Quality Assurance",
@@ -209,7 +209,7 @@ async function main() {
     await upsertComplaint(complaint);
   }
 
-  console.log("\nDone. Demo login -> username: mhmd, password: 123 (admin)");
+  console.log("\nDone. Demo login -> username: mhmd, password: 123456 (admin)");
   process.exit(0);
 }
 
