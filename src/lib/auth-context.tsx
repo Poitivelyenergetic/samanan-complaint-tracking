@@ -29,31 +29,32 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<StaffUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [profileLoading, setProfileLoading] = useState(true);
+  const [rawProfile, setRawProfile] = useState<StaffUser | null>(null);
+  // The uid that `rawProfile` currently reflects. Comparing it against
+  // `user.uid` lets us derive both the "reset on logout" and "still loading"
+  // states below without an extra setState call inside the effect.
+  const [profileUid, setProfileUid] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setAuthLoading(false);
-      if (!firebaseUser) {
-        setProfile(null);
-        setProfileLoading(false);
-      }
     });
     return unsubscribe;
   }, []);
 
   useEffect(() => {
     if (!user) return;
-    setProfileLoading(true);
     const unsubscribe = onSnapshot(doc(db, "users", user.uid), (snap) => {
-      setProfile(snap.exists() ? (snap.data() as StaffUser) : null);
-      setProfileLoading(false);
+      setRawProfile(snap.exists() ? (snap.data() as StaffUser) : null);
+      setProfileUid(user.uid);
     });
     return unsubscribe;
   }, [user]);
+
+  const profile = user && profileUid === user.uid ? rawProfile : null;
+  const profileLoading = !!user && profileUid !== user.uid;
 
   async function signIn(username: string, password: string) {
     await signInWithEmailAndPassword(auth, usernameToEmail(username), password);
