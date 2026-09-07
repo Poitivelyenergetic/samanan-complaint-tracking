@@ -25,6 +25,7 @@
     "dashboard": "Complaints",
     "newComplaint": "New Complaint",
     "marketing": "Marketing",
+    "employees": "Employees",
     "logout": "Log out",
     "signedInAs": "Signed in as"
   },
@@ -95,5 +96,52 @@
     "admin": "Admin",
     "employee": "Employee",
     "user": "User"
+  },
+  "employees": {
+    "title": "Employees",
+    "subtitle": "Manage staff accounts and roles",
+    "newButton": "New Employee",
+    "noResults": "No employees found.",
+    "table": {
+      "name": "Name",
+      "username": "Username",
+      "position": "Position",
+      "administration": "Administration",
+      "role": "Role"
+    },
+    "fields": {
+      "name": "Full Name",
+      "username": "Username",
+      "number": "Staff / ID Number",
+      "position": "Position",
+      "administration": "Administration",
+      "role": "Role",
+      "password": "Password",
+      "passwordCreateHint": "Used to sign in. At least 6 characters.",
+      "passwordEditHint": "Leave blank to keep the current password."
+    },
+    "new": {
+      "title": "New Employee",
+      "submit": "Create Employee"
+    },
+    "edit": {
+      "title": "Edit Employee",
+      "submit": "Save Changes",
+      "notFound": "Employee not found.",
+      "deleteConfirm": "Are you sure you want to remove this employee? This also deletes their login.",
+      "cannotDeleteSelf": "You can't remove your own account."
+    },
+    "errors": {
+      "missing_fields": "Please fill in all required fields.",
+      "invalid_role": "Invalid role selected.",
+      "weak_password": "Password must be at least 6 characters.",
+      "username_taken": "That username is already in use.",
+      "not_authenticated": "Your session has expired. Please sign in again.",
+      "not_found": "Employee not found.",
+      "cannot_delete_self": "You can't remove your own account.",
+      "auth_create_failed": "Could not create the login. Please try again.",
+      "auth_update_failed": "Could not update the login. Please try again.",
+      "request_failed": "Something went wrong. Please try again."
+    }
   }
 }

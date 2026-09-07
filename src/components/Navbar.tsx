@@ -12,12 +12,16 @@ const NAV_ITEMS = [
   { href: "/marketing", key: "marketing" as const },
 ];
 
+const ADMIN_NAV_ITEM = { href: "/employees", key: "employees" as const };
+
 export default function Navbar() {
   const t = useTranslations("nav");
   const tCommon = useTranslations("common");
   const pathname = usePathname();
   const { profile, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const navItems = profile?.role === "admin" ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
 
   return (
     <header className="border-b border-border bg-surface">
@@ -28,7 +32,7 @@ export default function Navbar() {
           </Link>
 
           <nav className="hidden items-center gap-1 md:flex">
-            {NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const active =
                 pathname === item.href || pathname.startsWith(item.href + "/");
               return (
@@ -52,7 +56,7 @@ export default function Navbar() {
           <LanguageSwitcher />
           {profile && (
             <span className="text-sm text-foreground/60">
-              {t("signedInAs")} <span className="font-medium text-foreground">{profile.username}</span>
+              {t("signedInAs")} <span className="font-medium text-foreground">{profile.name}</span>
             </span>
           )}
           <button
@@ -79,7 +83,7 @@ export default function Navbar() {
       {menuOpen && (
         <div className="border-t border-border px-4 py-3 md:hidden">
           <nav className="flex flex-col gap-1">
-            {NAV_ITEMS.map((item) => (
+            {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

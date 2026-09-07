@@ -1,12 +1,24 @@
-// Server-side Firebase Admin initialization (used by the seed script and any
-// future server-only/API routes). Requires a service account — see the
-// README for how to generate one and which env vars to set.
+// Server-side Firebase Admin initialization (used by the employees API
+// routes; see also scripts/seed.mts, which initializes its own instance).
+// Requires a service account — see the README for how to generate one and
+// which env vars to set.
+//
+// Initialization is lazy (only happens the first time getAdminAuth()/
+// getAdminDb() is actually called) so that merely importing this module
+// during Next's build-time route introspection doesn't throw before
+// .env.local has been configured.
 import { cert, getApps, getApp, initializeApp, type App } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
+import { getAuth, type Auth } from "firebase-admin/auth";
+import { getFirestore, type Firestore } from "firebase-admin/firestore";
+
+let cachedApp: App | undefined;
 
 function getAdminApp(): App {
-  if (getApps().length) return getApp();
+  if (cachedApp) return cachedApp;
+  if (getApps().length) {
+    cachedApp = getApp();
+    return cachedApp;
+  }
 
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -22,11 +34,16 @@ function getAdminApp(): App {
     );
   }
 
-  return initializeApp({
+  cachedApp = initializeApp({
     credential: cert({ projectId, clientEmail, privateKey }),
   });
+  return cachedApp;
 }
 
-export const adminApp = getAdminApp();
-export const adminAuth = getAuth(adminApp);
-export const adminDb = getFirestore(adminApp);
+export function getAdminAuth(): Auth {
+  return getAuth(getAdminApp());
+}
+
+export function getAdminDb(): Firestore {
+  return getFirestore(getAdminApp());
+}

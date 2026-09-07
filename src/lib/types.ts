@@ -2,10 +2,22 @@ export type UserRole = "admin" | "employee" | "user";
 
 export interface StaffUser {
   id: string; // Firebase Auth UID
-  staffId: string; // staff / ID number
-  position: string; // job title, free text
+  name: string; // full name
   username: string;
+  number: string; // staff / ID number
+  position: string; // job title, free text
+  administration: string; // department / administration, free text
   role: UserRole;
+}
+
+export interface EmployeeInput {
+  name: string;
+  username: string;
+  number: string;
+  position: string;
+  administration: string;
+  role: UserRole;
+  password?: string; // required when creating, optional (reset) when editing
 }
 
 export const COMPLAINT_STATUSES = [
