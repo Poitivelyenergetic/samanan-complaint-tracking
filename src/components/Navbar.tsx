@@ -27,8 +27,9 @@ export default function Navbar() {
     <header className="border-b border-border bg-surface">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
         <div className="flex items-center gap-8">
-          <Link href="/dashboard" className="text-lg font-bold text-brand">
-            {tCommon("appName")}
+          <Link href="/dashboard" className="flex items-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/samnan-logo.svg" alt={tCommon("appName")} className="h-8 w-auto" />
           </Link>
 
           <nav className="hidden items-center gap-1 md:flex">

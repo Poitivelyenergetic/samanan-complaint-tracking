@@ -46,9 +46,10 @@ export default function LoginPage() {
       </div>
 
       <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-foreground">{tCommon("appName")}</h1>
-          <p className="mt-1 text-sm text-foreground/60">{tCommon("appSubtitle")}</p>
+        <div className="mb-8 flex flex-col items-center text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/samnan-logo.svg" alt={tCommon("appName")} className="h-11 w-auto" />
+          <p className="mt-2 text-sm text-foreground/60">{tCommon("appSubtitle")}</p>
         </div>
 
         <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">

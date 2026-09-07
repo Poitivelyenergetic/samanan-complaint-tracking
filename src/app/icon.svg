@@ -1,0 +1,22 @@
+<svg version="1.2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 169 187" width="169" height="187">
+	<title>logo-icon-svg</title>
+	<defs>
+		<clipPath clipPathUnits="userSpaceOnUse" id="cp1">
+			<path d="m-55-78h299v320.06h-299z"/>
+		</clipPath>
+	</defs>
+	<style>
+		.s0 { fill: #385bc1 } 
+		.s1 { fill: #000000 } 
+	</style>
+	<g id="Clip-Path" clip-path="url(#cp1)">
+		<g id="Layer">
+			<path id="Layer" class="s0" d="m150.6 81.1h-26.7v50.3h26.7z"/>
+			<path id="Layer" class="s0" d="m148.8 46.9l-62.8-24.3-67.9 24.3v35.9h31.1v-20.5h99.6z"/>
+			<path id="Layer" class="s0" d="m151 130h-132.2v17.4l68.4 23.8 63.8-24.8z"/>
+			<path id="Layer" class="s0" d="m124.4 81.1h-106.3v29.5h17v-12.5h19.2v12.5h17.6v-12.5h15.7v12.5h19.2v-12.5h17.6z"/>
+			<path id="Layer" fill-rule="evenodd" class="s0" d="m1 155.9v-126.6l86.3-29.3 81.1 29.3v126.6l-81.1 31.1zm85.9 24l74.5-28.7v-116.7l-74.5-27-79.2 27v116.7z"/>
+			<path id="Layer" fill-rule="evenodd" class="s1" d="m168.5 156l-0.1-0.1 0.1 0.1-81.2 31.1h-0.1l0.1-0.1-0.1 0.1-86.2-31.1h-0.1v-126.8h0.1l86.2-29.3 0.1 0.1-0.1-0.1h0.1l81.2 29.3-0.1 0.1 0.1-0.1zm-81.3 30.9l81.1-31.1v-126.4l-81.1-29.3-86.1 29.3v126.4zm74.3-35.6h-0.1l-74.5 28.7-79.2-28.7v-0.1 0.1h-0.1v-116.9h0.1v0.1-0.1l79.2-27 74.5 27h0.1zm-0.2-0.1v-116.6l-74.4-27-79.1 27v116.6l79.1 28.6z"/>
+		</g>
+	</g>
+</svg>
