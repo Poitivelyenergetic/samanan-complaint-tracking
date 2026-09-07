@@ -1,0 +1,99 @@
+{
+  "common": {
+    "appName": "سمنان",
+    "appSubtitle": "متابعة الشكاوى",
+    "loading": "جارٍ التحميل...",
+    "save": "حفظ",
+    "saving": "جارٍ الحفظ...",
+    "cancel": "إلغاء",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "search": "بحث",
+    "filter": "تصفية",
+    "all": "الكل",
+    "actions": "إجراءات",
+    "unassigned": "غير مسندة",
+    "createdAt": "تاريخ الإنشاء",
+    "updatedAt": "آخر تحديث",
+    "language": "اللغة",
+    "back": "رجوع",
+    "required": "مطلوب",
+    "somethingWentWrong": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+    "confirmDelete": "هل أنت متأكد من حذف هذه الشكوى؟"
+  },
+  "nav": {
+    "dashboard": "الشكاوى",
+    "newComplaint": "شكوى جديدة",
+    "marketing": "التسويق",
+    "logout": "تسجيل الخروج",
+    "signedInAs": "مسجل الدخول باسم"
+  },
+  "login": {
+    "title": "تسجيل دخول الموظفين",
+    "subtitle": "سجّل الدخول لإدارة شكاوى العملاء",
+    "username": "اسم المستخدم",
+    "password": "كلمة المرور",
+    "submit": "تسجيل الدخول",
+    "signingIn": "جارٍ تسجيل الدخول...",
+    "error": "اسم المستخدم أو كلمة المرور غير صحيحة",
+    "demoHint": "بيانات تجريبية: اسم المستخدم \"mhmd\"، كلمة المرور \"123\""
+  },
+  "status": {
+    "Open": "مفتوحة",
+    "Assigned": "مسندة",
+    "Processing": "قيد المعالجة",
+    "Cancel": "ملغاة",
+    "Closed": "مغلقة"
+  },
+  "dashboard": {
+    "title": "الشكاوى",
+    "subtitle": "جميع شكاوى العملاء المسجلة من قبل الموظفين",
+    "newButton": "شكوى جديدة",
+    "searchPlaceholder": "ابحث بالموضوع أو رقم العميل...",
+    "statusFilter": "الحالة",
+    "assigneeFilter": "المسندة إلى",
+    "noResults": "لا توجد شكاوى.",
+    "table": {
+      "issueId": "رقم الشكوى",
+      "subject": "الموضوع",
+      "customerNumber": "رقم العميل",
+      "assignedTo": "مسندة إلى",
+      "status": "الحالة",
+      "createdAt": "تاريخ الإنشاء"
+    }
+  },
+  "complaint": {
+    "fields": {
+      "subject": "الموضوع",
+      "description": "الوصف",
+      "customerNumber": "رقم العميل",
+      "customerOrderNumber": "رقم طلب العميل",
+      "assignedTo": "مسندة إلى",
+      "status": "الحالة"
+    },
+    "new": {
+      "title": "شكوى جديدة",
+      "submit": "إنشاء الشكوى",
+      "success": "تم إنشاء الشكوى بنجاح."
+    },
+    "detail": {
+      "title": "الشكوى",
+      "editTitle": "تعديل الشكوى",
+      "submit": "حفظ التغييرات",
+      "success": "تم تحديث الشكوى بنجاح.",
+      "deleted": "تم حذف الشكوى.",
+      "notFound": "الشكوى غير موجودة.",
+      "assignHint": "هل تريد إسناد هذه الشكوى لموظف؟ يمكنك تغيير الحالة إلى \"مسندة\"."
+    }
+  },
+  "marketing": {
+    "title": "التسويق",
+    "subtitle": "أدوات وحملات التسويق",
+    "comingSoon": "قريباً. هذا القسم مخصص لميزات التسويق المستقبلية."
+  },
+  "roles": {
+    "admin": "مسؤول",
+    "employee": "موظف",
+    "user": "مستخدم"
+  }
+}

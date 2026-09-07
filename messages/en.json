@@ -1,0 +1,99 @@
+{
+  "common": {
+    "appName": "Samnan",
+    "appSubtitle": "Complaint Tracking",
+    "loading": "Loading...",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "search": "Search",
+    "filter": "Filter",
+    "all": "All",
+    "actions": "Actions",
+    "unassigned": "Unassigned",
+    "createdAt": "Created",
+    "updatedAt": "Updated",
+    "language": "Language",
+    "back": "Back",
+    "required": "Required",
+    "somethingWentWrong": "Something went wrong. Please try again.",
+    "confirmDelete": "Are you sure you want to delete this complaint?"
+  },
+  "nav": {
+    "dashboard": "Complaints",
+    "newComplaint": "New Complaint",
+    "marketing": "Marketing",
+    "logout": "Log out",
+    "signedInAs": "Signed in as"
+  },
+  "login": {
+    "title": "Staff Login",
+    "subtitle": "Sign in to manage customer complaints",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign In",
+    "signingIn": "Signing in...",
+    "error": "Invalid username or password",
+    "demoHint": "Demo login: username \"mhmd\", password \"123\""
+  },
+  "status": {
+    "Open": "Open",
+    "Assigned": "Assigned",
+    "Processing": "Processing",
+    "Cancel": "Cancel",
+    "Closed": "Closed"
+  },
+  "dashboard": {
+    "title": "Complaints",
+    "subtitle": "All customer complaints logged by staff",
+    "newButton": "New Complaint",
+    "searchPlaceholder": "Search by subject or customer number...",
+    "statusFilter": "Status",
+    "assigneeFilter": "Assigned to",
+    "noResults": "No complaints found.",
+    "table": {
+      "issueId": "Issue ID",
+      "subject": "Subject",
+      "customerNumber": "Customer #",
+      "assignedTo": "Assigned To",
+      "status": "Status",
+      "createdAt": "Created"
+    }
+  },
+  "complaint": {
+    "fields": {
+      "subject": "Subject",
+      "description": "Description",
+      "customerNumber": "Customer Number",
+      "customerOrderNumber": "Customer Order Number",
+      "assignedTo": "Assigned To",
+      "status": "Status"
+    },
+    "new": {
+      "title": "New Complaint",
+      "submit": "Create Complaint",
+      "success": "Complaint created successfully."
+    },
+    "detail": {
+      "title": "Complaint",
+      "editTitle": "Edit Complaint",
+      "submit": "Save Changes",
+      "success": "Complaint updated successfully.",
+      "deleted": "Complaint deleted.",
+      "notFound": "Complaint not found.",
+      "assignHint": "Assigning this complaint to a staff member? Consider moving the status to \"Assigned\"."
+    }
+  },
+  "marketing": {
+    "title": "Marketing",
+    "subtitle": "Marketing tools and campaigns",
+    "comingSoon": "Coming soon. This section is a placeholder for future marketing features."
+  },
+  "roles": {
+    "admin": "Admin",
+    "employee": "Employee",
+    "user": "User"
+  }
+}
