@@ -1,5 +1,9 @@
 "use client";
 
+// This entire section is per-session (Firebase Auth) and reads client-only
+// state, so it must never be statically prerendered at build time.
+export const dynamic = "force-dynamic";
+
 import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth-context";
