@@ -29,6 +29,20 @@
     "logout": "Log out",
     "signedInAs": "Signed in as"
   },
+  "landing": {
+    "complaintOption": {
+      "title": "File a Complaint",
+      "subtitle": "No account needed — submit a customer complaint and get a reference number.",
+      "cta": "Get started"
+    },
+    "staffOption": {
+      "title": "Staff",
+      "subtitle": "Sign in to manage and resolve customer complaints.",
+      "cta": "Staff login"
+    },
+    "statusPrompt": "Already submitted a complaint?",
+    "statusLink": "Check its status"
+  },
   "login": {
     "title": "Staff Login",
     "subtitle": "Sign in to manage customer complaints",
@@ -37,7 +51,9 @@
     "submit": "Sign In",
     "signingIn": "Signing in...",
     "error": "Invalid username or password",
-    "demoHint": "Demo login: username \"mhmd\", password \"123456\""
+    "demoHint": "Demo login: username \"mhmd\", password \"123456\"",
+    "noAccount": "New staff member?",
+    "signUp": "Request an account"
   },
   "status": {
     "Open": "Open",
@@ -50,7 +66,7 @@
     "title": "Complaints",
     "subtitle": "All customer complaints logged by staff",
     "newButton": "New Complaint",
-    "searchPlaceholder": "Search by subject or customer number...",
+    "searchPlaceholder": "Search by subject, customer number, or reference number...",
     "statusFilter": "Status",
     "assigneeFilter": "Assigned to",
     "noResults": "No complaints found.",
@@ -67,10 +83,19 @@
     "fields": {
       "subject": "Subject",
       "description": "Description",
+      "category": "Category",
       "customerNumber": "Customer Number",
       "customerOrderNumber": "Customer Order Number",
       "assignedTo": "Assigned To",
       "status": "Status"
+    },
+    "categories": {
+      "ProductQuality": "Product / Service Quality",
+      "DeliveryDelay": "Delivery / Shipping Delay",
+      "BillingIssue": "Billing / Payment Issue",
+      "OrderDiscrepancy": "Order Discrepancy",
+      "CustomerService": "Customer Service",
+      "Other": "Other"
     },
     "new": {
       "title": "New Complaint",
@@ -84,7 +109,68 @@
       "success": "Complaint updated successfully.",
       "deleted": "Complaint deleted.",
       "notFound": "Complaint not found.",
-      "assignHint": "Assigning this complaint to a staff member? Consider moving the status to \"Assigned\"."
+      "assignHint": "Assigning this complaint to a staff member? Consider moving the status to \"Assigned\".",
+      "submittedByCustomer": "Submitted directly by the customer",
+      "viewAttachment": "View attachment"
+    }
+  },
+  "publicComplaint": {
+    "title": "File a Complaint",
+    "subtitle": "Tell us what happened and we'll get back to you.",
+    "submit": "Submit Complaint",
+    "submitting": "Submitting...",
+    "fields": {
+      "orderId": "Order ID",
+      "name": "Your Name",
+      "email": "Email",
+      "phone": "Phone",
+      "contactHint": "At least one of email or phone is required so we can reach you.",
+      "category": "Complaint Category",
+      "description": "Describe the issue"
+    },
+    "errors": {
+      "orderIdRequired": "Please enter your order ID.",
+      "nameRequired": "Please enter your name.",
+      "contactRequired": "Please provide an email or phone number.",
+      "emailInvalid": "Please enter a valid email address.",
+      "phoneInvalid": "Please enter a valid phone number.",
+      "descriptionTooShort": "Please describe the issue in a bit more detail (at least 10 characters)."
+    },
+    "success": {
+      "title": "Complaint submitted",
+      "subtitle": "Thank you — our team will review it shortly.",
+      "referenceLabel": "Your reference number",
+      "saveHint": "Save this number — you'll need it to check your complaint's status later.",
+      "checkStatusCta": "Check status later",
+      "backHome": "Back to home"
+    }
+  },
+  "statusLookup": {
+    "title": "Check Complaint Status",
+    "subtitle": "Enter the reference number you received when you submitted your complaint.",
+    "placeholder": "e.g. aB3xY9pQ...",
+    "checkButton": "Check",
+    "notFound": "No complaint found with that reference number."
+  },
+  "staffSignup": {
+    "title": "Request a Staff Account",
+    "subtitle": "Submit your details and an admin will review your request.",
+    "submit": "Submit Request",
+    "fields": {
+      "name": "Full Name",
+      "username": "Desired Username",
+      "contact": "Contact",
+      "contactPlaceholder": "Email or phone number",
+      "position": "Position",
+      "administration": "Administration",
+      "note": "Note (optional)"
+    },
+    "errors": {
+      "required": "This field is required."
+    },
+    "success": {
+      "title": "Request submitted",
+      "subtitle": "An admin will review your request and set up your account. You'll be contacted once it's ready."
     }
   },
   "marketing": {
@@ -122,7 +208,18 @@
     },
     "new": {
       "title": "New Employee",
-      "submit": "Create Employee"
+      "submit": "Create Employee",
+      "approvingRequest": "Approving the account request from {name}.",
+      "requestNotFound": "That signup request no longer exists — it may have already been handled."
+    },
+    "requests": {
+      "navLink": "Pending Requests",
+      "title": "Pending Requests",
+      "subtitle": "Staff account requests waiting on admin review",
+      "noResults": "No pending requests.",
+      "approve": "Approve",
+      "reject": "Reject",
+      "confirmReject": "Are you sure you want to reject this request?"
     },
     "edit": {
       "title": "Edit Employee",

@@ -23,6 +23,23 @@ service cloud.firestore {
       return isSignedIn() && userRole() == "admin";
     }
 
+    // A complaint submitted through the public intake form (no login) must
+    // land as Open/unassigned with the fields the form actually collects —
+    // this is what stops an anonymous client from writing an arbitrary
+    // complaint (e.g. pre-closing it, assigning it to a staff member, or
+    // impersonating a staff-logged entry).
+    function isValidPublicComplaint() {
+      let d = request.resource.data;
+      return d.channel == "public"
+        && d.status == "Open"
+        && d.assignedTo == null
+        && d.createdBy == null
+        && d.description is string && d.description.size() > 0
+        && d.category is string
+        && d.complainantName is string && d.complainantName.size() > 0
+        && d.customerOrderNumber is string && d.customerOrderNumber.size() > 0;
+    }
+
     match /users/{userId} {
       // Any signed-in staff member can read the staff directory (needed for
       // the "assigned to" dropdown). Only admins can create/edit staff records.
@@ -31,7 +48,31 @@ service cloud.firestore {
     }
 
     match /complaints/{complaintId} {
-      allow read, create, update, delete: if isStaff();
+      allow read, update, delete: if isStaff();
+      allow create: if isStaff() || isValidPublicComplaint();
+      // The public status-lookup page fetches one complaint by its exact
+      // reference number (a capability token, not something to enumerate),
+      // but only for complaints that were themselves submitted publicly —
+      // a guessed ID pointing at a staff-logged complaint still 404s.
+      allow get: if resource.data.channel == "public";
+    }
+
+    // Public staff-account requests. Deliberately holds no password — an
+    // admin reviews it and creates the real Firebase Auth account (with a
+    // password of their choosing) via the Employees "New Employee" flow.
+    function isValidSignupRequest() {
+      let d = request.resource.data;
+      return d.status == "pending"
+        && d.name is string && d.name.size() > 0
+        && d.username is string && d.username.size() > 0
+        && d.contact is string && d.contact.size() > 0
+        && d.position is string
+        && d.administration is string;
+    }
+
+    match /signupRequests/{requestId} {
+      allow create: if isValidSignupRequest();
+      allow read, update, delete: if isAdmin();
     }
   }
 }

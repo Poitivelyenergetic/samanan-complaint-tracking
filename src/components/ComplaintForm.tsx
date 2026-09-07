@@ -2,15 +2,31 @@
 
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import { COMPLAINT_STATUSES, type ComplaintInput, type ComplaintStatus, type StaffUser } from "@/lib/types";
+import {
+  COMPLAINT_CATEGORIES,
+  COMPLAINT_STATUSES,
+  type ComplaintCategory,
+  type ComplaintChannel,
+  type ComplaintInput,
+  type ComplaintStatus,
+  type StaffUser,
+} from "@/lib/types";
 
 export interface ComplaintFormValues {
   subject: string;
   description: string;
+  category: ComplaintCategory;
   customerNumber: string;
   customerOrderNumber: string;
   assignedTo: string; // "" means unassigned
   status: ComplaintStatus;
+  // Not edited by this form, but carried through unchanged on update so
+  // editing a customer-submitted complaint doesn't wipe their contact info.
+  channel: ComplaintChannel;
+  complainantName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  attachmentUrl: string | null;
 }
 
 interface ComplaintFormProps {
@@ -24,10 +40,16 @@ interface ComplaintFormProps {
 const DEFAULT_VALUES: ComplaintFormValues = {
   subject: "",
   description: "",
+  category: "Other",
   customerNumber: "",
   customerOrderNumber: "",
   assignedTo: "",
   status: "Open",
+  channel: "staff",
+  complainantName: null,
+  contactEmail: null,
+  contactPhone: null,
+  attachmentUrl: null,
 };
 
 export default function ComplaintForm({
@@ -38,6 +60,7 @@ export default function ComplaintForm({
   onSubmit,
 }: ComplaintFormProps) {
   const t = useTranslations("complaint.fields");
+  const tCategory = useTranslations("complaint.categories");
   const tStatus = useTranslations("status");
   const tCommon = useTranslations("common");
   const tDetail = useTranslations("complaint.detail");
@@ -73,10 +96,16 @@ export default function ComplaintForm({
       await onSubmit({
         subject: values.subject.trim(),
         description: values.description.trim(),
+        category: values.category,
         customerNumber: values.customerNumber.trim(),
         customerOrderNumber: values.customerOrderNumber.trim(),
         assignedTo: values.assignedTo || null,
         status: values.status,
+        channel: values.channel,
+        complainantName: values.complainantName,
+        contactEmail: values.contactEmail,
+        contactPhone: values.contactPhone,
+        attachmentUrl: values.attachmentUrl,
         createdBy: null,
       });
     } catch {
@@ -87,6 +116,27 @@ export default function ComplaintForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {values.channel === "public" && (values.complainantName || values.contactEmail || values.contactPhone) && (
+        <div className="rounded-md border border-border bg-black/[0.02] px-3 py-2.5 text-sm">
+          <p className="font-medium text-foreground">{tDetail("submittedByCustomer")}</p>
+          <p className="mt-1 text-foreground/70">
+            {values.complainantName}
+            {values.contactEmail ? ` · ${values.contactEmail}` : ""}
+            {values.contactPhone ? ` · ${values.contactPhone}` : ""}
+          </p>
+          {values.attachmentUrl && (
+            <a
+              href={values.attachmentUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-block text-brand hover:underline"
+            >
+              {tDetail("viewAttachment")}
+            </a>
+          )}
+        </div>
+      )}
+
       <div>
         <label htmlFor="subject" className="block text-sm font-medium text-foreground">
           {t("subject")}
@@ -144,6 +194,24 @@ export default function ComplaintForm({
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div>
+          <label htmlFor="category" className="block text-sm font-medium text-foreground">
+            {t("category")}
+          </label>
+          <select
+            id="category"
+            value={values.category}
+            onChange={(e) => update("category", e.target.value as ComplaintCategory)}
+            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+          >
+            {COMPLAINT_CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {tCategory(category)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
           <label htmlFor="assignedTo" className="block text-sm font-medium text-foreground">
             {t("assignedTo")}
           </label>
@@ -161,24 +229,24 @@ export default function ComplaintForm({
             ))}
           </select>
         </div>
+      </div>
 
-        <div>
-          <label htmlFor="status" className="block text-sm font-medium text-foreground">
-            {t("status")}
-          </label>
-          <select
-            id="status"
-            value={values.status}
-            onChange={(e) => update("status", e.target.value as ComplaintStatus)}
-            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-          >
-            {COMPLAINT_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {tStatus(status)}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div>
+        <label htmlFor="status" className="block text-sm font-medium text-foreground">
+          {t("status")}
+        </label>
+        <select
+          id="status"
+          value={values.status}
+          onChange={(e) => update("status", e.target.value as ComplaintStatus)}
+          className="mt-1 w-full max-w-xs rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+        >
+          {COMPLAINT_STATUSES.map((status) => (
+            <option key={status} value={status}>
+              {tStatus(status)}
+            </option>
+          ))}
+        </select>
       </div>
 
       {showAssignHint && (

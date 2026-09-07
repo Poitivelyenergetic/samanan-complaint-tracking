@@ -17,7 +17,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.replace("/login");
+      // Anyone landing here was previously signed in as staff (this whole
+      // route group requires it) — send them straight to the staff login
+      // form rather than the public choice screen.
+      router.replace("/login/staff");
     }
   }, [loading, user, router]);
 

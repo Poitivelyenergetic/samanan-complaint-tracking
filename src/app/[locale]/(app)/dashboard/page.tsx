@@ -45,7 +45,8 @@ export default function DashboardPage() {
       if (
         term &&
         !c.subject.toLowerCase().includes(term) &&
-        !c.customerNumber.toLowerCase().includes(term)
+        !c.customerNumber.toLowerCase().includes(term) &&
+        !c.id.toLowerCase().includes(term)
       ) {
         return false;
       }
@@ -137,7 +138,7 @@ export default function DashboardPage() {
                 >
                   <td className="px-4 py-3">
                     <Link href={`/complaints/${c.id}`} className="font-mono text-xs text-brand hover:underline">
-                      {c.id.slice(0, 8)}
+                      {c.id}
                     </Link>
                   </td>
                   <td className="px-4 py-3">

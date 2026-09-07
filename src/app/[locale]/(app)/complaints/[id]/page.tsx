@@ -88,10 +88,16 @@ export default function ComplaintDetailPage({
           initialValues={{
             subject: complaint.subject,
             description: complaint.description,
+            category: complaint.category,
             customerNumber: complaint.customerNumber,
             customerOrderNumber: complaint.customerOrderNumber,
             assignedTo: complaint.assignedTo ?? "",
             status: complaint.status,
+            channel: complaint.channel,
+            complainantName: complaint.complainantName,
+            contactEmail: complaint.contactEmail,
+            contactPhone: complaint.contactPhone,
+            attachmentUrl: complaint.attachmentUrl,
           }}
           submitLabel={t("submit")}
           submittingLabel={tCommon("saving")}

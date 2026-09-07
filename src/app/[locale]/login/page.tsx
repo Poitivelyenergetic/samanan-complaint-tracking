@@ -2,22 +2,17 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth-context";
-import { useRouter } from "@/i18n/navigation";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { Link, useRouter } from "@/i18n/navigation";
+import PublicShell, { BrandHeader } from "@/components/PublicShell";
 
-export default function LoginPage() {
-  const t = useTranslations("login");
+export default function LandingChoicePage() {
+  const t = useTranslations("landing");
   const tCommon = useTranslations("common");
-  const { user, loading, signIn } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
-
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && user) {
@@ -25,86 +20,46 @@ export default function LoginPage() {
     }
   }, [loading, user, router]);
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSubmitting(true);
-    try {
-      await signIn(username, password);
-      router.replace("/dashboard");
-    } catch {
-      setError(t("error"));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
-      <div className="absolute top-4 end-4">
-        <LanguageSwitcher />
+    <PublicShell maxWidthClassName="max-w-2xl">
+      <BrandHeader subtitle={tCommon("appSubtitle")} />
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <Link
+          href="/complaint/new"
+          className="group flex flex-col rounded-xl border border-border bg-surface p-6 shadow-sm transition-colors hover:border-brand"
+        >
+          <span className="text-lg font-semibold text-foreground">{t("complaintOption.title")}</span>
+          <span className="mt-1 text-sm text-foreground/60">{t("complaintOption.subtitle")}</span>
+          <span className="mt-4 inline-flex items-center text-sm font-semibold text-brand">
+            {t("complaintOption.cta")}
+            <span className="ms-1 inline-block transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5">
+              &rarr;
+            </span>
+          </span>
+        </Link>
+
+        <Link
+          href="/login/staff"
+          className="group flex flex-col rounded-xl border border-border bg-surface p-6 shadow-sm transition-colors hover:border-brand"
+        >
+          <span className="text-lg font-semibold text-foreground">{t("staffOption.title")}</span>
+          <span className="mt-1 text-sm text-foreground/60">{t("staffOption.subtitle")}</span>
+          <span className="mt-4 inline-flex items-center text-sm font-semibold text-brand">
+            {t("staffOption.cta")}
+            <span className="ms-1 inline-block transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5">
+              &rarr;
+            </span>
+          </span>
+        </Link>
       </div>
 
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/samnan-logo.svg" alt={tCommon("appName")} className="h-11 w-auto" />
-          <p className="mt-2 text-sm text-foreground/60">{tCommon("appSubtitle")}</p>
-        </div>
-
-        <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-foreground">{t("title")}</h2>
-          <p className="mt-1 text-sm text-foreground/60">{t("subtitle")}</p>
-
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-foreground">
-                {t("username")}
-              </label>
-              <input
-                id="username"
-                type="text"
-                required
-                autoComplete="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-foreground">
-                {t("password")}
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-              />
-            </div>
-
-            {error && (
-              <p role="alert" className="text-sm text-red-600">
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full rounded-md bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {submitting ? t("signingIn") : t("submit")}
-            </button>
-          </form>
-        </div>
-
-        <p className="mt-4 text-center text-xs text-foreground/50">{t("demoHint")}</p>
-      </div>
-    </div>
+      <p className="mt-6 text-center text-sm text-foreground/50">
+        {t("statusPrompt")}{" "}
+        <Link href="/complaint/status" className="text-brand hover:underline">
+          {t("statusLink")}
+        </Link>
+      </p>
+    </PublicShell>
   );
 }
