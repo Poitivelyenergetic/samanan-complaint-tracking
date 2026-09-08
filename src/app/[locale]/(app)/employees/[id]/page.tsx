@@ -18,12 +18,20 @@ export default function EditEmployeePage({
   const t = useTranslations("employees.edit");
   const tCommon = useTranslations("common");
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile, loading } = useAuth();
 
   const [staff, setStaff] = useState<StaffUser | null | undefined>(undefined);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => subscribeToStaffMember(id, setStaff), [id]);
+
+  // Editing an account requires manageEmployees, not just viewEmployees
+  // (which is all the parent layout guarantees).
+  useEffect(() => {
+    if (!loading && profile && !profile.permissions.manageEmployees) {
+      router.replace("/employees");
+    }
+  }, [loading, profile, router]);
 
   async function handleSubmit(values: EmployeeInput) {
     await updateEmployee(id, values);
@@ -36,7 +44,7 @@ export default function EditEmployeePage({
     router.push("/employees");
   }
 
-  if (staff === undefined) {
+  if (loading || !profile || !profile.permissions.manageEmployees || staff === undefined) {
     return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
   }
 
@@ -84,6 +92,7 @@ export default function EditEmployeePage({
             position: staff.position,
             administration: staff.administration,
             role: staff.role,
+            permissions: staff.permissions,
           }}
           submitLabel={t("submit")}
           submittingLabel={tCommon("saving")}

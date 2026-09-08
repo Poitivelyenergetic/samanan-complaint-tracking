@@ -2,7 +2,13 @@
 
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import type { EmployeeInput, UserRole } from "@/lib/types";
+import {
+  PERMISSION_KEYS,
+  ROLE_DEFAULT_PERMISSIONS,
+  type EmployeeInput,
+  type Permissions,
+  type UserRole,
+} from "@/lib/types";
 import { EmployeesApiError } from "@/lib/employees-api";
 
 const ROLES: UserRole[] = ["admin", "employee", "user"];
@@ -14,6 +20,7 @@ interface EmployeeFormValues {
   position: string;
   administration: string;
   role: UserRole;
+  permissions: Permissions;
   password: string;
 }
 
@@ -24,6 +31,7 @@ const DEFAULT_VALUES: EmployeeFormValues = {
   position: "",
   administration: "",
   role: "employee",
+  permissions: ROLE_DEFAULT_PERMISSIONS.employee,
   password: "",
 };
 
@@ -44,6 +52,7 @@ export default function EmployeeForm({
 }: EmployeeFormProps) {
   const t = useTranslations("employees.fields");
   const tRoles = useTranslations("roles");
+  const tPermissions = useTranslations("employees.permissions");
   const tErrors = useTranslations("employees.errors");
 
   const [values, setValues] = useState<EmployeeFormValues>({
@@ -52,9 +61,23 @@ export default function EmployeeForm({
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPermissions, setShowPermissions] = useState(false);
 
   function update<K extends keyof EmployeeFormValues>(key: K, value: EmployeeFormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
+  }
+
+  // Picking a role resets permissions to that role's defaults; an admin can
+  // still hand-tune individual boxes afterward via "Manage permissions".
+  function updateRole(role: UserRole) {
+    setValues((prev) => ({ ...prev, role, permissions: ROLE_DEFAULT_PERMISSIONS[role] }));
+  }
+
+  function togglePermission(key: keyof Permissions) {
+    setValues((prev) => ({
+      ...prev,
+      permissions: { ...prev.permissions, [key]: !prev.permissions[key] },
+    }));
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -69,6 +92,7 @@ export default function EmployeeForm({
         position: values.position.trim(),
         administration: values.administration.trim(),
         role: values.role,
+        permissions: values.permissions,
         ...(values.password ? { password: values.password } : {}),
       });
     } catch (err) {
@@ -129,7 +153,7 @@ export default function EmployeeForm({
           <select
             id="role"
             value={values.role}
-            onChange={(e) => update("role", e.target.value as UserRole)}
+            onChange={(e) => updateRole(e.target.value as UserRole)}
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
           >
             {ROLES.map((role) => (
@@ -138,8 +162,31 @@ export default function EmployeeForm({
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            onClick={() => setShowPermissions((s) => !s)}
+            className="mt-1.5 text-sm text-brand hover:underline"
+          >
+            {showPermissions ? t("hidePermissions") : t("managePermissions")}
+          </button>
         </div>
       </div>
+
+      {showPermissions && (
+        <div className="space-y-2 rounded-md border border-border bg-black/[0.02] p-3">
+          {PERMISSION_KEYS.map((key) => (
+            <label key={key} className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={values.permissions[key]}
+                onChange={() => togglePermission(key)}
+                className="h-4 w-4 rounded border-border text-brand focus:ring-brand"
+              />
+              {tPermissions(key)}
+            </label>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div>
