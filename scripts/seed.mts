@@ -1,13 +1,14 @@
 /**
- * Seeds Firebase Auth + Firestore with a demo staff directory and a handful
- * of sample complaints so the app can be demoed immediately after setup.
+ * Seeds Firebase Auth + Firestore with a demo org structure (company,
+ * administrations, positions), a staff directory, and a handful of sample
+ * complaints so the app can be demoed immediately after setup.
  *
  * Usage: npm run seed
  * Requires FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY
  * in .env.local (see .env.example and the README).
  *
- * Safe to re-run: staff accounts and complaints use fixed, deterministic
- * IDs and are upserted rather than duplicated.
+ * Safe to re-run: everything uses fixed, deterministic IDs and is upserted
+ * rather than duplicated.
  */
 import { config } from "dotenv";
 import { resolve } from "node:path";
@@ -20,6 +21,7 @@ const { cert, initializeApp } = await import("firebase-admin/app");
 const { getAuth } = await import("firebase-admin/auth");
 const { getFirestore, FieldValue } = await import("firebase-admin/firestore");
 const { usernameToEmail } = await import("../src/lib/username");
+const { ROLE_DEFAULT_PERMISSIONS } = await import("../src/lib/types");
 
 const projectId = process.env.FIREBASE_PROJECT_ID;
 const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -38,14 +40,39 @@ const app = initializeApp({ credential: cert({ projectId, clientEmail, privateKe
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// --- Org structure: one company, a couple of administrations, one position each ---
+const COMPANY_ID = "seed-samnan";
+const ADMINISTRATIONS = [
+  { id: "seed-admin-support", name: "Customer Support" },
+  { id: "seed-admin-qa", name: "Quality Assurance" },
+] as const;
+const POSITIONS = [
+  { id: "seed-pos-support-lead", name: "Support Team Lead", administrationId: "seed-admin-support" },
+  { id: "seed-pos-support-agent", name: "Customer Support Agent", administrationId: "seed-admin-support" },
+  { id: "seed-pos-qa-manager", name: "Quality Assurance Manager", administrationId: "seed-admin-qa" },
+] as const;
+
+async function upsertOrgStructure() {
+  await db.collection("companies").doc(COMPANY_ID).set({ name: "Samnan" });
+  for (const a of ADMINISTRATIONS) {
+    await db.collection("administrations").doc(a.id).set({ name: a.name, companyId: COMPANY_ID });
+  }
+  for (const p of POSITIONS) {
+    await db
+      .collection("positions")
+      .doc(p.id)
+      .set({ name: p.name, administrationId: p.administrationId });
+  }
+  console.log("Seeded org structure: 1 company, 2 administrations, 3 positions");
+}
+
 interface SeedStaff {
   uid: string;
   name: string;
   username: string;
   password: string;
   number: string;
-  position: string;
-  administration: string;
+  positionId: string;
   role: "admin" | "employee" | "user";
 }
 
@@ -56,8 +83,7 @@ const STAFF: SeedStaff[] = [
     username: "mhmd",
     password: "123456",
     number: "1001",
-    position: "Support Team Lead",
-    administration: "Customer Support",
+    positionId: "seed-pos-support-lead",
     role: "admin",
   },
   {
@@ -66,8 +92,7 @@ const STAFF: SeedStaff[] = [
     username: "sara",
     password: "123456",
     number: "1002",
-    position: "Customer Support Agent",
-    administration: "Customer Support",
+    positionId: "seed-pos-support-agent",
     role: "employee",
   },
   {
@@ -76,8 +101,7 @@ const STAFF: SeedStaff[] = [
     username: "ali",
     password: "123456",
     number: "1003",
-    position: "Customer Support Agent",
-    administration: "Customer Support",
+    positionId: "seed-pos-support-agent",
     role: "employee",
   },
   {
@@ -86,8 +110,7 @@ const STAFF: SeedStaff[] = [
     username: "huda",
     password: "123456",
     number: "1004",
-    position: "Quality Assurance Manager",
-    administration: "Quality Assurance",
+    positionId: "seed-pos-qa-manager",
     role: "admin",
   },
 ];
@@ -108,14 +131,18 @@ async function upsertStaff(staff: SeedStaff) {
     console.log(`Created Auth user: ${staff.username}`);
   }
 
+  const position = POSITIONS.find((p) => p.id === staff.positionId)!;
+
   await db.collection("users").doc(staff.uid).set({
     id: staff.uid,
     name: staff.name,
     username: staff.username,
     number: staff.number,
-    position: staff.position,
-    administration: staff.administration,
+    companyId: COMPANY_ID,
+    administrationId: position.administrationId,
+    positionId: staff.positionId,
     role: staff.role,
+    permissions: ROLE_DEFAULT_PERMISSIONS[staff.role],
   });
 }
 
@@ -199,7 +226,10 @@ async function upsertComplaint(complaint: SeedComplaint) {
 }
 
 async function main() {
-  console.log("Seeding staff...");
+  console.log("Seeding org structure...");
+  await upsertOrgStructure();
+
+  console.log("\nSeeding staff...");
   for (const staff of STAFF) {
     await upsertStaff(staff);
   }
