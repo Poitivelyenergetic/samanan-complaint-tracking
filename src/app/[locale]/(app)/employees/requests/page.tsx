@@ -24,7 +24,7 @@ export default function PendingRequestsPage() {
   // parent layout guarantees).
   useEffect(() => {
     if (!loading && profile && !profile.permissions.manageEmployees) {
-      router.replace("/employees");
+      router.replace("/companies");
     }
   }, [loading, profile, router]);
 
@@ -43,7 +43,7 @@ export default function PendingRequestsPage() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <Link href="/employees" className="text-sm text-brand hover:underline">
+          <Link href="/companies" className="text-sm text-brand hover:underline">
             &larr; {tCommon("back")}
           </Link>
           <h1 className="mt-1 text-xl font-bold text-foreground">{t("title")}</h1>

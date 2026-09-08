@@ -10,8 +10,11 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { createEmployee } from "@/lib/employees-api";
 import { getSignupRequest, markSignupRequestApproved } from "@/lib/signupRequests";
+import { subscribeToCompanies } from "@/lib/companies";
+import { subscribeToAdministrations } from "@/lib/administrations";
+import { subscribeToPositions } from "@/lib/positions";
 import { useAuth } from "@/lib/auth-context";
-import type { EmployeeInput, SignupRequest } from "@/lib/types";
+import type { Administration, Company, EmployeeInput, Position, SignupRequest } from "@/lib/types";
 import EmployeeForm from "@/components/EmployeeForm";
 
 export default function NewEmployeePage() {
@@ -20,11 +23,22 @@ export default function NewEmployeePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromRequestId = searchParams.get("fromRequest");
+  // Pre-fill from the "+ Add employee" link on the Employees-by-position screen.
+  const companyId = searchParams.get("companyId") ?? undefined;
+  const administrationId = searchParams.get("administrationId") ?? undefined;
+  const positionId = searchParams.get("positionId") ?? undefined;
   const { profile, loading } = useAuth();
 
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [administrations, setAdministrations] = useState<Administration[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
   const [request, setRequest] = useState<SignupRequest | null | undefined>(
     fromRequestId ? undefined : null
   );
+
+  useEffect(() => subscribeToCompanies(setCompanies), []);
+  useEffect(() => subscribeToAdministrations(setAdministrations), []);
+  useEffect(() => subscribeToPositions(setPositions), []);
 
   useEffect(() => {
     if (!fromRequestId) return;
@@ -35,7 +49,7 @@ export default function NewEmployeePage() {
   // (which is all the parent layout guarantees).
   useEffect(() => {
     if (!loading && profile && !profile.permissions.manageEmployees) {
-      router.replace("/employees");
+      router.replace("/companies");
     }
   }, [loading, profile, router]);
 
@@ -70,21 +84,28 @@ export default function NewEmployeePage() {
     <div className="mx-auto max-w-2xl">
       <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
       {request && (
-        <p className="mt-1 text-sm text-foreground/60">{t("approvingRequest", { name: request.name })}</p>
+        <p className="mt-1 text-sm text-foreground/60">
+          {t("approvingRequest", { name: request.name })}{" "}
+          {(request.position || request.administration) &&
+            t("approvingRequestOrgHint", {
+              position: request.position,
+              administration: request.administration,
+            })}
+        </p>
       )}
 
       <div className="mt-6 rounded-lg border border-border bg-surface p-6">
         <EmployeeForm
           mode="create"
+          companies={companies}
+          administrations={administrations}
+          positions={positions}
           initialValues={
             request
-              ? {
-                  name: request.name,
-                  username: request.username,
-                  position: request.position,
-                  administration: request.administration,
-                }
-              : undefined
+              ? { name: request.name, username: request.username }
+              : companyId || administrationId || positionId
+                ? { companyId, administrationId, positionId }
+                : undefined
           }
           submitLabel={t("submit")}
           submittingLabel={tCommon("saving")}

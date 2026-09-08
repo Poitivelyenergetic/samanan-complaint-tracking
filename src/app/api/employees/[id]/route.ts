@@ -35,12 +35,21 @@ export async function PATCH(
   const name = body.name?.trim();
   const username = body.username?.trim().toLowerCase();
   const number = body.number?.trim();
-  const position = body.position?.trim();
-  const administration = body.administration?.trim();
+  const companyId = body.companyId?.trim();
+  const positionId = body.positionId?.trim();
+  const administrationId = body.administrationId?.trim();
   const role = body.role;
   const password = body.password?.trim();
 
-  if (!name || !username || !number || !position || !administration || !role) {
+  if (
+    !name ||
+    !username ||
+    !number ||
+    !companyId ||
+    !administrationId ||
+    !positionId ||
+    !role
+  ) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
   }
   if (!VALID_ROLES.includes(role)) {
@@ -70,7 +79,7 @@ export async function PATCH(
   }
 
   await getAdminDb().collection("users").doc(id).set(
-    { id, name, username, number, position, administration, role, permissions },
+    { id, name, username, number, companyId, administrationId, positionId, role, permissions },
     { merge: true }
   );
 

@@ -31,12 +31,22 @@ export async function POST(request: Request) {
   const name = body.name?.trim();
   const username = body.username?.trim().toLowerCase();
   const number = body.number?.trim();
-  const position = body.position?.trim();
-  const administration = body.administration?.trim();
+  const companyId = body.companyId?.trim();
+  const positionId = body.positionId?.trim();
+  const administrationId = body.administrationId?.trim();
   const role = body.role;
   const password = body.password;
 
-  if (!name || !username || !number || !position || !administration || !role || !password) {
+  if (
+    !name ||
+    !username ||
+    !number ||
+    !companyId ||
+    !administrationId ||
+    !positionId ||
+    !role ||
+    !password
+  ) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
   }
   if (!VALID_ROLES.includes(role)) {
@@ -70,8 +80,9 @@ export async function POST(request: Request) {
     name,
     username,
     number,
-    position,
-    administration,
+    companyId,
+    administrationId,
+    positionId,
     role,
     permissions,
   });
