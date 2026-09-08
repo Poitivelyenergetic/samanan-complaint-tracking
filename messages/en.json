@@ -25,7 +25,7 @@
     "dashboard": "Complaints",
     "newComplaint": "New Complaint",
     "marketing": "Marketing",
-    "employees": "Employees",
+    "companies": "Companies",
     "logout": "Log out",
     "signedInAs": "Signed in as"
   },
@@ -200,8 +200,12 @@
       "name": "Full Name",
       "username": "Username",
       "number": "Staff / ID Number",
-      "position": "Position",
+      "company": "Company",
+      "selectCompany": "Select a company",
       "administration": "Administration",
+      "selectAdministration": "Select an administration",
+      "position": "Position",
+      "selectPosition": "Select a position",
       "role": "Role",
       "password": "Password",
       "passwordCreateHint": "Used to sign in. At least 6 characters.",
@@ -212,14 +216,18 @@
     "permissions": {
       "viewAllComplaints": "View all complaints",
       "editAnyComplaint": "Edit, reassign, or change the status of any complaint",
-      "viewEmployees": "View the Employees list",
+      "viewEmployees": "Browse the Companies/Administrations/Positions/Employees hierarchy",
       "manageEmployees": "Add, edit, or remove employee accounts",
-      "accessMarketing": "Access Marketing"
+      "accessMarketing": "Access Marketing",
+      "manageCompanies": "Create, rename, and delete companies (and administrations/positions within them)",
+      "manageAdministrations": "Create, rename, and delete administrations (and positions within them)",
+      "managePositions": "Create, rename, and delete positions within administrations"
     },
     "new": {
       "title": "New Employee",
       "submit": "Create Employee",
       "approvingRequest": "Approving the account request from {name}.",
+      "approvingRequestOrgHint": "They requested \"{position}\" in \"{administration}\" — pick the matching company, administration, and position below.",
       "requestNotFound": "That signup request no longer exists — it may have already been handled."
     },
     "requests": {
@@ -249,6 +257,43 @@
       "auth_create_failed": "Could not create the login. Please try again.",
       "auth_update_failed": "Could not update the login. Please try again.",
       "request_failed": "Something went wrong. Please try again."
+    }
+  },
+  "companies": {
+    "title": "Companies",
+    "subtitle": "Browse companies, administrations, positions, and employees",
+    "addButton": "+ Add company",
+    "addPrompt": "New company name",
+    "renamePrompt": "New name",
+    "rename": "Rename",
+    "noResults": "No companies found.",
+    "notFound": "Not found.",
+    "deleteConfirm": "Are you sure you want to delete this company?",
+    "deleteBlocked": "Reassign or remove the administrations in this company before deleting it.",
+    "search": {
+      "placeholder": "Search employees by name or username...",
+      "noResults": "No matching employees."
+    },
+    "administrations": {
+      "subtitle": "Administrations within this company",
+      "addButton": "+ Add administration",
+      "addPrompt": "New administration name",
+      "noResults": "No administrations found.",
+      "deleteConfirm": "Are you sure you want to delete this administration?",
+      "deleteBlocked": "Reassign or remove the positions in this administration before deleting it.",
+      "positions": {
+        "subtitle": "Positions within this administration",
+        "addButton": "+ Add position",
+        "addPrompt": "New position name",
+        "noResults": "No positions found.",
+        "deleteConfirm": "Are you sure you want to delete this position?",
+        "deleteBlocked": "Reassign or remove the employees in this position before deleting it.",
+        "employees": {
+          "subtitle": "Employees in this position",
+          "addButton": "+ Add employee",
+          "noResults": "No employees in this position."
+        }
+      }
     }
   }
 }
