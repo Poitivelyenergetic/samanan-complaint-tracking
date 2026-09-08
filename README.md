@@ -147,23 +147,33 @@ scripts/
 firestore.rules             # Firestore security rules
 ```
 
-## Roles & access
+## Roles & permissions
 
-Each staff member has a `role` of `admin`, `employee`, or `user`, stored on their Firestore
-`users/{uid}` document alongside `name`, `username`, `number` (staff/ID number), `position`,
-and `administration` (department).
+Each staff member has a `permissions` object on their Firestore `users/{uid}` document — five
+independent booleans (`viewAllComplaints`, `editAnyComplaint`, `viewEmployees`,
+`manageEmployees`, `accessMarketing`) alongside `name`, `username`, `number` (staff/ID number),
+`position`, and `administration` (department). **`permissions` is what every access check
+actually reads** — both in the UI and in `firestore.rules`/`/api/employees`.
 
-- **admin** and **employee** can see all complaints, assign them to staff, and change status.
-- **admin** additionally has access to the **Employees** module (create/edit/remove staff
-  accounts and change roles) — the nav entry and routes are hidden from non-admins, and
-  `firestore.rules` and the `/api/employees` routes independently enforce this server-side.
-- **user** is reserved for a future customer-facing portal. v1 ships only the staff-facing
-  admin/employee roles; a signed-in `user` account currently has no complaint access (this is
-  intentionally out of scope for v1 — see the spec note below).
+`role` (`admin`/`employee`/`user`) still exists on the same document, but it's now only a
+preset: picking a role in the Employees form (`src/lib/types.ts` →
+`ROLE_DEFAULT_PERMISSIONS`) fills in that role's default permissions, and the admin can then
+hand-tune any individual box via "Manage permissions" on the New/Edit Employee form — e.g.
+giving one employee read-only access to the Employees list without full `manageEmployees`.
+Changing the role dropdown again resets permissions back to that role's defaults.
+
+Defaults: **admin** gets all five; **employee** gets `viewAllComplaints`/`editAnyComplaint`/
+`accessMarketing`; **user** gets none (it only ever sees complaints assigned to or created by
+itself, and can still create new ones — see `isOwnComplaint()`/`isSelfCreatedComplaint()` in
+`firestore.rules`).
 
 Firestore rules (`firestore.rules`) are the source of truth for access control — the UI hides
-what a role can't use, but data access is enforced independently at the database level, so a
-non-admin can't read/write `complaints` or `users` by calling Firestore directly either.
+what a permission doesn't allow, but data access is enforced independently at the database
+level via a `hasPermission(perm)` rule helper, so an account can't read/write `complaints` or
+`users` beyond what its `permissions` map grants by calling Firestore directly either.
+
+**Future work:** permission changes aren't currently logged anywhere (who changed what, when) —
+an audit trail would be a natural addition if this needs to be auditable later.
 
 ## Architecture notes
 
@@ -174,7 +184,7 @@ employee. To avoid that, creating/editing/deleting a staff account calls a Next.
 (`src/app/api/employees/route.ts` and `.../[id]/route.ts`) that uses the **Admin SDK** to create
 the Firebase Auth user and Firestore profile server-side, while the admin's browser session is
 left untouched. Each request is verified server-side (`src/lib/api-auth.ts`): the caller's
-Firebase ID token is checked, and their Firestore role must be `admin`.
+Firebase ID token is checked, and their Firestore `permissions.manageEmployees` must be `true`.
 
 **Practical implication:** the `FIREBASE_PROJECT_ID` / `FIREBASE_CLIENT_EMAIL` /
 `FIREBASE_PRIVATE_KEY` admin credentials aren't just for the one-off seed script — the Employees
