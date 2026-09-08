@@ -24,14 +24,13 @@ export default function DashboardPage() {
   const [assigneeFilter, setAssigneeFilter] = useState("");
 
   useEffect(() => {
-    // The "user" role only ever sees complaints assigned to or created by
-    // itself — admin/employee see everything. Wait for the profile to load
-    // so we don't briefly issue the unrestricted query for a "user" account.
+    // Without viewAllComplaints, an account only ever sees complaints
+    // assigned to or created by itself. Wait for the profile to load so we
+    // don't briefly issue the unrestricted query for a restricted account.
     if (!profile) return;
-    const unsubComplaints =
-      profile.role === "user"
-        ? subscribeToOwnComplaints(profile.id, setComplaints)
-        : subscribeToComplaints(setComplaints);
+    const unsubComplaints = profile.permissions.viewAllComplaints
+      ? subscribeToComplaints(setComplaints)
+      : subscribeToOwnComplaints(profile.id, setComplaints);
     const unsubStaff = subscribeToStaff(setStaff);
     return () => {
       unsubComplaints();

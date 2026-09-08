@@ -10,6 +10,7 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { createEmployee } from "@/lib/employees-api";
 import { getSignupRequest, markSignupRequestApproved } from "@/lib/signupRequests";
+import { useAuth } from "@/lib/auth-context";
 import type { EmployeeInput, SignupRequest } from "@/lib/types";
 import EmployeeForm from "@/components/EmployeeForm";
 
@@ -19,6 +20,7 @@ export default function NewEmployeePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromRequestId = searchParams.get("fromRequest");
+  const { profile, loading } = useAuth();
 
   const [request, setRequest] = useState<SignupRequest | null | undefined>(
     fromRequestId ? undefined : null
@@ -29,12 +31,24 @@ export default function NewEmployeePage() {
     getSignupRequest(fromRequestId).then(setRequest);
   }, [fromRequestId]);
 
+  // Creating an account requires manageEmployees, not just viewEmployees
+  // (which is all the parent layout guarantees).
+  useEffect(() => {
+    if (!loading && profile && !profile.permissions.manageEmployees) {
+      router.replace("/employees");
+    }
+  }, [loading, profile, router]);
+
   async function handleSubmit(values: EmployeeInput) {
     const { id } = await createEmployee({ ...values, password: values.password ?? "" });
     if (fromRequestId) {
       await markSignupRequestApproved(fromRequestId);
     }
     router.push(`/employees/${id}`);
+  }
+
+  if (loading || !profile || !profile.permissions.manageEmployees) {
+    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
   }
 
   if (fromRequestId && request === undefined) {

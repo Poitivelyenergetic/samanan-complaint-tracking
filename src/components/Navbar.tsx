@@ -6,14 +6,6 @@ import { Link, usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth-context";
 import LanguageSwitcher from "./LanguageSwitcher";
 
-const NAV_ITEMS = [
-  { href: "/dashboard", key: "dashboard" as const },
-  { href: "/complaints/new", key: "newComplaint" as const },
-  { href: "/marketing", key: "marketing" as const },
-];
-
-const ADMIN_NAV_ITEM = { href: "/employees", key: "employees" as const };
-
 export default function Navbar() {
   const t = useTranslations("nav");
   const tCommon = useTranslations("common");
@@ -21,7 +13,16 @@ export default function Navbar() {
   const { profile, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const navItems = profile?.role === "admin" ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
+  const navItems = [
+    { href: "/dashboard", key: "dashboard" as const },
+    { href: "/complaints/new", key: "newComplaint" as const },
+    ...(profile?.permissions.accessMarketing
+      ? [{ href: "/marketing", key: "marketing" as const }]
+      : []),
+    ...(profile?.permissions.viewEmployees
+      ? [{ href: "/employees", key: "employees" as const }]
+      : []),
+  ];
 
   return (
     <header className="border-b border-border bg-surface">

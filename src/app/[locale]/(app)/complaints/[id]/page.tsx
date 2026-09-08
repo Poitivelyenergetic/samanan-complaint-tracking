@@ -25,17 +25,17 @@ export default function ComplaintDetailPage({
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [deleting, setDeleting] = useState(false);
 
-  // The "user" role can only edit/reassign/change the status of nothing —
-  // it gets a read-only view. Default to read-only (rather than editable)
-  // if the profile hasn't loaded yet, since that's the safer failure mode.
-  const canEdit = profile?.role === "admin" || profile?.role === "employee";
+  // Without editAnyComplaint, an account gets a read-only view. Default to
+  // read-only (rather than editable) if the profile hasn't loaded yet,
+  // since that's the safer failure mode.
+  const canEdit = profile?.permissions.editAnyComplaint === true;
 
   useEffect(
     () =>
-      // A "user"-role account whose own complaint's assignment changes out
-      // from under them (or who somehow reaches an ID that isn't theirs)
-      // gets a Firestore permission-denied here — treat that the same as
-      // "not found" rather than surfacing a raw error.
+      // An account whose own complaint's assignment changes out from under
+      // it (or who somehow reaches an ID that isn't theirs) gets a
+      // Firestore permission-denied here — treat that the same as "not
+      // found" rather than surfacing a raw error.
       subscribeToComplaint(id, setComplaint, () => setComplaint(null)),
     [id]
   );

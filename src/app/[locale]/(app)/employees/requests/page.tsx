@@ -2,25 +2,41 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations, useFormatter } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { rejectSignupRequest, subscribeToPendingSignupRequests } from "@/lib/signupRequests";
+import { useAuth } from "@/lib/auth-context";
 import type { SignupRequest } from "@/lib/types";
 
 export default function PendingRequestsPage() {
   const t = useTranslations("employees.requests");
   const tCommon = useTranslations("common");
   const format = useFormatter();
+  const router = useRouter();
+  const { profile, loading } = useAuth();
 
   const [requests, setRequests] = useState<SignupRequest[] | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
 
   useEffect(() => subscribeToPendingSignupRequests(setRequests), []);
 
+  // Reviewing signup requests leads to creating an employee account, so it
+  // requires manageEmployees, not just viewEmployees (which is all the
+  // parent layout guarantees).
+  useEffect(() => {
+    if (!loading && profile && !profile.permissions.manageEmployees) {
+      router.replace("/employees");
+    }
+  }, [loading, profile, router]);
+
   async function handleReject(id: string) {
     if (!window.confirm(t("confirmReject"))) return;
     setRejectingId(id);
     await rejectSignupRequest(id);
     setRejectingId(null);
+  }
+
+  if (loading || !profile || !profile.permissions.manageEmployees) {
+    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
   }
 
   return (
