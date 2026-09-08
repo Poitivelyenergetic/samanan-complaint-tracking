@@ -20,7 +20,7 @@ export default function Navbar() {
       ? [{ href: "/marketing", key: "marketing" as const }]
       : []),
     ...(profile?.permissions.viewEmployees
-      ? [{ href: "/employees", key: "employees" as const }]
+      ? [{ href: "/companies", key: "companies" as const }]
       : []),
   ];
 

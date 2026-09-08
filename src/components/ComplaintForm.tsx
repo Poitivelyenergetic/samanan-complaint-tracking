@@ -241,7 +241,7 @@ export default function ComplaintForm({
             <option value="">{tCommon("unassigned")}</option>
             {staff.map((member) => (
               <option key={member.id} value={member.id}>
-                {member.name} — {member.position}
+                {member.name}
               </option>
             ))}
           </select>
