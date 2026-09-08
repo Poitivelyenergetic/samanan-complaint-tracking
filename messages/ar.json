@@ -205,7 +205,16 @@
       "role": "الصلاحية",
       "password": "كلمة المرور",
       "passwordCreateHint": "تُستخدم لتسجيل الدخول. 6 أحرف على الأقل.",
-      "passwordEditHint": "اتركها فارغة للإبقاء على كلمة المرور الحالية."
+      "passwordEditHint": "اتركها فارغة للإبقاء على كلمة المرور الحالية.",
+      "managePermissions": "إدارة الصلاحيات",
+      "hidePermissions": "إخفاء الصلاحيات"
+    },
+    "permissions": {
+      "viewAllComplaints": "عرض جميع الشكاوى",
+      "editAnyComplaint": "تعديل أي شكوى أو إسنادها أو تغيير حالتها",
+      "viewEmployees": "عرض قائمة الموظفين",
+      "manageEmployees": "إضافة الموظفين أو تعديلهم أو حذفهم",
+      "accessMarketing": "الوصول إلى قسم التسويق"
     },
     "new": {
       "title": "موظف جديد",

@@ -205,7 +205,16 @@
       "role": "Role",
       "password": "Password",
       "passwordCreateHint": "Used to sign in. At least 6 characters.",
-      "passwordEditHint": "Leave blank to keep the current password."
+      "passwordEditHint": "Leave blank to keep the current password.",
+      "managePermissions": "Manage permissions",
+      "hidePermissions": "Hide permissions"
+    },
+    "permissions": {
+      "viewAllComplaints": "View all complaints",
+      "editAnyComplaint": "Edit, reassign, or change the status of any complaint",
+      "viewEmployees": "View the Employees list",
+      "manageEmployees": "Add, edit, or remove employee accounts",
+      "accessMarketing": "Access Marketing"
     },
     "new": {
       "title": "New Employee",
