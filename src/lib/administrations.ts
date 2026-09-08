@@ -9,12 +9,18 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Administration } from "./types";
+import type { Administration, AdministrationInput } from "./types";
 
 const COLLECTION = "administrations";
 
 function fromDoc(id: string, data: DocumentData): Administration {
-  return { id, name: data.name ?? "", companyId: data.companyId ?? "" };
+  return {
+    id,
+    nameAr: data.nameAr ?? "",
+    nameEn: data.nameEn ?? "",
+    companyId: data.companyId ?? "",
+    managerId: data.managerId ?? null,
+  };
 }
 
 // Fetches every administration (not scoped to one company) — the
@@ -36,13 +42,13 @@ export async function getAdministration(id: string): Promise<Administration | nu
   return snap.exists() ? fromDoc(snap.id, snap.data()) : null;
 }
 
-export async function createAdministration(name: string, companyId: string): Promise<string> {
-  const ref = await addDoc(collection(db, COLLECTION), { name, companyId });
+export async function createAdministration(input: AdministrationInput): Promise<string> {
+  const ref = await addDoc(collection(db, COLLECTION), input);
   return ref.id;
 }
 
-export async function renameAdministration(id: string, name: string): Promise<void> {
-  await updateDoc(doc(db, COLLECTION, id), { name });
+export async function updateAdministration(id: string, input: AdministrationInput): Promise<void> {
+  await updateDoc(doc(db, COLLECTION, id), { ...input });
 }
 
 export async function deleteAdministration(id: string): Promise<void> {
