@@ -12,15 +12,35 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
-    // v1 ships a single staff-facing role set (admin/employee) that can see
-    // and manage all complaints. The "user" role is reserved for a future
-    // customer-facing portal and is intentionally not granted access here.
+    // admin/employee can see and manage every complaint. The "user" role is
+    // a restricted staff account, handled separately below: it may only
+    // touch complaints assigned to or created by itself.
     function isStaff() {
       return isSignedIn() && userRole() in ["admin", "employee"];
     }
 
     function isAdmin() {
       return isSignedIn() && userRole() == "admin";
+    }
+
+    function isUser() {
+      return isSignedIn() && userRole() == "user";
+    }
+
+    // A "user"-role account may only read complaints assigned to them or
+    // that they created themselves — never the full complaint list.
+    function isOwnComplaint() {
+      return resource.data.assignedTo == request.auth.uid
+        || resource.data.createdBy == request.auth.uid;
+    }
+
+    // A "user"-role account may log a staff-side complaint, but only a
+    // self-attributed one: it can't forge createdBy to impersonate someone
+    // else, and can't submit through the "public" channel meant for
+    // anonymous customers (that path is covered by isValidPublicComplaint).
+    function isSelfCreatedComplaint() {
+      let d = request.resource.data;
+      return d.channel == "staff" && d.createdBy == request.auth.uid;
     }
 
     // A complaint submitted through the public intake form (no login) must
@@ -48,8 +68,9 @@ service cloud.firestore {
     }
 
     match /complaints/{complaintId} {
-      allow read, update, delete: if isStaff();
-      allow create: if isStaff() || isValidPublicComplaint();
+      allow read: if isStaff() || (isUser() && isOwnComplaint());
+      allow update, delete: if isStaff();
+      allow create: if isStaff() || (isUser() && isSelfCreatedComplaint()) || isValidPublicComplaint();
       // The public status-lookup page fetches one complaint by its exact
       // reference number (a capability token, not something to enumerate),
       // but only for complaints that were themselves submitted publicly —
