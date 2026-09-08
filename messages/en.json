@@ -24,8 +24,14 @@
   "nav": {
     "dashboard": "Complaints",
     "newComplaint": "New Complaint",
+    "users": "Users",
     "marketing": "Marketing",
+    "settings": "Settings",
     "companies": "Companies",
+    "administrations": "Administrations",
+    "departments": "Departments",
+    "employees": "Employees",
+    "roles": "Roles & Permissions",
     "logout": "Log out",
     "signedInAs": "Signed in as"
   },
@@ -74,6 +80,7 @@
       "issueId": "Issue ID",
       "subject": "Subject",
       "customerNumber": "Customer #",
+      "source": "Source",
       "assignedTo": "Assigned To",
       "status": "Status",
       "createdAt": "Created"
@@ -84,8 +91,10 @@
       "subject": "Subject",
       "description": "Description",
       "category": "Category",
+      "customer": "User",
       "customerNumber": "Customer Number",
       "customerOrderNumber": "Customer Order Number",
+      "source": "Source",
       "assignedTo": "Assigned To",
       "status": "Status"
     },
@@ -96,6 +105,29 @@
       "OrderDiscrepancy": "Order Discrepancy",
       "CustomerService": "Customer Service",
       "Other": "Other"
+    },
+    "sources": {
+      "Twitter": "Twitter",
+      "Facebook": "Facebook",
+      "Phone": "Phone",
+      "Website": "Website",
+      "WalkIn": "Walk-in",
+      "Other": "Other"
+    },
+    "customerPicker": {
+      "searchPlaceholder": "Search users by number or name...",
+      "noResults": "No matching users.",
+      "newUser": "+ New user",
+      "change": "Change",
+      "quickCreate": {
+        "nameAr": "Name (Arabic)",
+        "nameEn": "Name (English)",
+        "number": "Number",
+        "phone": "Phone",
+        "employeeNotAssigned": "No employee assigned",
+        "submit": "Create & link",
+        "cancel": "Cancel"
+      }
     },
     "new": {
       "title": "New Complaint",
@@ -179,55 +211,46 @@
     "subtitle": "Marketing tools and campaigns",
     "comingSoon": "Coming soon. This section is a placeholder for future marketing features."
   },
-  "roles": {
-    "admin": "Admin",
-    "employee": "Employee",
-    "user": "User"
-  },
   "employees": {
     "title": "Employees",
-    "subtitle": "Manage staff accounts and roles",
+    "subtitle": "Manage staff accounts, org placement, and assigned roles",
     "newButton": "New Employee",
     "noResults": "No employees found.",
+    "searchPlaceholder": "Search by name, username, or number...",
+    "filterAllCompanies": "All companies",
+    "filterAllAdministrations": "All administrations",
+    "filterAllDepartments": "All departments",
     "table": {
       "name": "Name",
       "username": "Username",
-      "position": "Position",
+      "company": "Company",
       "administration": "Administration",
-      "role": "Role"
+      "department": "Department"
     },
     "fields": {
-      "name": "Full Name",
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)",
       "username": "Username",
       "number": "Staff / ID Number",
+      "phone": "Phone",
+      "jobTitle": "Job Title",
       "company": "Company",
       "selectCompany": "Select a company",
       "administration": "Administration",
       "selectAdministration": "Select an administration",
-      "position": "Position",
-      "selectPosition": "Select a position",
-      "role": "Role",
+      "department": "Department",
+      "selectDepartment": "Select a department",
+      "roles": "Roles",
+      "noRoles": "No roles have been created yet.",
       "password": "Password",
       "passwordCreateHint": "Used to sign in. At least 6 characters.",
-      "passwordEditHint": "Leave blank to keep the current password.",
-      "managePermissions": "Manage permissions",
-      "hidePermissions": "Hide permissions"
-    },
-    "permissions": {
-      "viewAllComplaints": "View all complaints",
-      "editAnyComplaint": "Edit, reassign, or change the status of any complaint",
-      "viewEmployees": "Browse the Companies/Administrations/Positions/Employees hierarchy",
-      "manageEmployees": "Add, edit, or remove employee accounts",
-      "accessMarketing": "Access Marketing",
-      "manageCompanies": "Create, rename, and delete companies (and administrations/positions within them)",
-      "manageAdministrations": "Create, rename, and delete administrations (and positions within them)",
-      "managePositions": "Create, rename, and delete positions within administrations"
+      "passwordEditHint": "Leave blank to keep the current password."
     },
     "new": {
       "title": "New Employee",
       "submit": "Create Employee",
       "approvingRequest": "Approving the account request from {name}.",
-      "approvingRequestOrgHint": "They requested \"{position}\" in \"{administration}\" — pick the matching company, administration, and position below.",
+      "approvingRequestOrgHint": "They requested \"{position}\" in \"{administration}\" — pick the matching company, administration, and department below.",
       "requestNotFound": "That signup request no longer exists — it may have already been handled."
     },
     "requests": {
@@ -248,7 +271,6 @@
     },
     "errors": {
       "missing_fields": "Please fill in all required fields.",
-      "invalid_role": "Invalid role selected.",
       "weak_password": "Password must be at least 6 characters.",
       "username_taken": "That username is already in use.",
       "not_authenticated": "Your session has expired. Please sign in again.",
@@ -261,39 +283,187 @@
   },
   "companies": {
     "title": "Companies",
-    "subtitle": "Browse companies, administrations, positions, and employees",
-    "addButton": "+ Add company",
-    "addPrompt": "New company name",
-    "renamePrompt": "New name",
-    "rename": "Rename",
+    "subtitle": "Manage the companies in your organization",
+    "newButton": "+ New company",
     "noResults": "No companies found.",
-    "notFound": "Not found.",
+    "notFound": "Company not found.",
     "deleteConfirm": "Are you sure you want to delete this company?",
     "deleteBlocked": "Reassign or remove the administrations in this company before deleting it.",
-    "search": {
-      "placeholder": "Search employees by name or username...",
-      "noResults": "No matching employees."
+    "managerNotAssigned": "No general manager assigned",
+    "table": {
+      "number": "#",
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)",
+      "manager": "General Manager"
     },
-    "administrations": {
-      "subtitle": "Administrations within this company",
-      "addButton": "+ Add administration",
-      "addPrompt": "New administration name",
-      "noResults": "No administrations found.",
-      "deleteConfirm": "Are you sure you want to delete this administration?",
-      "deleteBlocked": "Reassign or remove the positions in this administration before deleting it.",
-      "positions": {
-        "subtitle": "Positions within this administration",
-        "addButton": "+ Add position",
-        "addPrompt": "New position name",
-        "noResults": "No positions found.",
-        "deleteConfirm": "Are you sure you want to delete this position?",
-        "deleteBlocked": "Reassign or remove the employees in this position before deleting it.",
-        "employees": {
-          "subtitle": "Employees in this position",
-          "addButton": "+ Add employee",
-          "noResults": "No employees in this position."
-        }
-      }
+    "fields": {
+      "number": "Number",
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)",
+      "manager": "General Manager",
+      "managerNotAssigned": "No general manager assigned"
+    },
+    "new": {
+      "title": "New Company",
+      "submit": "Create Company"
+    },
+    "edit": {
+      "title": "Edit Company",
+      "submit": "Save Changes",
+      "notFound": "Company not found."
+    }
+  },
+  "administrations": {
+    "title": "Administrations",
+    "subtitle": "Every administration across all companies",
+    "newButton": "+ New administration",
+    "noResults": "No administrations found.",
+    "notFound": "Administration not found.",
+    "filterAllCompanies": "All companies",
+    "deleteConfirm": "Are you sure you want to delete this administration?",
+    "deleteBlocked": "Reassign or remove the departments in this administration before deleting it.",
+    "managerNotAssigned": "No general manager assigned",
+    "table": {
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)",
+      "company": "Company",
+      "manager": "General Manager"
+    },
+    "fields": {
+      "company": "Company",
+      "selectCompany": "Select a company",
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)",
+      "manager": "General Manager",
+      "managerNotAssigned": "No general manager assigned"
+    },
+    "new": {
+      "title": "New Administration",
+      "submit": "Create Administration"
+    },
+    "edit": {
+      "title": "Edit Administration",
+      "submit": "Save Changes",
+      "notFound": "Administration not found."
+    }
+  },
+  "departments": {
+    "title": "Departments",
+    "subtitle": "Every department across all administrations",
+    "newButton": "+ New department",
+    "noResults": "No departments found.",
+    "notFound": "Department not found.",
+    "filterAllAdministrations": "All administrations",
+    "deleteConfirm": "Are you sure you want to delete this department?",
+    "deleteBlocked": "Reassign or remove the employees in this department before deleting it.",
+    "managerNotAssigned": "No general manager assigned",
+    "table": {
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)",
+      "administration": "Administration",
+      "manager": "General Manager"
+    },
+    "fields": {
+      "administration": "Administration",
+      "selectAdministration": "Select an administration",
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)",
+      "manager": "General Manager",
+      "managerNotAssigned": "No general manager assigned"
+    },
+    "new": {
+      "title": "New Department",
+      "submit": "Create Department"
+    },
+    "edit": {
+      "title": "Edit Department",
+      "submit": "Save Changes",
+      "notFound": "Department not found."
+    }
+  },
+  "roles": {
+    "title": "Roles & Permissions",
+    "subtitle": "Define what each role can view, create, update, and delete",
+    "newButton": "+ New role",
+    "noResults": "No roles found.",
+    "notFound": "Role not found.",
+    "deleteConfirm": "Are you sure you want to delete this role? Employees holding only this role will lose its permissions.",
+    "table": {
+      "name": "Name",
+      "permissionCount": "Permissions granted",
+      "updatedAt": "Last updated"
+    },
+    "fields": {
+      "name": "Role Name"
+    },
+    "resources": {
+      "selectAll": "Select all permissions",
+      "companies": "Companies",
+      "administrations": "Administrations",
+      "departments": "Departments",
+      "employees": "Employees",
+      "customers": "Users",
+      "complaints": "Complaints",
+      "roles": "Roles",
+      "marketing": "Marketing",
+      "selectAllShort": "Select all",
+      "clearAll": "Clear all"
+    },
+    "actions": {
+      "view": "View",
+      "create": "Create",
+      "update": "Update",
+      "delete": "Delete"
+    },
+    "errors": {
+      "missing_fields": "Please enter a role name.",
+      "not_authenticated": "Your session has expired. Please sign in again.",
+      "not_found": "Role not found.",
+      "request_failed": "Something went wrong. Please try again."
+    },
+    "new": {
+      "title": "New Role",
+      "submit": "Create Role"
+    },
+    "edit": {
+      "title": "Edit Role",
+      "submit": "Save Changes",
+      "notFound": "Role not found.",
+      "deleteConfirm": "Are you sure you want to delete this role? Employees holding only this role will lose its permissions."
+    }
+  },
+  "users": {
+    "title": "Users",
+    "subtitle": "The customer-facing record for people who file complaints",
+    "newButton": "+ New user",
+    "noResults": "No users found.",
+    "notFound": "User not found.",
+    "searchPlaceholder": "Search by number, name, or phone...",
+    "deleteConfirm": "Are you sure you want to delete this user?",
+    "employeeNotAssigned": "Not assigned",
+    "table": {
+      "number": "Number",
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)",
+      "phone": "Phone",
+      "assignedEmployee": "Assigned Employee"
+    },
+    "fields": {
+      "number": "Number",
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)",
+      "phone": "Phone",
+      "assignedEmployee": "Assigned employee",
+      "employeeNotAssigned": "No employee assigned"
+    },
+    "new": {
+      "title": "New User",
+      "submit": "Create User"
+    },
+    "edit": {
+      "title": "Edit User",
+      "submit": "Save Changes",
+      "notFound": "User not found."
     }
   }
 }
