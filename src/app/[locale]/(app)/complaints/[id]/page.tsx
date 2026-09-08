@@ -5,6 +5,7 @@ import { useTranslations, useFormatter } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { deleteComplaint, subscribeToComplaint, updateComplaint } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
+import { useAuth } from "@/lib/auth-context";
 import type { Complaint, ComplaintInput, StaffUser } from "@/lib/types";
 import ComplaintForm from "@/components/ComplaintForm";
 
@@ -18,12 +19,26 @@ export default function ComplaintDetailPage({
   const tCommon = useTranslations("common");
   const format = useFormatter();
   const router = useRouter();
+  const { profile } = useAuth();
 
   const [complaint, setComplaint] = useState<Complaint | null | undefined>(undefined);
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => subscribeToComplaint(id, setComplaint), [id]);
+  // The "user" role can only edit/reassign/change the status of nothing —
+  // it gets a read-only view. Default to read-only (rather than editable)
+  // if the profile hasn't loaded yet, since that's the safer failure mode.
+  const canEdit = profile?.role === "admin" || profile?.role === "employee";
+
+  useEffect(
+    () =>
+      // A "user"-role account whose own complaint's assignment changes out
+      // from under them (or who somehow reaches an ID that isn't theirs)
+      // gets a Firestore permission-denied here — treat that the same as
+      // "not found" rather than surfacing a raw error.
+      subscribeToComplaint(id, setComplaint, () => setComplaint(null)),
+    [id]
+  );
   useEffect(() => subscribeToStaff(setStaff), []);
 
   async function handleSubmit(values: ComplaintInput) {
@@ -62,14 +77,16 @@ export default function ComplaintDetailPage({
           <h1 className="mt-1 text-xl font-bold text-foreground">{t("editTitle")}</h1>
           <p className="mt-0.5 font-mono text-xs text-foreground/50">{complaint.id}</p>
         </div>
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={deleting}
-          className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
-        >
-          {tCommon("delete")}
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
+          >
+            {tCommon("delete")}
+          </button>
+        )}
       </div>
 
       <div className="mt-4 flex gap-4 text-xs text-foreground/50">
@@ -102,6 +119,7 @@ export default function ComplaintDetailPage({
           submitLabel={t("submit")}
           submittingLabel={tCommon("saving")}
           onSubmit={handleSubmit}
+          readOnly={!canEdit}
         />
       </div>
     </div>

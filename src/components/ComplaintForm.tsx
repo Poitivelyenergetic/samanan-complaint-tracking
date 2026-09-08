@@ -35,6 +35,10 @@ interface ComplaintFormProps {
   submitLabel: string;
   submittingLabel: string;
   onSubmit: (values: ComplaintInput) => Promise<void>;
+  // Renders every field disabled and hides the submit button — used for
+  // roles that can view but not edit/reassign/change the status of a
+  // complaint (the "user" role).
+  readOnly?: boolean;
 }
 
 const DEFAULT_VALUES: ComplaintFormValues = {
@@ -58,6 +62,7 @@ export default function ComplaintForm({
   submitLabel,
   submittingLabel,
   onSubmit,
+  readOnly = false,
 }: ComplaintFormProps) {
   const t = useTranslations("complaint.fields");
   const tCategory = useTranslations("complaint.categories");
@@ -116,6 +121,12 @@ export default function ComplaintForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {readOnly && (
+        <div className="rounded-md border border-border bg-black/[0.02] px-3 py-2.5 text-sm text-foreground/70">
+          {tDetail("readOnlyNotice")}
+        </div>
+      )}
+
       {values.channel === "public" && (values.complainantName || values.contactEmail || values.contactPhone) && (
         <div className="rounded-md border border-border bg-black/[0.02] px-3 py-2.5 text-sm">
           <p className="font-medium text-foreground">{tDetail("submittedByCustomer")}</p>
@@ -144,9 +155,10 @@ export default function ComplaintForm({
         <input
           id="subject"
           required
+          disabled={readOnly}
           value={values.subject}
           onChange={(e) => update("subject", e.target.value)}
-          className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+          className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
         />
       </div>
 
@@ -158,9 +170,10 @@ export default function ComplaintForm({
           id="description"
           required
           rows={5}
+          disabled={readOnly}
           value={values.description}
           onChange={(e) => update("description", e.target.value)}
-          className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+          className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
         />
       </div>
 
@@ -172,9 +185,10 @@ export default function ComplaintForm({
           <input
             id="customerNumber"
             required
+            disabled={readOnly}
             value={values.customerNumber}
             onChange={(e) => update("customerNumber", e.target.value)}
-            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
           />
         </div>
 
@@ -185,9 +199,10 @@ export default function ComplaintForm({
           <input
             id="customerOrderNumber"
             required
+            disabled={readOnly}
             value={values.customerOrderNumber}
             onChange={(e) => update("customerOrderNumber", e.target.value)}
-            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
           />
         </div>
       </div>
@@ -199,9 +214,10 @@ export default function ComplaintForm({
           </label>
           <select
             id="category"
+            disabled={readOnly}
             value={values.category}
             onChange={(e) => update("category", e.target.value as ComplaintCategory)}
-            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
           >
             {COMPLAINT_CATEGORIES.map((category) => (
               <option key={category} value={category}>
@@ -217,9 +233,10 @@ export default function ComplaintForm({
           </label>
           <select
             id="assignedTo"
+            disabled={readOnly}
             value={values.assignedTo}
             onChange={(e) => update("assignedTo", e.target.value)}
-            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
           >
             <option value="">{tCommon("unassigned")}</option>
             {staff.map((member) => (
@@ -237,9 +254,10 @@ export default function ComplaintForm({
         </label>
         <select
           id="status"
+          disabled={readOnly}
           value={values.status}
           onChange={(e) => update("status", e.target.value as ComplaintStatus)}
-          className="mt-1 w-full max-w-xs rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+          className="mt-1 w-full max-w-xs rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
         >
           {COMPLAINT_STATUSES.map((status) => (
             <option key={status} value={status}>
@@ -249,7 +267,7 @@ export default function ComplaintForm({
         </select>
       </div>
 
-      {showAssignHint && (
+      {showAssignHint && !readOnly && (
         <div className="flex items-start justify-between gap-3 rounded-md border border-brand/30 bg-brand/5 px-3 py-2.5 text-sm">
           <p className="text-foreground/80">{tDetail("assignHint")}</p>
           <button
@@ -271,13 +289,15 @@ export default function ComplaintForm({
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-      >
-        {submitting ? submittingLabel : submitLabel}
-      </button>
+      {!readOnly && (
+        <button
+          type="submit"
+          disabled={submitting}
+          className="rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+        >
+          {submitting ? submittingLabel : submitLabel}
+        </button>
+      )}
     </form>
   );
 }
