@@ -1,63 +1,35 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import {
-  createCompany,
-  deleteCompany,
-  renameCompany,
-  subscribeToCompanies,
-} from "@/lib/companies";
+import { subscribeToCompanies, deleteCompany } from "@/lib/companies";
 import { subscribeToAdministrations } from "@/lib/administrations";
 import { subscribeToStaff } from "@/lib/users";
-import { subscribeToPendingSignupRequests } from "@/lib/signupRequests";
 import { useAuth } from "@/lib/auth-context";
-import type { Administration, Company, StaffUser } from "@/lib/types";
+import { hasPermission, localizedName, type Administration, type Company, type StaffUser } from "@/lib/types";
 
 export default function CompaniesPage() {
   const t = useTranslations("companies");
   const tCommon = useTranslations("common");
-  const tRequests = useTranslations("employees.requests");
+  const locale = useLocale();
   const { profile } = useAuth();
-  const canManageCompanies = profile?.permissions.manageCompanies === true;
-  const canManageEmployees = profile?.permissions.manageEmployees === true;
+  const canCreate = hasPermission(profile, "companies", "create");
+  const canDelete = hasPermission(profile, "companies", "delete");
 
   const [companies, setCompanies] = useState<Company[] | null>(null);
   const [administrations, setAdministrations] = useState<Administration[]>([]);
   const [staff, setStaff] = useState<StaffUser[]>([]);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [search, setSearch] = useState("");
 
   useEffect(() => subscribeToCompanies(setCompanies), []);
   useEffect(() => subscribeToAdministrations(setAdministrations), []);
   useEffect(() => subscribeToStaff(setStaff), []);
-  useEffect(() => {
-    if (!canManageEmployees) return;
-    return subscribeToPendingSignupRequests((requests) => setPendingCount(requests.length));
-  }, [canManageEmployees]);
 
-  const searchResults = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return [];
-    return staff
-      .filter(
-        (s) => s.name.toLowerCase().includes(term) || s.username.toLowerCase().includes(term)
-      )
-      .slice(0, 8);
-  }, [staff, search]);
-
-  async function handleAdd() {
-    const name = window.prompt(t("addPrompt"))?.trim();
-    if (!name) return;
-    await createCompany(name);
-  }
-
-  async function handleRename(company: Company) {
-    const name = window.prompt(t("renamePrompt"), company.name)?.trim();
-    if (!name || name === company.name) return;
-    await renameCompany(company.id, name);
-  }
+  const staffById = useMemo(() => {
+    const map = new Map<string, StaffUser>();
+    staff.forEach((s) => map.set(s.id, s));
+    return map;
+  }, [staff]);
 
   async function handleDelete(company: Company) {
     const hasAdministrations = administrations.some((a) => a.companyId === company.id);
@@ -76,97 +48,71 @@ export default function CompaniesPage() {
           <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
           <p className="mt-0.5 text-sm text-foreground/60">{t("subtitle")}</p>
         </div>
-        <div className="flex items-center gap-3">
-          {canManageEmployees && (
-            <Link
-              href="/employees/requests"
-              className="relative rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground/80 hover:bg-black/5"
-            >
-              {tRequests("navLink")}
-              {pendingCount > 0 && (
-                <span className="ms-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-xs font-semibold text-brand-foreground">
-                  {pendingCount}
-                </span>
-              )}
-            </Link>
-          )}
-          {canManageCompanies && (
-            <button
-              type="button"
-              onClick={handleAdd}
-              className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground hover:opacity-90"
-            >
-              {t("addButton")}
-            </button>
-          )}
-        </div>
+        {canCreate && (
+          <Link
+            href="/companies/new"
+            className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground hover:opacity-90"
+          >
+            {t("newButton")}
+          </Link>
+        )}
       </div>
 
-      <div className="relative mt-4 max-w-md">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t("search.placeholder")}
-          type="search"
-          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-        />
-        {search.trim() && (
-          <div className="absolute z-10 mt-1 w-full rounded-md border border-border bg-surface shadow-sm">
-            {searchResults.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-foreground/50">{t("search.noResults")}</p>
+      <div className="mt-6 overflow-x-auto rounded-lg border border-border bg-surface">
+        <table className="w-full min-w-[560px] text-start text-sm">
+          <thead>
+            <tr className="border-b border-border bg-black/[0.02] text-start text-xs font-semibold uppercase tracking-wide text-foreground/50">
+              <th className="px-4 py-3 text-start">{t("table.number")}</th>
+              <th className="px-4 py-3 text-start">{t("table.nameAr")}</th>
+              <th className="px-4 py-3 text-start">{t("table.nameEn")}</th>
+              <th className="px-4 py-3 text-start">{t("table.manager")}</th>
+              {canDelete && <th className="px-4 py-3 text-start">{tCommon("actions")}</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {companies === null ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-foreground/50">
+                  {tCommon("loading")}
+                </td>
+              </tr>
+            ) : companies.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-foreground/50">
+                  {t("noResults")}
+                </td>
+              </tr>
             ) : (
-              searchResults.map((s) => (
-                <Link
-                  key={s.id}
-                  href={`/employees/${s.id}`}
-                  className="block px-3 py-2 text-sm hover:bg-black/5"
-                >
-                  <span className="font-medium text-foreground">{s.name}</span>
-                  <span className="ms-2 text-foreground/50">{s.username}</span>
-                </Link>
+              companies.map((company) => (
+                <tr key={company.id} className="border-b border-border last:border-0 hover:bg-black/[0.02]">
+                  <td className="px-4 py-3">
+                    <Link href={`/companies/${company.id}`} className="font-medium text-foreground hover:text-brand">
+                      {company.number}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-foreground/70">{company.nameAr || "—"}</td>
+                  <td className="px-4 py-3 text-foreground/70">{company.nameEn || "—"}</td>
+                  <td className="px-4 py-3 text-foreground/70">
+                    {company.managerId
+                      ? localizedName(staffById.get(company.managerId), locale) || "—"
+                      : t("managerNotAssigned")}
+                  </td>
+                  {canDelete && (
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(company)}
+                        className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                      >
+                        {tCommon("delete")}
+                      </button>
+                    </td>
+                  )}
+                </tr>
               ))
             )}
-          </div>
-        )}
-      </div>
-
-      <div className="mt-6 space-y-2">
-        {companies === null ? (
-          <p className="text-sm text-foreground/50">{tCommon("loading")}</p>
-        ) : companies.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border bg-surface px-4 py-8 text-center text-sm text-foreground/50">
-            {t("noResults")}
-          </p>
-        ) : (
-          companies.map((company) => (
-            <div
-              key={company.id}
-              className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-3 hover:bg-black/[0.02]"
-            >
-              <Link href={`/companies/${company.id}`} className="flex-1 font-medium text-foreground hover:text-brand">
-                {company.name}
-              </Link>
-              {canManageCompanies && (
-                <div className="flex shrink-0 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleRename(company)}
-                    className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground/70 hover:bg-black/5"
-                  >
-                    {t("rename")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(company)}
-                    className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
-                  >
-                    {tCommon("delete")}
-                  </button>
-                </div>
-              )}
-            </div>
-          ))
-        )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

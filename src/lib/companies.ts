@@ -9,12 +9,18 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Company } from "./types";
+import type { Company, CompanyInput } from "./types";
 
 const COLLECTION = "companies";
 
 function fromDoc(id: string, data: DocumentData): Company {
-  return { id, name: data.name ?? "" };
+  return {
+    id,
+    number: data.number ?? "",
+    nameAr: data.nameAr ?? "",
+    nameEn: data.nameEn ?? "",
+    managerId: data.managerId ?? null,
+  };
 }
 
 export function subscribeToCompanies(
@@ -33,13 +39,13 @@ export async function getCompany(id: string): Promise<Company | null> {
   return snap.exists() ? fromDoc(snap.id, snap.data()) : null;
 }
 
-export async function createCompany(name: string): Promise<string> {
-  const ref = await addDoc(collection(db, COLLECTION), { name });
+export async function createCompany(input: CompanyInput): Promise<string> {
+  const ref = await addDoc(collection(db, COLLECTION), input);
   return ref.id;
 }
 
-export async function renameCompany(id: string, name: string): Promise<void> {
-  await updateDoc(doc(db, COLLECTION, id), { name });
+export async function updateCompany(id: string, input: CompanyInput): Promise<void> {
+  await updateDoc(doc(db, COLLECTION, id), { ...input });
 }
 
 export async function deleteCompany(id: string): Promise<void> {
