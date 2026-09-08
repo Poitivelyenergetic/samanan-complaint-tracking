@@ -111,7 +111,8 @@
       "notFound": "الشكوى غير موجودة.",
       "assignHint": "هل تريد إسناد هذه الشكوى لموظف؟ يمكنك تغيير الحالة إلى \"مسندة\".",
       "submittedByCustomer": "مقدَّمة مباشرة من العميل",
-      "viewAttachment": "عرض المرفق"
+      "viewAttachment": "عرض المرفق",
+      "readOnlyNotice": "لديك صلاحية العرض فقط لهذه الشكوى."
     }
   },
   "publicComplaint": {

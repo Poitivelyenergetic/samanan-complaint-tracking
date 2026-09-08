@@ -111,7 +111,8 @@
       "notFound": "Complaint not found.",
       "assignHint": "Assigning this complaint to a staff member? Consider moving the status to \"Assigned\".",
       "submittedByCustomer": "Submitted directly by the customer",
-      "viewAttachment": "View attachment"
+      "viewAttachment": "View attachment",
+      "readOnlyNotice": "You have view-only access to this complaint."
     }
   },
   "publicComplaint": {
