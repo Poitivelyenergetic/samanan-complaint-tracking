@@ -1,5 +1,50 @@
 export type UserRole = "admin" | "employee" | "user";
 
+export interface Permissions {
+  viewAllComplaints: boolean; // see every complaint, not just ones assigned/linked to them
+  editAnyComplaint: boolean; // edit, reassign, or change the status of any complaint
+  viewEmployees: boolean; // see the Employees list
+  manageEmployees: boolean; // add, edit, or remove employee accounts
+  accessMarketing: boolean; // access the Marketing placeholder section
+}
+
+export const PERMISSION_KEYS = [
+  "viewAllComplaints",
+  "editAnyComplaint",
+  "viewEmployees",
+  "manageEmployees",
+  "accessMarketing",
+] as const satisfies readonly (keyof Permissions)[];
+
+export type PermissionKey = (typeof PERMISSION_KEYS)[number];
+
+// The role dropdown is a convenient preset — picking a role pre-fills these
+// defaults into `permissions`, which is the value actually checked
+// everywhere. An admin can then override individual permissions per employee.
+export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permissions> = {
+  admin: {
+    viewAllComplaints: true,
+    editAnyComplaint: true,
+    viewEmployees: true,
+    manageEmployees: true,
+    accessMarketing: true,
+  },
+  employee: {
+    viewAllComplaints: true,
+    editAnyComplaint: true,
+    viewEmployees: false,
+    manageEmployees: false,
+    accessMarketing: true,
+  },
+  user: {
+    viewAllComplaints: false,
+    editAnyComplaint: false,
+    viewEmployees: false,
+    manageEmployees: false,
+    accessMarketing: false,
+  },
+};
+
 export interface StaffUser {
   id: string; // Firebase Auth UID
   name: string; // full name
@@ -8,6 +53,7 @@ export interface StaffUser {
   position: string; // job title, free text
   administration: string; // department / administration, free text
   role: UserRole;
+  permissions: Permissions;
 }
 
 export interface EmployeeInput {
@@ -17,6 +63,7 @@ export interface EmployeeInput {
   position: string;
   administration: string;
   role: UserRole;
+  permissions: Permissions;
   password?: string; // required when creating, optional (reset) when editing
 }
 

@@ -1,8 +1,25 @@
-import { collection, doc, getDoc, onSnapshot } from "firebase/firestore";
+import { collection, doc, DocumentData, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "./firebase";
-import type { StaffUser } from "./types";
+import { ROLE_DEFAULT_PERMISSIONS, type StaffUser, type UserRole } from "./types";
 
 const COLLECTION = "users";
+
+// Falls back to the role's default permissions for any doc predating the
+// permissions field, so a not-yet-migrated account doesn't read as having
+// every permission disabled.
+function fromDoc(id: string, data: DocumentData): StaffUser {
+  const role = (data.role as UserRole) ?? "employee";
+  return {
+    id,
+    name: data.name ?? "",
+    username: data.username ?? "",
+    number: data.number ?? "",
+    position: data.position ?? "",
+    administration: data.administration ?? "",
+    role,
+    permissions: data.permissions ?? ROLE_DEFAULT_PERMISSIONS[role],
+  };
+}
 
 export function subscribeToStaff(
   callback: (staff: StaffUser[]) => void,
@@ -10,17 +27,14 @@ export function subscribeToStaff(
 ) {
   return onSnapshot(
     collection(db, COLLECTION),
-    (snap) =>
-      callback(
-        snap.docs.map((d) => ({ ...(d.data() as Omit<StaffUser, "id">), id: d.id }))
-      ),
+    (snap) => callback(snap.docs.map((d) => fromDoc(d.id, d.data()))),
     onError
   );
 }
 
 export async function getStaffMember(id: string): Promise<StaffUser | null> {
   const snap = await getDoc(doc(db, COLLECTION, id));
-  return snap.exists() ? ({ ...(snap.data() as Omit<StaffUser, "id">), id: snap.id }) : null;
+  return snap.exists() ? fromDoc(snap.id, snap.data()) : null;
 }
 
 export function subscribeToStaffMember(
@@ -30,8 +44,7 @@ export function subscribeToStaffMember(
 ) {
   return onSnapshot(
     doc(db, COLLECTION, id),
-    (snap) =>
-      callback(snap.exists() ? { ...(snap.data() as Omit<StaffUser, "id">), id: snap.id } : null),
+    (snap) => callback(snap.exists() ? fromDoc(snap.id, snap.data()) : null),
     onError
   );
 }
