@@ -1,17 +1,28 @@
 import { NextResponse } from "next/server";
 import { getAdminAuth, getAdminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin, ApiAuthError } from "@/lib/api-auth";
+import { requirePermission, ApiAuthError } from "@/lib/api-auth";
 import { usernameToEmail } from "@/lib/username";
-import type { EmployeeInput } from "@/lib/types";
+import { PERMISSION_KEYS, ROLE_DEFAULT_PERMISSIONS, type EmployeeInput, type Permissions } from "@/lib/types";
 
 const VALID_ROLES = ["admin", "employee", "user"];
+
+function normalizePermissions(input: unknown, role: "admin" | "employee" | "user"): Permissions {
+  const fallback = ROLE_DEFAULT_PERMISSIONS[role];
+  if (typeof input !== "object" || input === null) return fallback;
+  const record = input as Record<string, unknown>;
+  const result = { ...fallback };
+  for (const key of PERMISSION_KEYS) {
+    if (typeof record[key] === "boolean") result[key] = record[key] as boolean;
+  }
+  return result;
+}
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin(request);
+    await requirePermission(request, "manageEmployees");
   } catch (err) {
     if (err instanceof ApiAuthError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
@@ -39,6 +50,8 @@ export async function PATCH(
     return NextResponse.json({ error: "weak_password" }, { status: 400 });
   }
 
+  const permissions = normalizePermissions(body.permissions, role);
+
   try {
     const authUpdates: { email: string; password?: string } = {
       email: usernameToEmail(username),
@@ -57,7 +70,7 @@ export async function PATCH(
   }
 
   await getAdminDb().collection("users").doc(id).set(
-    { id, name, username, number, position, administration, role },
+    { id, name, username, number, position, administration, role, permissions },
     { merge: true }
   );
 
@@ -70,7 +83,7 @@ export async function DELETE(
 ) {
   let callerUid: string;
   try {
-    callerUid = await requireAdmin(request);
+    callerUid = await requirePermission(request, "manageEmployees");
   } catch (err) {
     if (err instanceof ApiAuthError) {
       return NextResponse.json({ error: err.message }, { status: err.status });

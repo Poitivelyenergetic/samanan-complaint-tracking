@@ -8,34 +8,27 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function userRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    // `role` (admin/employee/user) is only a preset used by the client to
+    // pre-fill `permissions` in the Employees form — every access check here
+    // reads the individually-overridable `permissions` map instead, so an
+    // admin can grant or withhold any of these independent of role.
+    function myPermissions() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions;
     }
 
-    // admin/employee can see and manage every complaint. The "user" role is
-    // a restricted staff account, handled separately below: it may only
-    // touch complaints assigned to or created by itself.
-    function isStaff() {
-      return isSignedIn() && userRole() in ["admin", "employee"];
+    function hasPermission(perm) {
+      return isSignedIn() && myPermissions()[perm] == true;
     }
 
-    function isAdmin() {
-      return isSignedIn() && userRole() == "admin";
-    }
-
-    function isUser() {
-      return isSignedIn() && userRole() == "user";
-    }
-
-    // A "user"-role account may only read complaints assigned to them or
-    // that they created themselves — never the full complaint list.
+    // An account without viewAllComplaints may only read complaints
+    // assigned to it or that it created itself — never the full list.
     function isOwnComplaint() {
       return resource.data.assignedTo == request.auth.uid
         || resource.data.createdBy == request.auth.uid;
     }
 
-    // A "user"-role account may log a staff-side complaint, but only a
-    // self-attributed one: it can't forge createdBy to impersonate someone
+    // Anyone signed in may log a staff-side complaint, but only a
+    // self-attributed one: they can't forge createdBy to impersonate someone
     // else, and can't submit through the "public" channel meant for
     // anonymous customers (that path is covered by isValidPublicComplaint).
     function isSelfCreatedComplaint() {
@@ -62,15 +55,16 @@ service cloud.firestore {
 
     match /users/{userId} {
       // Any signed-in staff member can read the staff directory (needed for
-      // the "assigned to" dropdown). Only admins can create/edit staff records.
+      // the "assigned to" dropdown). Only accounts with manageEmployees can
+      // create/edit/remove staff records.
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if hasPermission("manageEmployees");
     }
 
     match /complaints/{complaintId} {
-      allow read: if isStaff() || (isUser() && isOwnComplaint());
-      allow update, delete: if isStaff();
-      allow create: if isStaff() || (isUser() && isSelfCreatedComplaint()) || isValidPublicComplaint();
+      allow read: if hasPermission("viewAllComplaints") || (isSignedIn() && isOwnComplaint());
+      allow update, delete: if hasPermission("editAnyComplaint");
+      allow create: if (isSignedIn() && isSelfCreatedComplaint()) || isValidPublicComplaint();
       // The public status-lookup page fetches one complaint by its exact
       // reference number (a capability token, not something to enumerate),
       // but only for complaints that were themselves submitted publicly —
@@ -93,7 +87,7 @@ service cloud.firestore {
 
     match /signupRequests/{requestId} {
       allow create: if isValidSignupRequest();
-      allow read, update, delete: if isAdmin();
+      allow read, update, delete: if hasPermission("manageEmployees");
     }
   }
 }
