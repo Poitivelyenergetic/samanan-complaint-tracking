@@ -1,42 +1,42 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
-  PERMISSION_KEYS,
-  ROLE_DEFAULT_PERMISSIONS,
+  localizedName,
   type Administration,
   type Company,
+  type Department,
   type EmployeeInput,
-  type Permissions,
-  type Position,
-  type UserRole,
+  type Role,
 } from "@/lib/types";
 import { EmployeesApiError } from "@/lib/employees-api";
 
-const ROLES: UserRole[] = ["admin", "employee", "user"];
-
 interface EmployeeFormValues {
-  name: string;
+  nameAr: string;
+  nameEn: string;
   username: string;
   number: string;
+  phone: string;
+  jobTitle: string;
   companyId: string;
   administrationId: string;
-  positionId: string;
-  role: UserRole;
-  permissions: Permissions;
+  departmentId: string;
+  roleIds: string[];
   password: string;
 }
 
 const DEFAULT_VALUES: EmployeeFormValues = {
-  name: "",
+  nameAr: "",
+  nameEn: "",
   username: "",
   number: "",
+  phone: "",
+  jobTitle: "",
   companyId: "",
   administrationId: "",
-  positionId: "",
-  role: "employee",
-  permissions: ROLE_DEFAULT_PERMISSIONS.employee,
+  departmentId: "",
+  roleIds: [],
   password: "",
 };
 
@@ -44,7 +44,8 @@ interface EmployeeFormProps {
   mode: "create" | "edit";
   companies: Company[];
   administrations: Administration[];
-  positions: Position[];
+  departments: Department[];
+  roles: Role[];
   initialValues?: Partial<EmployeeFormValues>;
   submitLabel: string;
   submittingLabel: string;
@@ -55,16 +56,16 @@ export default function EmployeeForm({
   mode,
   companies,
   administrations,
-  positions,
+  departments,
+  roles,
   initialValues,
   submitLabel,
   submittingLabel,
   onSubmit,
 }: EmployeeFormProps) {
   const t = useTranslations("employees.fields");
-  const tRoles = useTranslations("roles");
-  const tPermissions = useTranslations("employees.permissions");
   const tErrors = useTranslations("employees.errors");
+  const locale = useLocale();
 
   const [values, setValues] = useState<EmployeeFormValues>({
     ...DEFAULT_VALUES,
@@ -72,62 +73,53 @@ export default function EmployeeForm({
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showPermissions, setShowPermissions] = useState(false);
 
   const administrationsInCompany = useMemo(
     () => administrations.filter((a) => a.companyId === values.companyId),
     [administrations, values.companyId]
   );
-  const positionsInAdministration = useMemo(
-    () => positions.filter((p) => p.administrationId === values.administrationId),
-    [positions, values.administrationId]
+  const departmentsInAdministration = useMemo(
+    () => departments.filter((d) => d.administrationId === values.administrationId),
+    [departments, values.administrationId]
   );
 
   function update<K extends keyof EmployeeFormValues>(key: K, value: EmployeeFormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  // Switching company invalidates the current administration/position
-  // unless they still belong to the newly selected company.
   function updateCompany(companyId: string) {
     setValues((prev) => {
       const administrationStillValid = administrations.some(
         (a) => a.id === prev.administrationId && a.companyId === companyId
       );
       const nextAdministrationId = administrationStillValid ? prev.administrationId : "";
-      const positionStillValid =
+      const departmentStillValid =
         administrationStillValid &&
-        positions.some((p) => p.id === prev.positionId && p.administrationId === nextAdministrationId);
+        departments.some((d) => d.id === prev.departmentId && d.administrationId === nextAdministrationId);
       return {
         ...prev,
         companyId,
         administrationId: nextAdministrationId,
-        positionId: positionStillValid ? prev.positionId : "",
+        departmentId: departmentStillValid ? prev.departmentId : "",
       };
     });
   }
 
-  // Switching administration invalidates the current position unless it
-  // still belongs to the newly selected administration.
   function updateAdministration(administrationId: string) {
     setValues((prev) => {
-      const stillValid = positions.some(
-        (p) => p.id === prev.positionId && p.administrationId === administrationId
+      const stillValid = departments.some(
+        (d) => d.id === prev.departmentId && d.administrationId === administrationId
       );
-      return { ...prev, administrationId, positionId: stillValid ? prev.positionId : "" };
+      return { ...prev, administrationId, departmentId: stillValid ? prev.departmentId : "" };
     });
   }
 
-  // Picking a role resets permissions to that role's defaults; an admin can
-  // still hand-tune individual boxes afterward via "Manage permissions".
-  function updateRole(role: UserRole) {
-    setValues((prev) => ({ ...prev, role, permissions: ROLE_DEFAULT_PERMISSIONS[role] }));
-  }
-
-  function togglePermission(key: keyof Permissions) {
+  function toggleRole(roleId: string) {
     setValues((prev) => ({
       ...prev,
-      permissions: { ...prev.permissions, [key]: !prev.permissions[key] },
+      roleIds: prev.roleIds.includes(roleId)
+        ? prev.roleIds.filter((id) => id !== roleId)
+        : [...prev.roleIds, roleId],
     }));
   }
 
@@ -137,14 +129,16 @@ export default function EmployeeForm({
     setSubmitting(true);
     try {
       await onSubmit({
-        name: values.name.trim(),
+        nameAr: values.nameAr.trim(),
+        nameEn: values.nameEn.trim(),
         username: values.username.trim(),
         number: values.number.trim(),
+        phone: values.phone.trim(),
+        jobTitle: values.jobTitle.trim(),
         companyId: values.companyId,
         administrationId: values.administrationId,
-        positionId: values.positionId,
-        role: values.role,
-        permissions: values.permissions,
+        departmentId: values.departmentId,
+        roleIds: values.roleIds,
         ...(values.password ? { password: values.password } : {}),
       });
     } catch (err) {
@@ -158,18 +152,34 @@ export default function EmployeeForm({
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-foreground">
-            {t("name")}
+          <label htmlFor="nameAr" className="block text-sm font-medium text-foreground">
+            {t("nameAr")}
           </label>
           <input
-            id="name"
+            id="nameAr"
+            dir="rtl"
             required
-            value={values.name}
-            onChange={(e) => update("name", e.target.value)}
+            value={values.nameAr}
+            onChange={(e) => update("nameAr", e.target.value)}
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
           />
         </div>
+        <div>
+          <label htmlFor="nameEn" className="block text-sm font-medium text-foreground">
+            {t("nameEn")}
+          </label>
+          <input
+            id="nameEn"
+            dir="ltr"
+            required
+            value={values.nameEn}
+            onChange={(e) => update("nameEn", e.target.value)}
+            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+          />
+        </div>
+      </div>
 
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div>
           <label htmlFor="username" className="block text-sm font-medium text-foreground">
             {t("username")}
@@ -182,9 +192,6 @@ export default function EmployeeForm({
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
           />
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div>
           <label htmlFor="number" className="block text-sm font-medium text-foreground">
             {t("number")}
@@ -197,48 +204,33 @@ export default function EmployeeForm({
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
           />
         </div>
-
-        <div>
-          <label htmlFor="role" className="block text-sm font-medium text-foreground">
-            {t("role")}
-          </label>
-          <select
-            id="role"
-            value={values.role}
-            onChange={(e) => updateRole(e.target.value as UserRole)}
-            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-          >
-            {ROLES.map((role) => (
-              <option key={role} value={role}>
-                {tRoles(role)}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => setShowPermissions((s) => !s)}
-            className="mt-1.5 text-sm text-brand hover:underline"
-          >
-            {showPermissions ? t("hidePermissions") : t("managePermissions")}
-          </button>
-        </div>
       </div>
 
-      {showPermissions && (
-        <div className="space-y-2 rounded-md border border-border bg-black/[0.02] p-3">
-          {PERMISSION_KEYS.map((key) => (
-            <label key={key} className="flex items-center gap-2 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={values.permissions[key]}
-                onChange={() => togglePermission(key)}
-                className="h-4 w-4 rounded border-border text-brand focus:ring-brand"
-              />
-              {tPermissions(key)}
-            </label>
-          ))}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <div>
+          <label htmlFor="phone" className="block text-sm font-medium text-foreground">
+            {t("phone")}
+          </label>
+          <input
+            id="phone"
+            dir="ltr"
+            value={values.phone}
+            onChange={(e) => update("phone", e.target.value)}
+            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+          />
         </div>
-      )}
+        <div>
+          <label htmlFor="jobTitle" className="block text-sm font-medium text-foreground">
+            {t("jobTitle")}
+          </label>
+          <input
+            id="jobTitle"
+            value={values.jobTitle}
+            onChange={(e) => update("jobTitle", e.target.value)}
+            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+          />
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <div>
@@ -257,7 +249,7 @@ export default function EmployeeForm({
             </option>
             {companies.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name}
+                {localizedName(c, locale)}
               </option>
             ))}
           </select>
@@ -280,33 +272,54 @@ export default function EmployeeForm({
             </option>
             {administrationsInCompany.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.name}
+                {localizedName(a, locale)}
               </option>
             ))}
           </select>
         </div>
 
         <div>
-          <label htmlFor="positionId" className="block text-sm font-medium text-foreground">
-            {t("position")}
+          <label htmlFor="departmentId" className="block text-sm font-medium text-foreground">
+            {t("department")}
           </label>
           <select
-            id="positionId"
+            id="departmentId"
             required
             disabled={!values.administrationId}
-            value={values.positionId}
-            onChange={(e) => update("positionId", e.target.value)}
+            value={values.departmentId}
+            onChange={(e) => update("departmentId", e.target.value)}
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
           >
             <option value="" disabled>
-              {t("selectPosition")}
+              {t("selectDepartment")}
             </option>
-            {positionsInAdministration.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
+            {departmentsInAdministration.map((d) => (
+              <option key={d.id} value={d.id}>
+                {localizedName(d, locale)}
               </option>
             ))}
           </select>
+        </div>
+      </div>
+
+      <div>
+        <span className="block text-sm font-medium text-foreground">{t("roles")}</span>
+        <div className="mt-1 space-y-1.5 rounded-md border border-border bg-black/[0.02] p-3">
+          {roles.length === 0 ? (
+            <p className="text-sm text-foreground/50">{t("noRoles")}</p>
+          ) : (
+            roles.map((role) => (
+              <label key={role.id} className="flex items-center gap-2 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={values.roleIds.includes(role.id)}
+                  onChange={() => toggleRole(role.id)}
+                  className="h-4 w-4 rounded border-border text-brand focus:ring-brand"
+                />
+                {role.name}
+              </label>
+            ))
+          )}
         </div>
       </div>
 

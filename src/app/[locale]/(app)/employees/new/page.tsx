@@ -12,9 +12,18 @@ import { createEmployee } from "@/lib/employees-api";
 import { getSignupRequest, markSignupRequestApproved } from "@/lib/signupRequests";
 import { subscribeToCompanies } from "@/lib/companies";
 import { subscribeToAdministrations } from "@/lib/administrations";
-import { subscribeToPositions } from "@/lib/positions";
+import { subscribeToDepartments } from "@/lib/departments";
+import { subscribeToRoles } from "@/lib/roles";
 import { useAuth } from "@/lib/auth-context";
-import type { Administration, Company, EmployeeInput, Position, SignupRequest } from "@/lib/types";
+import {
+  hasPermission,
+  type Administration,
+  type Company,
+  type Department,
+  type EmployeeInput,
+  type Role,
+  type SignupRequest,
+} from "@/lib/types";
 import EmployeeForm from "@/components/EmployeeForm";
 
 export default function NewEmployeePage() {
@@ -23,35 +32,32 @@ export default function NewEmployeePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromRequestId = searchParams.get("fromRequest");
-  // Pre-fill from the "+ Add employee" link on the Employees-by-position screen.
-  const companyId = searchParams.get("companyId") ?? undefined;
-  const administrationId = searchParams.get("administrationId") ?? undefined;
-  const positionId = searchParams.get("positionId") ?? undefined;
   const { profile, loading } = useAuth();
+  const canCreate = hasPermission(profile, "employees", "create");
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [administrations, setAdministrations] = useState<Administration[]>([]);
-  const [positions, setPositions] = useState<Position[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [request, setRequest] = useState<SignupRequest | null | undefined>(
     fromRequestId ? undefined : null
   );
 
   useEffect(() => subscribeToCompanies(setCompanies), []);
   useEffect(() => subscribeToAdministrations(setAdministrations), []);
-  useEffect(() => subscribeToPositions(setPositions), []);
+  useEffect(() => subscribeToDepartments(setDepartments), []);
+  useEffect(() => subscribeToRoles(setRoles), []);
 
   useEffect(() => {
     if (!fromRequestId) return;
     getSignupRequest(fromRequestId).then(setRequest);
   }, [fromRequestId]);
 
-  // Creating an account requires manageEmployees, not just viewEmployees
-  // (which is all the parent layout guarantees).
   useEffect(() => {
-    if (!loading && profile && !profile.permissions.manageEmployees) {
-      router.replace("/companies");
+    if (!loading && profile && !canCreate) {
+      router.replace("/employees");
     }
-  }, [loading, profile, router]);
+  }, [loading, profile, canCreate, router]);
 
   async function handleSubmit(values: EmployeeInput) {
     const { id } = await createEmployee({ ...values, password: values.password ?? "" });
@@ -61,7 +67,7 @@ export default function NewEmployeePage() {
     router.push(`/employees/${id}`);
   }
 
-  if (loading || !profile || !profile.permissions.manageEmployees) {
+  if (loading || !profile || !canCreate) {
     return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
   }
 
@@ -81,7 +87,7 @@ export default function NewEmployeePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-3xl">
       <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
       {request && (
         <p className="mt-1 text-sm text-foreground/60">
@@ -99,14 +105,9 @@ export default function NewEmployeePage() {
           mode="create"
           companies={companies}
           administrations={administrations}
-          positions={positions}
-          initialValues={
-            request
-              ? { name: request.name, username: request.username }
-              : companyId || administrationId || positionId
-                ? { companyId, administrationId, positionId }
-                : undefined
-          }
+          departments={departments}
+          roles={roles}
+          initialValues={request ? { nameEn: request.name, username: request.username } : undefined}
           submitLabel={t("submit")}
           submittingLabel={tCommon("saving")}
           onSubmit={handleSubmit}

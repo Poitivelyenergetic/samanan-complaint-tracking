@@ -5,7 +5,7 @@ import { useTranslations, useFormatter } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { rejectSignupRequest, subscribeToPendingSignupRequests } from "@/lib/signupRequests";
 import { useAuth } from "@/lib/auth-context";
-import type { SignupRequest } from "@/lib/types";
+import { hasPermission, type SignupRequest } from "@/lib/types";
 
 export default function PendingRequestsPage() {
   const t = useTranslations("employees.requests");
@@ -13,20 +13,21 @@ export default function PendingRequestsPage() {
   const format = useFormatter();
   const router = useRouter();
   const { profile, loading } = useAuth();
+  // Reviewing signup requests leads to creating an employee account, so it
+  // requires employees.update (matches firestore.rules for signupRequests),
+  // not just employees.view (which is all the parent layout guarantees).
+  const canReview = hasPermission(profile, "employees", "update");
 
   const [requests, setRequests] = useState<SignupRequest[] | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
 
   useEffect(() => subscribeToPendingSignupRequests(setRequests), []);
 
-  // Reviewing signup requests leads to creating an employee account, so it
-  // requires manageEmployees, not just viewEmployees (which is all the
-  // parent layout guarantees).
   useEffect(() => {
-    if (!loading && profile && !profile.permissions.manageEmployees) {
-      router.replace("/companies");
+    if (!loading && profile && !canReview) {
+      router.replace("/employees");
     }
-  }, [loading, profile, router]);
+  }, [loading, profile, canReview, router]);
 
   async function handleReject(id: string) {
     if (!window.confirm(t("confirmReject"))) return;
@@ -35,7 +36,7 @@ export default function PendingRequestsPage() {
     setRejectingId(null);
   }
 
-  if (loading || !profile || !profile.permissions.manageEmployees) {
+  if (loading || !profile || !canReview) {
     return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
   }
 
@@ -43,7 +44,7 @@ export default function PendingRequestsPage() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <Link href="/companies" className="text-sm text-brand hover:underline">
+          <Link href="/employees" className="text-sm text-brand hover:underline">
             &larr; {tCommon("back")}
           </Link>
           <h1 className="mt-1 text-xl font-bold text-foreground">{t("title")}</h1>

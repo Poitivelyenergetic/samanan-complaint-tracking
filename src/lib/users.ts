@@ -1,25 +1,27 @@
 import { collection, doc, DocumentData, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "./firebase";
-import { ROLE_DEFAULT_PERMISSIONS, type StaffUser, type UserRole } from "./types";
+import { emptyRolePermissions, type StaffUser } from "./types";
 
 const COLLECTION = "users";
 
-// Falls back to the role's default permissions for any doc predating the
-// permissions field (or a permission key added after that doc was written),
-// so a not-yet-migrated account doesn't read as having every permission
-// disabled.
+// Falls back to empty permissions for any doc predating the denormalized
+// `permissions` field (or a resource added after that doc was last
+// recomputed), rather than throwing — the API layer is what keeps this
+// field in sync with roleIds, this is just a defensive read-side default.
 function fromDoc(id: string, data: DocumentData): StaffUser {
-  const role = (data.role as UserRole) ?? "employee";
   return {
     id,
-    name: data.name ?? "",
+    nameAr: data.nameAr ?? "",
+    nameEn: data.nameEn ?? "",
     username: data.username ?? "",
     number: data.number ?? "",
+    phone: data.phone ?? "",
+    jobTitle: data.jobTitle ?? "",
     companyId: data.companyId ?? "",
     administrationId: data.administrationId ?? "",
-    positionId: data.positionId ?? "",
-    role,
-    permissions: { ...ROLE_DEFAULT_PERMISSIONS[role], ...data.permissions },
+    departmentId: data.departmentId ?? "",
+    roleIds: Array.isArray(data.roleIds) ? data.roleIds : [],
+    permissions: { ...emptyRolePermissions(), ...data.permissions },
   };
 }
 

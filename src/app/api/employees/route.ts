@@ -2,24 +2,12 @@ import { NextResponse } from "next/server";
 import { getAdminAuth, getAdminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, ApiAuthError } from "@/lib/api-auth";
 import { usernameToEmail } from "@/lib/username";
-import { PERMISSION_KEYS, ROLE_DEFAULT_PERMISSIONS, type EmployeeInput, type Permissions } from "@/lib/types";
-
-const VALID_ROLES = ["admin", "employee", "user"];
-
-function normalizePermissions(input: unknown, role: "admin" | "employee" | "user"): Permissions {
-  const fallback = ROLE_DEFAULT_PERMISSIONS[role];
-  if (typeof input !== "object" || input === null) return fallback;
-  const record = input as Record<string, unknown>;
-  const result = { ...fallback };
-  for (const key of PERMISSION_KEYS) {
-    if (typeof record[key] === "boolean") result[key] = record[key] as boolean;
-  }
-  return result;
-}
+import { computeUnionPermissions } from "@/lib/permissions-server";
+import type { EmployeeInput } from "@/lib/types";
 
 export async function POST(request: Request) {
   try {
-    await requirePermission(request, "manageEmployees");
+    await requirePermission(request, "employees", "create");
   } catch (err) {
     if (err instanceof ApiAuthError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
@@ -28,35 +16,34 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json()) as Partial<EmployeeInput>;
-  const name = body.name?.trim();
+  const nameAr = body.nameAr?.trim() ?? "";
+  const nameEn = body.nameEn?.trim() ?? "";
   const username = body.username?.trim().toLowerCase();
   const number = body.number?.trim();
+  const phone = body.phone?.trim() ?? "";
+  const jobTitle = body.jobTitle?.trim() ?? "";
   const companyId = body.companyId?.trim();
-  const positionId = body.positionId?.trim();
   const administrationId = body.administrationId?.trim();
-  const role = body.role;
+  const departmentId = body.departmentId?.trim();
+  const roleIds = Array.isArray(body.roleIds) ? body.roleIds.filter((id) => typeof id === "string" && id) : [];
   const password = body.password;
 
   if (
-    !name ||
+    (!nameAr && !nameEn) ||
     !username ||
     !number ||
     !companyId ||
     !administrationId ||
-    !positionId ||
-    !role ||
+    !departmentId ||
     !password
   ) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
-  }
-  if (!VALID_ROLES.includes(role)) {
-    return NextResponse.json({ error: "invalid_role" }, { status: 400 });
   }
   if (password.length < 6) {
     return NextResponse.json({ error: "weak_password" }, { status: 400 });
   }
 
-  const permissions = normalizePermissions(body.permissions, role);
+  const permissions = await computeUnionPermissions(roleIds);
 
   let uid: string;
   try {
@@ -64,7 +51,7 @@ export async function POST(request: Request) {
       email: usernameToEmail(username),
       password,
       emailVerified: true,
-      displayName: name,
+      displayName: nameEn || nameAr,
     });
     uid = userRecord.uid;
   } catch (err: unknown) {
@@ -77,13 +64,16 @@ export async function POST(request: Request) {
 
   await getAdminDb().collection("users").doc(uid).set({
     id: uid,
-    name,
+    nameAr,
+    nameEn,
     username,
     number,
+    phone,
+    jobTitle,
     companyId,
     administrationId,
-    positionId,
-    role,
+    departmentId,
+    roleIds,
     permissions,
   });
 
