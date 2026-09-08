@@ -61,6 +61,28 @@ service cloud.firestore {
       allow write: if hasPermission("manageEmployees");
     }
 
+    // Four-level org-browsing hierarchy: Company > Administration (department)
+    // > Position > Employee. Browsing just needs any signed-in staff account;
+    // changing its shape is gated by manageCompanies (which can reshape
+    // anything under a company), manageAdministrations, or managePositions —
+    // each broader permission also grants the narrower ones below it.
+    match /companies/{companyId} {
+      allow read: if isSignedIn();
+      allow write: if hasPermission("manageCompanies");
+    }
+
+    match /administrations/{administrationId} {
+      allow read: if isSignedIn();
+      allow write: if hasPermission("manageCompanies") || hasPermission("manageAdministrations");
+    }
+
+    match /positions/{positionId} {
+      allow read: if isSignedIn();
+      allow write: if hasPermission("manageCompanies")
+        || hasPermission("manageAdministrations")
+        || hasPermission("managePositions");
+    }
+
     match /complaints/{complaintId} {
       allow read: if hasPermission("viewAllComplaints") || (isSignedIn() && isOwnComplaint());
       allow update, delete: if hasPermission("editAnyComplaint");
