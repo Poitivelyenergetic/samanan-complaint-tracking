@@ -8,23 +8,21 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // `role` (admin/employee/user) is only a preset used by the client to
-    // pre-fill `permissions` in the Employees form — every access check here
-    // reads the individually-overridable `permissions` map instead, so an
-    // admin can grant or withhold any of these independent of role.
+    // Roles are custom, admin-defined records — an employee can hold several
+    // at once (roleIds), and their effective permission for any action is
+    // the union (OR) across all assigned roles. Firestore rules can't loop
+    // over an arbitrary-length roleIds array to fetch and OR together
+    // multiple role docs at read time, so that union is computed
+    // server-side (Admin SDK, in /api/employees and /api/roles) and
+    // denormalized onto this doc's own `permissions` field whenever roleIds
+    // change or a held role's permissions are edited. This is what every
+    // check here actually reads.
     function myPermissions() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions;
     }
 
-    function hasPermission(perm) {
-      return isSignedIn() && myPermissions()[perm] == true;
-    }
-
-    // An account without viewAllComplaints may only read complaints
-    // assigned to it or that it created itself — never the full list.
-    function isOwnComplaint() {
-      return resource.data.assignedTo == request.auth.uid
-        || resource.data.createdBy == request.auth.uid;
+    function hasPermission(resource, action) {
+      return isSignedIn() && myPermissions()[resource][action] == true;
     }
 
     // Anyone signed in may log a staff-side complaint, but only a
@@ -53,40 +51,59 @@ service cloud.firestore {
         && d.customerOrderNumber is string && d.customerOrderNumber.size() > 0;
     }
 
+    // Employee accounts (Firebase Auth UID-keyed). Any signed-in staff
+    // member can read the directory (needed for "assigned to"/"boss"
+    // dropdowns everywhere). Mutations normally go through /api/employees
+    // (Admin SDK, so a new hire's own session isn't affected) — these rules
+    // are the backstop against a direct client write bypassing that.
     match /users/{userId} {
-      // Any signed-in staff member can read the staff directory (needed for
-      // the "assigned to" dropdown). Only accounts with manageEmployees can
-      // create/edit/remove staff records.
       allow read: if isSignedIn();
-      allow write: if hasPermission("manageEmployees");
+      allow create: if hasPermission("employees", "create");
+      allow update: if hasPermission("employees", "update");
+      allow delete: if hasPermission("employees", "delete");
     }
 
-    // Four-level org-browsing hierarchy: Company > Administration (department)
-    // > Position > Employee. Browsing just needs any signed-in staff account;
-    // changing its shape is gated by manageCompanies (which can reshape
-    // anything under a company), manageAdministrations, or managePositions —
-    // each broader permission also grants the narrower ones below it.
+    // Org-browsing hierarchy: Company > Administration > Department.
+    // Browsing just needs any signed-in staff account; changing its shape
+    // is gated per-resource, per-action.
     match /companies/{companyId} {
       allow read: if isSignedIn();
-      allow write: if hasPermission("manageCompanies");
+      allow create: if hasPermission("companies", "create");
+      allow update: if hasPermission("companies", "update");
+      allow delete: if hasPermission("companies", "delete");
     }
 
     match /administrations/{administrationId} {
       allow read: if isSignedIn();
-      allow write: if hasPermission("manageCompanies") || hasPermission("manageAdministrations");
+      allow create: if hasPermission("administrations", "create");
+      allow update: if hasPermission("administrations", "update");
+      allow delete: if hasPermission("administrations", "delete");
     }
 
-    match /positions/{positionId} {
+    match /departments/{departmentId} {
       allow read: if isSignedIn();
-      allow write: if hasPermission("manageCompanies")
-        || hasPermission("manageAdministrations")
-        || hasPermission("managePositions");
+      allow create: if hasPermission("departments", "create");
+      allow update: if hasPermission("departments", "update");
+      allow delete: if hasPermission("departments", "delete");
+    }
+
+    // Users (the customer-facing record — collection stays `customers`
+    // internally, see types.ts). Unlike the org hierarchy above, this is
+    // customer data, not staff directory info, so even reading it requires
+    // its own view permission rather than being open to any signed-in staff.
+    match /customers/{customerId} {
+      allow read: if hasPermission("customers", "view");
+      allow create: if hasPermission("customers", "create");
+      allow update: if hasPermission("customers", "update");
+      allow delete: if hasPermission("customers", "delete");
     }
 
     match /complaints/{complaintId} {
-      allow read: if hasPermission("viewAllComplaints") || (isSignedIn() && isOwnComplaint());
-      allow update, delete: if hasPermission("editAnyComplaint");
-      allow create: if (isSignedIn() && isSelfCreatedComplaint()) || isValidPublicComplaint();
+      allow read: if hasPermission("complaints", "view");
+      allow update: if hasPermission("complaints", "update");
+      allow delete: if hasPermission("complaints", "delete");
+      allow create: if (isSignedIn() && hasPermission("complaints", "create") && isSelfCreatedComplaint())
+        || isValidPublicComplaint();
       // The public status-lookup page fetches one complaint by its exact
       // reference number (a capability token, not something to enumerate),
       // but only for complaints that were themselves submitted publicly —
@@ -109,7 +126,18 @@ service cloud.firestore {
 
     match /signupRequests/{requestId} {
       allow create: if isValidSignupRequest();
-      allow read, update, delete: if hasPermission("manageEmployees");
+      allow read, update, delete: if hasPermission("employees", "update");
+    }
+
+    // Roles. Reading the list only needs roles.view; every mutation goes
+    // through /api/roles (Admin SDK) instead of a direct client write,
+    // because editing or deleting a role must cascade — recomputing the
+    // denormalized `permissions` of every employee who holds it — which
+    // touches documents beyond the one write these rules would otherwise
+    // be evaluating.
+    match /roles/{roleId} {
+      allow read: if hasPermission("roles", "view");
+      allow write: if false;
     }
   }
 }
