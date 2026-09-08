@@ -3,9 +3,12 @@ export type UserRole = "admin" | "employee" | "user";
 export interface Permissions {
   viewAllComplaints: boolean; // see every complaint, not just ones assigned/linked to them
   editAnyComplaint: boolean; // edit, reassign, or change the status of any complaint
-  viewEmployees: boolean; // see the Employees list
+  viewEmployees: boolean; // browse the Companies/Administrations/Positions/Employees hierarchy
   manageEmployees: boolean; // add, edit, or remove employee accounts
   accessMarketing: boolean; // access the Marketing placeholder section
+  manageCompanies: boolean; // create, rename, and delete companies (and administrations/positions within any of them)
+  manageAdministrations: boolean; // create, rename, and delete administrations (and positions within any of them), within a company already accessible
+  managePositions: boolean; // create, rename, and delete positions within administrations (narrower than manageAdministrations)
 }
 
 export const PERMISSION_KEYS = [
@@ -14,6 +17,9 @@ export const PERMISSION_KEYS = [
   "viewEmployees",
   "manageEmployees",
   "accessMarketing",
+  "manageCompanies",
+  "manageAdministrations",
+  "managePositions",
 ] as const satisfies readonly (keyof Permissions)[];
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
@@ -28,6 +34,9 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permissions> = {
     viewEmployees: true,
     manageEmployees: true,
     accessMarketing: true,
+    manageCompanies: true,
+    manageAdministrations: true,
+    managePositions: true,
   },
   employee: {
     viewAllComplaints: true,
@@ -35,6 +44,9 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permissions> = {
     viewEmployees: false,
     manageEmployees: false,
     accessMarketing: true,
+    manageCompanies: false,
+    manageAdministrations: false,
+    managePositions: false,
   },
   user: {
     viewAllComplaints: false,
@@ -42,16 +54,42 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, Permissions> = {
     viewEmployees: false,
     manageEmployees: false,
     accessMarketing: false,
+    manageCompanies: false,
+    manageAdministrations: false,
+    managePositions: false,
   },
 };
+
+// Four-level org-browsing hierarchy: a Company has Administrations
+// (departments), each Administration has Positions, each Position has
+// Employees. Purely for browsing/organizing staff — not separate tenants.
+export interface Company {
+  id: string;
+  name: string;
+}
+
+// A department, e.g. "Support" or "IT". Positions belong to exactly one
+// administration; employees belong to exactly one position.
+export interface Administration {
+  id: string;
+  name: string;
+  companyId: string;
+}
+
+export interface Position {
+  id: string;
+  name: string;
+  administrationId: string;
+}
 
 export interface StaffUser {
   id: string; // Firebase Auth UID
   name: string; // full name
   username: string;
   number: string; // staff / ID number
-  position: string; // job title, free text
-  administration: string; // department / administration, free text
+  companyId: string;
+  administrationId: string;
+  positionId: string;
   role: UserRole;
   permissions: Permissions;
 }
@@ -60,8 +98,9 @@ export interface EmployeeInput {
   name: string;
   username: string;
   number: string;
-  position: string;
-  administration: string;
+  companyId: string;
+  administrationId: string;
+  positionId: string;
   role: UserRole;
   permissions: Permissions;
   password?: string; // required when creating, optional (reset) when editing

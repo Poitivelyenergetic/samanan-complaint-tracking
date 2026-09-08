@@ -5,8 +5,9 @@ import { ROLE_DEFAULT_PERMISSIONS, type StaffUser, type UserRole } from "./types
 const COLLECTION = "users";
 
 // Falls back to the role's default permissions for any doc predating the
-// permissions field, so a not-yet-migrated account doesn't read as having
-// every permission disabled.
+// permissions field (or a permission key added after that doc was written),
+// so a not-yet-migrated account doesn't read as having every permission
+// disabled.
 function fromDoc(id: string, data: DocumentData): StaffUser {
   const role = (data.role as UserRole) ?? "employee";
   return {
@@ -14,10 +15,11 @@ function fromDoc(id: string, data: DocumentData): StaffUser {
     name: data.name ?? "",
     username: data.username ?? "",
     number: data.number ?? "",
-    position: data.position ?? "",
-    administration: data.administration ?? "",
+    companyId: data.companyId ?? "",
+    administrationId: data.administrationId ?? "",
+    positionId: data.positionId ?? "",
     role,
-    permissions: data.permissions ?? ROLE_DEFAULT_PERMISSIONS[role],
+    permissions: { ...ROLE_DEFAULT_PERMISSIONS[role], ...data.permissions },
   };
 }
 
