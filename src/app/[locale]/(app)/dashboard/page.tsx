@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations, useFormatter } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { subscribeToComplaints } from "@/lib/complaints";
+import { subscribeToComplaints, subscribeToOwnComplaints } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
+import { useAuth } from "@/lib/auth-context";
 import type { Complaint, ComplaintStatus, StaffUser } from "@/lib/types";
 import { COMPLAINT_STATUSES } from "@/lib/types";
 import StatusBadge from "@/components/StatusBadge";
@@ -14,6 +15,7 @@ export default function DashboardPage() {
   const tCommon = useTranslations("common");
   const tStatus = useTranslations("status");
   const format = useFormatter();
+  const { profile } = useAuth();
 
   const [complaints, setComplaints] = useState<Complaint[] | null>(null);
   const [staff, setStaff] = useState<StaffUser[]>([]);
@@ -22,13 +24,20 @@ export default function DashboardPage() {
   const [assigneeFilter, setAssigneeFilter] = useState("");
 
   useEffect(() => {
-    const unsubComplaints = subscribeToComplaints(setComplaints);
+    // The "user" role only ever sees complaints assigned to or created by
+    // itself — admin/employee see everything. Wait for the profile to load
+    // so we don't briefly issue the unrestricted query for a "user" account.
+    if (!profile) return;
+    const unsubComplaints =
+      profile.role === "user"
+        ? subscribeToOwnComplaints(profile.id, setComplaints)
+        : subscribeToComplaints(setComplaints);
     const unsubStaff = subscribeToStaff(setStaff);
     return () => {
       unsubComplaints();
       unsubStaff();
     };
-  }, []);
+  }, [profile]);
 
   const staffById = useMemo(() => {
     const map = new Map<string, StaffUser>();

@@ -6,11 +6,13 @@ import {
   DocumentData,
   getDoc,
   onSnapshot,
+  or,
   orderBy,
   query,
   serverTimestamp,
   Timestamp,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { Complaint, ComplaintCategory, ComplaintInput } from "./types";
@@ -54,6 +56,31 @@ export function subscribeToComplaints(
   return onSnapshot(
     q,
     (snap) => callback(snap.docs.map((d) => fromDoc(d.id, d.data()))),
+    onError
+  );
+}
+
+// For the restricted "user" role: only complaints assigned to them or that
+// they created themselves (matches the isOwnComplaint() check in
+// firestore.rules). Sorted client-side rather than via orderBy, since an
+// or() query can't be combined with a sort across the disjunction without
+// its own composite index.
+export function subscribeToOwnComplaints(
+  uid: string,
+  callback: (complaints: Complaint[]) => void,
+  onError?: (error: unknown) => void
+) {
+  const q = query(
+    collection(db, COLLECTION),
+    or(where("assignedTo", "==", uid), where("createdBy", "==", uid))
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const complaints = snap.docs.map((d) => fromDoc(d.id, d.data()));
+      complaints.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      callback(complaints);
+    },
     onError
   );
 }
