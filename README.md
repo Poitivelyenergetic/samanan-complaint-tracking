@@ -11,7 +11,8 @@ Not a public site — every page except the login screen requires a staff sign-i
 - **Next.js 16** (App Router) + React 19 + TypeScript
 - **Tailwind CSS 4** for styling
 - **Firebase**
-  - **Firestore** — `complaints` and `users` (staff profile) collections
+  - **Firestore** — `complaints`, `users` (staff profile), and the `companies` / `administrations`
+    / `positions` org-browsing hierarchy
   - **Firebase Authentication** (email/password) — staff sign in with a plain **username**,
     which is mapped internally to a synthetic email (`<username>@samnan.local`) so Firebase
     Auth's email/password provider can be used without exposing "email" anywhere in the UI
@@ -92,7 +93,10 @@ npm run seed
 
 This uses the Firebase Admin SDK to create:
 
-- 4 staff accounts (Firebase Auth user + matching Firestore `users` profile):
+- A demo org structure: one company ("Samnan"), two administrations ("Customer Support",
+  "Quality Assurance"), and three positions under them.
+- 4 staff accounts (Firebase Auth user + matching Firestore `users` profile), each placed in one
+  of those positions with `permissions` filled in from their role's defaults:
   | Username | Password | Role | Position |
   |---|---|---|---|
   | `mhmd` | `123456` | admin | Support Team Lead |
@@ -128,16 +132,18 @@ src/
         dashboard/           # complaint list, filters, search
         complaints/new/      # create complaint
         complaints/[id]/     # view/edit/delete complaint
-        employees/           # admin-only staff management
+        companies/           # Companies -> Administrations -> Positions -> Employees browse tree
+        employees/           # employee create/edit/delete forms + pending signup requests
         marketing/           # placeholder page
     api/
-      employees/            # admin-only REST endpoints backed by the Admin SDK
+      employees/            # manageEmployees-gated REST endpoints backed by the Admin SDK
   components/               # ComplaintForm, EmployeeForm, Navbar, LanguageSwitcher, ...
   lib/
     firebase.ts              # client SDK init (Auth + Firestore)
     firebaseAdmin.ts          # lazy server-side Admin SDK init
-    api-auth.ts                # verifies ID token + admin role for API routes
+    api-auth.ts                # verifies ID token + a required permission for API routes
     complaints.ts, users.ts, employees-api.ts   # Firestore/API data access
+    companies.ts, administrations.ts, positions.ts   # org-hierarchy Firestore data access
     types.ts                  # shared TypeScript types
   i18n/                     # next-intl routing/navigation/request config
 messages/
@@ -147,30 +153,52 @@ scripts/
 firestore.rules             # Firestore security rules
 ```
 
+## Org structure: Companies → Administrations → Positions → Employees
+
+Staff are organized in a four-level browse hierarchy, each level a Firestore collection:
+`companies` → `administrations` (each has a `companyId`) → `positions` (each has an
+`administrationId`) → employees in `users` (each has `companyId`/`administrationId`/
+`positionId`). It's purely for browsing and organizing staff — not separate tenants of the app;
+there's no cross-company data isolation.
+
+The **Companies** nav entry (visible with `viewEmployees`) drills down through all four levels,
+each screen showing a breadcrumb back to its parents. The employee search box on the Companies
+list jumps straight to an employee's Edit form by name/username without drilling down manually.
+Deleting a company/administration/position is blocked (with an explanatory message) while it
+still has anything under it — administrations under a company, positions under an
+administration, or employees in a position — so records are never silently orphaned.
+
+The New/Edit Employee form has three cascading dropdowns (Company → Administration → Position,
+each filtered to its parent) alongside Role and the permissions checklist described below.
+
 ## Roles & permissions
 
-Each staff member has a `permissions` object on their Firestore `users/{uid}` document — five
+Each staff member has a `permissions` object on their Firestore `users/{uid}` document — eight
 independent booleans (`viewAllComplaints`, `editAnyComplaint`, `viewEmployees`,
-`manageEmployees`, `accessMarketing`) alongside `name`, `username`, `number` (staff/ID number),
-`position`, and `administration` (department). **`permissions` is what every access check
-actually reads** — both in the UI and in `firestore.rules`/`/api/employees`.
+`manageEmployees`, `accessMarketing`, `manageCompanies`, `manageAdministrations`,
+`managePositions`) alongside `name`, `username`, `number` (staff/ID number), and their
+`companyId`/`administrationId`/`positionId`. **`permissions` is what every access check actually
+reads** — both in the UI and in `firestore.rules`/`/api/employees`.
 
 `role` (`admin`/`employee`/`user`) still exists on the same document, but it's now only a
 preset: picking a role in the Employees form (`src/lib/types.ts` →
 `ROLE_DEFAULT_PERMISSIONS`) fills in that role's default permissions, and the admin can then
 hand-tune any individual box via "Manage permissions" on the New/Edit Employee form — e.g.
-giving one employee read-only access to the Employees list without full `manageEmployees`.
+giving one employee read-only access to the org hierarchy without full `manageEmployees`.
 Changing the role dropdown again resets permissions back to that role's defaults.
 
-Defaults: **admin** gets all five; **employee** gets `viewAllComplaints`/`editAnyComplaint`/
+Defaults: **admin** gets all eight; **employee** gets `viewAllComplaints`/`editAnyComplaint`/
 `accessMarketing`; **user** gets none (it only ever sees complaints assigned to or created by
 itself, and can still create new ones — see `isOwnComplaint()`/`isSelfCreatedComplaint()` in
-`firestore.rules`).
+`firestore.rules`). `manageCompanies` is the broadest of the three org-management permissions —
+it also grants what `manageAdministrations` and `managePositions` grant individually, mirroring
+that a company's administrations and positions live underneath it.
 
 Firestore rules (`firestore.rules`) are the source of truth for access control — the UI hides
 what a permission doesn't allow, but data access is enforced independently at the database
-level via a `hasPermission(perm)` rule helper, so an account can't read/write `complaints` or
-`users` beyond what its `permissions` map grants by calling Firestore directly either.
+level via a `hasPermission(perm)` rule helper, so an account can't read/write `complaints`,
+`users`, `companies`, `administrations`, or `positions` beyond what its `permissions` map grants
+by calling Firestore directly either.
 
 **Future work:** permission changes aren't currently logged anywhere (who changed what, when) —
 an audit trail would be a natural addition if this needs to be auditable later.
