@@ -6,13 +6,11 @@ import {
   DocumentData,
   getDoc,
   onSnapshot,
-  or,
   orderBy,
   query,
   serverTimestamp,
   Timestamp,
   updateDoc,
-  where,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { Complaint, ComplaintCategory, ComplaintInput } from "./types";
@@ -34,6 +32,10 @@ function fromDoc(id: string, data: DocumentData): Complaint {
     // staff-logged with the "Other" category rather than leaving gaps.
     category: data.category ?? "Other",
     channel: data.channel ?? "staff",
+    // Existing complaints predating the Source field default to "Website"
+    // (matches the one-time migration for historical data).
+    source: data.source ?? "Website",
+    customerId: data.customerId ?? null,
     customerNumber: data.customerNumber ?? "",
     customerOrderNumber: data.customerOrderNumber ?? "",
     complainantName: data.complainantName ?? null,
@@ -56,31 +58,6 @@ export function subscribeToComplaints(
   return onSnapshot(
     q,
     (snap) => callback(snap.docs.map((d) => fromDoc(d.id, d.data()))),
-    onError
-  );
-}
-
-// For the restricted "user" role: only complaints assigned to them or that
-// they created themselves (matches the isOwnComplaint() check in
-// firestore.rules). Sorted client-side rather than via orderBy, since an
-// or() query can't be combined with a sort across the disjunction without
-// its own composite index.
-export function subscribeToOwnComplaints(
-  uid: string,
-  callback: (complaints: Complaint[]) => void,
-  onError?: (error: unknown) => void
-) {
-  const q = query(
-    collection(db, COLLECTION),
-    or(where("assignedTo", "==", uid), where("createdBy", "==", uid))
-  );
-  return onSnapshot(
-    q,
-    (snap) => {
-      const complaints = snap.docs.map((d) => fromDoc(d.id, d.data()));
-      complaints.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      callback(complaints);
-    },
     onError
   );
 }
@@ -133,6 +110,10 @@ export async function createPublicComplaint(
     description: input.description,
     category: input.category,
     channel: "public",
+    // Every public submission comes in through the website — there's no
+    // dropdown for it here, unlike the staff-side form.
+    source: "Website",
+    customerId: null,
     customerNumber: input.contactPhone ?? input.contactEmail ?? "",
     customerOrderNumber: input.customerOrderNumber,
     complainantName: input.complainantName,

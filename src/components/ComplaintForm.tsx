@@ -1,21 +1,28 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   COMPLAINT_CATEGORIES,
+  COMPLAINT_SOURCES,
   COMPLAINT_STATUSES,
+  localizedName,
   type ComplaintCategory,
   type ComplaintChannel,
   type ComplaintInput,
+  type ComplaintSource,
   type ComplaintStatus,
+  type Customer,
   type StaffUser,
 } from "@/lib/types";
+import CustomerPicker from "./CustomerPicker";
 
 export interface ComplaintFormValues {
   subject: string;
   description: string;
   category: ComplaintCategory;
+  source: ComplaintSource;
+  customerId: string | null;
   customerNumber: string;
   customerOrderNumber: string;
   assignedTo: string; // "" means unassigned
@@ -31,13 +38,14 @@ export interface ComplaintFormValues {
 
 interface ComplaintFormProps {
   staff: StaffUser[];
+  customers: Customer[];
   initialValues?: Partial<ComplaintFormValues>;
   submitLabel: string;
   submittingLabel: string;
   onSubmit: (values: ComplaintInput) => Promise<void>;
   // Renders every field disabled and hides the submit button — used for
   // roles that can view but not edit/reassign/change the status of a
-  // complaint (the "user" role).
+  // complaint.
   readOnly?: boolean;
 }
 
@@ -45,6 +53,8 @@ const DEFAULT_VALUES: ComplaintFormValues = {
   subject: "",
   description: "",
   category: "Other",
+  source: "Website",
+  customerId: null,
   customerNumber: "",
   customerOrderNumber: "",
   assignedTo: "",
@@ -58,6 +68,7 @@ const DEFAULT_VALUES: ComplaintFormValues = {
 
 export default function ComplaintForm({
   staff,
+  customers,
   initialValues,
   submitLabel,
   submittingLabel,
@@ -66,9 +77,11 @@ export default function ComplaintForm({
 }: ComplaintFormProps) {
   const t = useTranslations("complaint.fields");
   const tCategory = useTranslations("complaint.categories");
+  const tSource = useTranslations("complaint.sources");
   const tStatus = useTranslations("status");
   const tCommon = useTranslations("common");
   const tDetail = useTranslations("complaint.detail");
+  const locale = useLocale();
 
   const [values, setValues] = useState<ComplaintFormValues>({
     ...DEFAULT_VALUES,
@@ -93,6 +106,17 @@ export default function ComplaintForm({
     });
   }
 
+  function handleCustomerChange(customerId: string | null) {
+    const customer = customerId ? customers.find((c) => c.id === customerId) : null;
+    setValues((prev) => ({
+      ...prev,
+      customerId,
+      // Kept in sync as a display convenience (e.g. the dashboard's
+      // "Customer #" column) — never hand-typed by staff anymore.
+      customerNumber: customer?.number ?? prev.customerNumber,
+    }));
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -102,6 +126,8 @@ export default function ComplaintForm({
         subject: values.subject.trim(),
         description: values.description.trim(),
         category: values.category,
+        source: values.source,
+        customerId: values.customerId,
         customerNumber: values.customerNumber.trim(),
         customerOrderNumber: values.customerOrderNumber.trim(),
         assignedTo: values.assignedTo || null,
@@ -177,21 +203,18 @@ export default function ComplaintForm({
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <div>
-          <label htmlFor="customerNumber" className="block text-sm font-medium text-foreground">
-            {t("customerNumber")}
-          </label>
-          <input
-            id="customerNumber"
-            required
-            disabled={readOnly}
-            value={values.customerNumber}
-            onChange={(e) => update("customerNumber", e.target.value)}
-            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
-          />
-        </div>
+      <div>
+        <label className="block text-sm font-medium text-foreground">{t("customer")}</label>
+        <CustomerPicker
+          customers={customers}
+          staff={staff}
+          value={values.customerId}
+          onChange={handleCustomerChange}
+          disabled={readOnly}
+        />
+      </div>
 
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div>
           <label htmlFor="customerOrderNumber" className="block text-sm font-medium text-foreground">
             {t("customerOrderNumber")}
@@ -204,6 +227,25 @@ export default function ComplaintForm({
             onChange={(e) => update("customerOrderNumber", e.target.value)}
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
           />
+        </div>
+
+        <div>
+          <label htmlFor="source" className="block text-sm font-medium text-foreground">
+            {t("source")}
+          </label>
+          <select
+            id="source"
+            disabled={readOnly}
+            value={values.source}
+            onChange={(e) => update("source", e.target.value as ComplaintSource)}
+            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
+          >
+            {COMPLAINT_SOURCES.map((source) => (
+              <option key={source} value={source}>
+                {tSource(source)}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -241,7 +283,7 @@ export default function ComplaintForm({
             <option value="">{tCommon("unassigned")}</option>
             {staff.map((member) => (
               <option key={member.id} value={member.id}>
-                {member.name}
+                {localizedName(member, locale)}
               </option>
             ))}
           </select>

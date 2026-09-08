@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useTranslations, useFormatter } from "next-intl";
+import { useLocale, useTranslations, useFormatter } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { subscribeToComplaints, subscribeToOwnComplaints } from "@/lib/complaints";
+import { subscribeToComplaints } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
-import type { Complaint, ComplaintStatus, StaffUser } from "@/lib/types";
+import { hasPermission, localizedName, type Complaint, type ComplaintStatus, type StaffUser } from "@/lib/types";
 import { COMPLAINT_STATUSES } from "@/lib/types";
 import StatusBadge from "@/components/StatusBadge";
 
@@ -14,8 +14,12 @@ export default function DashboardPage() {
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
   const tStatus = useTranslations("status");
+  const tSource = useTranslations("complaint.sources");
   const format = useFormatter();
+  const locale = useLocale();
   const { profile } = useAuth();
+  const canView = hasPermission(profile, "complaints", "view");
+  const canCreate = hasPermission(profile, "complaints", "create");
 
   const [complaints, setComplaints] = useState<Complaint[] | null>(null);
   const [staff, setStaff] = useState<StaffUser[]>([]);
@@ -24,19 +28,10 @@ export default function DashboardPage() {
   const [assigneeFilter, setAssigneeFilter] = useState("");
 
   useEffect(() => {
-    // Without viewAllComplaints, an account only ever sees complaints
-    // assigned to or created by itself. Wait for the profile to load so we
-    // don't briefly issue the unrestricted query for a restricted account.
-    if (!profile) return;
-    const unsubComplaints = profile.permissions.viewAllComplaints
-      ? subscribeToComplaints(setComplaints)
-      : subscribeToOwnComplaints(profile.id, setComplaints);
-    const unsubStaff = subscribeToStaff(setStaff);
-    return () => {
-      unsubComplaints();
-      unsubStaff();
-    };
-  }, [profile]);
+    if (!profile || !canView) return;
+    return subscribeToComplaints(setComplaints);
+  }, [profile, canView]);
+  useEffect(() => subscribeToStaff(setStaff), []);
 
   const staffById = useMemo(() => {
     const map = new Map<string, StaffUser>();
@@ -44,10 +39,12 @@ export default function DashboardPage() {
     return map;
   }, [staff]);
 
+  const visibleComplaints = useMemo(() => (canView ? complaints : []), [canView, complaints]);
+
   const filtered = useMemo(() => {
-    if (!complaints) return [];
+    if (!visibleComplaints) return [];
     const term = search.trim().toLowerCase();
-    return complaints.filter((c) => {
+    return visibleComplaints.filter((c) => {
       if (statusFilter && c.status !== statusFilter) return false;
       if (assigneeFilter && c.assignedTo !== assigneeFilter) return false;
       if (
@@ -60,7 +57,7 @@ export default function DashboardPage() {
       }
       return true;
     });
-  }, [complaints, search, statusFilter, assigneeFilter]);
+  }, [visibleComplaints, search, statusFilter, assigneeFilter]);
 
   return (
     <div>
@@ -69,12 +66,14 @@ export default function DashboardPage() {
           <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
           <p className="mt-0.5 text-sm text-foreground/60">{t("subtitle")}</p>
         </div>
-        <Link
-          href="/complaints/new"
-          className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground hover:opacity-90"
-        >
-          {t("newButton")}
-        </Link>
+        {canCreate && (
+          <Link
+            href="/complaints/new"
+            className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground hover:opacity-90"
+          >
+            {t("newButton")}
+          </Link>
+        )}
       </div>
 
       <div className="mt-6 flex flex-wrap gap-3">
@@ -107,34 +106,35 @@ export default function DashboardPage() {
           <option value="">{t("assigneeFilter")}: {tCommon("all")}</option>
           {staff.map((member) => (
             <option key={member.id} value={member.id}>
-              {member.name}
+              {localizedName(member, locale)}
             </option>
           ))}
         </select>
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-surface">
-        <table className="w-full min-w-[720px] text-start text-sm">
+        <table className="w-full min-w-[820px] text-start text-sm">
           <thead>
             <tr className="border-b border-border bg-black/[0.02] text-start text-xs font-semibold uppercase tracking-wide text-foreground/50">
               <th className="px-4 py-3 text-start">{t("table.issueId")}</th>
               <th className="px-4 py-3 text-start">{t("table.subject")}</th>
               <th className="px-4 py-3 text-start">{t("table.customerNumber")}</th>
+              <th className="px-4 py-3 text-start">{t("table.source")}</th>
               <th className="px-4 py-3 text-start">{t("table.assignedTo")}</th>
               <th className="px-4 py-3 text-start">{t("table.status")}</th>
               <th className="px-4 py-3 text-start">{t("table.createdAt")}</th>
             </tr>
           </thead>
           <tbody>
-            {complaints === null ? (
+            {visibleComplaints === null ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={7} className="px-4 py-8 text-center text-foreground/50">
                   {tCommon("loading")}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={7} className="px-4 py-8 text-center text-foreground/50">
                   {t("noResults")}
                 </td>
               </tr>
@@ -155,8 +155,9 @@ export default function DashboardPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-foreground/70">{c.customerNumber}</td>
+                  <td className="px-4 py-3 text-foreground/70">{tSource(c.source)}</td>
                   <td className="px-4 py-3 text-foreground/70">
-                    {c.assignedTo ? staffById.get(c.assignedTo)?.name ?? c.assignedTo : tCommon("unassigned")}
+                    {c.assignedTo ? localizedName(staffById.get(c.assignedTo), locale) || c.assignedTo : tCommon("unassigned")}
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={c.status} />

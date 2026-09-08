@@ -5,8 +5,9 @@ import { useTranslations, useFormatter } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { deleteComplaint, subscribeToComplaint, updateComplaint } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
+import { subscribeToCustomers } from "@/lib/customers";
 import { useAuth } from "@/lib/auth-context";
-import type { Complaint, ComplaintInput, StaffUser } from "@/lib/types";
+import { hasPermission, type Complaint, type ComplaintInput, type Customer, type StaffUser } from "@/lib/types";
 import ComplaintForm from "@/components/ComplaintForm";
 
 export default function ComplaintDetailPage({
@@ -23,12 +24,14 @@ export default function ComplaintDetailPage({
 
   const [complaint, setComplaint] = useState<Complaint | null | undefined>(undefined);
   const [staff, setStaff] = useState<StaffUser[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [deleting, setDeleting] = useState(false);
 
-  // Without editAnyComplaint, an account gets a read-only view. Default to
+  // Without complaints.update, an account gets a read-only view. Default to
   // read-only (rather than editable) if the profile hasn't loaded yet,
   // since that's the safer failure mode.
-  const canEdit = profile?.permissions.editAnyComplaint === true;
+  const canEdit = hasPermission(profile, "complaints", "update");
+  const canDelete = hasPermission(profile, "complaints", "delete");
 
   useEffect(
     () =>
@@ -40,6 +43,7 @@ export default function ComplaintDetailPage({
     [id]
   );
   useEffect(() => subscribeToStaff(setStaff), []);
+  useEffect(() => subscribeToCustomers(setCustomers), []);
 
   async function handleSubmit(values: ComplaintInput) {
     await updateComplaint(id, values);
@@ -77,7 +81,7 @@ export default function ComplaintDetailPage({
           <h1 className="mt-1 text-xl font-bold text-foreground">{t("editTitle")}</h1>
           <p className="mt-0.5 font-mono text-xs text-foreground/50">{complaint.id}</p>
         </div>
-        {canEdit && (
+        {canDelete && (
           <button
             type="button"
             onClick={handleDelete}
@@ -102,10 +106,13 @@ export default function ComplaintDetailPage({
         <ComplaintForm
           key={complaint.id + complaint.updatedAt}
           staff={staff}
+          customers={customers}
           initialValues={{
             subject: complaint.subject,
             description: complaint.description,
             category: complaint.category,
+            source: complaint.source,
+            customerId: complaint.customerId,
             customerNumber: complaint.customerNumber,
             customerOrderNumber: complaint.customerOrderNumber,
             assignedTo: complaint.assignedTo ?? "",
