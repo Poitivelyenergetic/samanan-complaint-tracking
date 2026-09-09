@@ -148,8 +148,10 @@
       "assignedTo": "مسندة إلى",
       "reassign": "إعادة الإسناد",
       "history": "السجل",
-      "historyStatus": "تم تغيير الحالة إلى \"{status}\"",
-      "historyReassigned": "تمت إعادة الإسناد إلى {name}"
+      "historyCreated": "تم فتحها بالحالة \"{status}\"",
+      "historyStatus": "تم تغيير الحالة من \"{previousStatus}\" إلى \"{status}\"",
+      "historyReassigned": "تمت إعادة الإسناد من {from} إلى {to}",
+      "historyActorPublic": "عام"
     }
   },
   "publicComplaint": {

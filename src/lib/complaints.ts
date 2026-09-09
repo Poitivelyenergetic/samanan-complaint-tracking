@@ -94,7 +94,7 @@ export async function getComplaint(id: string): Promise<Complaint | null> {
 
 export async function createComplaint(input: ComplaintInput): Promise<string> {
   const initialHistory: ComplaintHistoryEntry[] = [
-    { type: "status", status: input.status, at: new Date().toISOString(), byUid: input.createdBy },
+    { type: "created", status: input.status, at: new Date().toISOString(), byUid: input.createdBy },
   ];
   const ref = await addDoc(collection(db, COLLECTION), {
     ...input,
@@ -139,7 +139,7 @@ export async function createPublicComplaint(
     attachmentUrl: input.attachmentUrl,
     assignedTo: null,
     status: "Open",
-    history: [{ type: "status", status: "Open", at: new Date().toISOString(), byUid: null }],
+    history: [{ type: "created", status: "Open", at: new Date().toISOString(), byUid: null }],
     createdBy: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -159,7 +159,15 @@ export async function updateComplaint(
 ): Promise<void> {
   const historyAppend: ComplaintHistoryEntry[] =
     updates.status && updates.status !== previousStatus
-      ? [{ type: "status", status: updates.status, at: new Date().toISOString(), byUid }]
+      ? [
+          {
+            type: "status",
+            status: updates.status,
+            previousStatus: (previousStatus as Complaint["status"] | null) ?? undefined,
+            at: new Date().toISOString(),
+            byUid,
+          },
+        ]
       : [];
 
   await updateDoc(doc(db, COLLECTION, id), {
@@ -170,17 +178,26 @@ export async function updateComplaint(
 }
 
 // The dedicated Reassign action — separate from updateComplaint so that
-// reassigning always logs a "reassigned" history entry, and so the
-// complaints.reassign permission gate has one clear call site.
+// reassigning always logs a "reassigned" history entry (recording both who
+// it came from and who it went to), and so the complaints.reassign
+// permission gate has one clear call site. `previousAssignedTo` is whatever
+// the caller already has loaded (the complaint being reassigned).
 export async function reassignComplaint(
   id: string,
   assignedTo: string | null,
+  previousAssignedTo: string | null,
   byUid: string | null
 ): Promise<void> {
   await updateDoc(doc(db, COLLECTION, id), {
     assignedTo,
     updatedAt: serverTimestamp(),
-    history: arrayUnion({ type: "reassigned", assignedTo, at: new Date().toISOString(), byUid }),
+    history: arrayUnion({
+      type: "reassigned",
+      assignedTo,
+      previousAssignedTo,
+      at: new Date().toISOString(),
+      byUid,
+    }),
   });
 }
 

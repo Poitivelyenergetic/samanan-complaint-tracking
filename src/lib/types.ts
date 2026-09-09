@@ -341,17 +341,23 @@ export type ComplaintSource = (typeof COMPLAINT_SOURCES)[number];
 // "public" = submitted directly by a customer through the public intake form.
 export type ComplaintChannel = "staff" | "public";
 
-// A single entry in a complaint's process/status trail. "status" entries
-// record every status change (including the implicit one at creation);
-// "reassigned" entries record every change of `assignedTo`. Rendered
-// together, oldest first, as the complaint's history timeline.
-export type ComplaintHistoryEntryType = "status" | "reassigned";
+// A single entry in a complaint's process/status trail: "created" is always
+// the first entry (logged once, at creation); "status" records every later
+// status change (Closed included — it's just another status value, never
+// special-cased out of the log); "reassigned" records every change of
+// `assignedTo`. Rendered together as the complaint's history timeline.
+export type ComplaintHistoryEntryType = "created" | "status" | "reassigned";
 
 export interface ComplaintHistoryEntry {
   type: ComplaintHistoryEntryType;
-  status?: ComplaintStatus; // set when type === "status"
+  status?: ComplaintStatus; // set when type is "created" or "status" — the new status
+  previousStatus?: ComplaintStatus; // set when type === "status" — the status it changed from
   assignedTo?: string | null; // set when type === "reassigned" — the new assignee
+  previousAssignedTo?: string | null; // set when type === "reassigned" — who it was reassigned from
   at: string; // ISO string (client clock — Firestore's arrayUnion can't hold serverTimestamp() inside array elements)
+  // Firebase Auth UID of the staff member who performed the action, or null
+  // for a public complaint's own initial "created" entry (nothing else in
+  // this app produces a null actor — the UI renders that case as "Public").
   byUid: string | null;
 }
 

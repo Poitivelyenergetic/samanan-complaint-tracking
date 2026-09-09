@@ -148,8 +148,10 @@
       "assignedTo": "Assigned To",
       "reassign": "Reassign",
       "history": "History",
-      "historyStatus": "Status changed to \"{status}\"",
-      "historyReassigned": "Reassigned to {name}"
+      "historyCreated": "Opened with status \"{status}\"",
+      "historyStatus": "Status changed from \"{previousStatus}\" to \"{status}\"",
+      "historyReassigned": "Reassigned from {from} to {to}",
+      "historyActorPublic": "Public"
     }
   },
   "publicComplaint": {

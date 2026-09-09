@@ -57,7 +57,7 @@ export default function ComplaintDetailPage({
   async function handleReassign() {
     setReassigning(true);
     try {
-      await reassignComplaint(id, reassignTo || null, user?.uid ?? null);
+      await reassignComplaint(id, reassignTo || null, complaint?.assignedTo ?? null, user?.uid ?? null);
       setReassignTo("");
     } finally {
       setReassigning(false);
@@ -185,25 +185,39 @@ export default function ComplaintDetailPage({
         <div className="mt-6 rounded-lg border border-border bg-surface p-6">
           <h2 className="text-sm font-semibold text-foreground">{t("history")}</h2>
           <ol className="mt-3 space-y-3">
-            {[...complaint.history].reverse().map((entry, i) => (
-              <li key={i} className="flex items-start gap-3 text-sm">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
-                <div>
-                  <p className="text-foreground/80">
-                    {entry.type === "status"
-                      ? t("historyStatus", { status: entry.status ? tStatus(entry.status) : "" })
-                      : t("historyReassigned", {
-                          name: entry.assignedTo
-                            ? localizedName(staffById.get(entry.assignedTo), locale) || entry.assignedTo
-                            : tCommon("unassigned"),
+            {[...complaint.history].reverse().map((entry, i) => {
+              const actorName = entry.byUid
+                ? localizedName(staffById.get(entry.byUid), locale) || entry.byUid
+                : t("historyActorPublic");
+              const assigneeName = (uid: string | null | undefined) =>
+                uid ? localizedName(staffById.get(uid), locale) || uid : tCommon("unassigned");
+
+              return (
+                <li key={i} className="flex items-start gap-3 text-sm">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
+                  <div>
+                    <p className="text-foreground/80">
+                      {entry.type === "created" &&
+                        t("historyCreated", { status: entry.status ? tStatus(entry.status) : "" })}
+                      {entry.type === "status" &&
+                        t("historyStatus", {
+                          previousStatus: entry.previousStatus ? tStatus(entry.previousStatus) : "—",
+                          status: entry.status ? tStatus(entry.status) : "",
                         })}
-                  </p>
-                  <p className="text-xs text-foreground/50">
-                    {format.dateTime(new Date(entry.at), { dateStyle: "medium", timeStyle: "short" })}
-                  </p>
-                </div>
-              </li>
-            ))}
+                      {entry.type === "reassigned" &&
+                        t("historyReassigned", {
+                          from: assigneeName(entry.previousAssignedTo),
+                          to: assigneeName(entry.assignedTo),
+                        })}
+                    </p>
+                    <p className="text-xs text-foreground/50">
+                      {actorName} ·{" "}
+                      {format.dateTime(new Date(entry.at), { dateStyle: "medium", timeStyle: "short" })}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
           </ol>
         </div>
       )}
