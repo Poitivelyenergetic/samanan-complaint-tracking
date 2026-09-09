@@ -26,17 +26,19 @@ function getAdminApp(): App {
   // must be converted back to real newlines before use.
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error(
-      "Missing Firebase Admin credentials. Set FIREBASE_PROJECT_ID, " +
-        "FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY in .env.local " +
-        "(see .env.example)."
-    );
+  if (projectId && clientEmail && privateKey) {
+    // Explicit service account (local dev, or a non-GCP host like Vercel).
+    cachedApp = initializeApp({
+      credential: cert({ projectId, clientEmail, privateKey }),
+    });
+    return cachedApp;
   }
 
-  cachedApp = initializeApp({
-    credential: cert({ projectId, clientEmail, privateKey }),
-  });
+  // No explicit env vars — assume we're running on Firebase App Hosting
+  // (Cloud Run), where the "FIREBASE_" prefix is reserved and can't be set
+  // via apphosting.yaml. initializeApp() with no args picks up Application
+  // Default Credentials from the backend's attached service account.
+  cachedApp = initializeApp();
   return cachedApp;
 }
 

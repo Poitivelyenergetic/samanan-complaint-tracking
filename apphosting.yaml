@@ -1,0 +1,42 @@
+# Firebase App Hosting environment configuration.
+# See https://firebase.google.com/docs/app-hosting/configure
+runConfig:
+  minInstances: 0
+
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyDni9f5tSgHUwgqMd3OutKeK_rrBdhuV8Q"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "samnan-complaint-tracking.firebaseapp.com"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "samnan-complaint-tracking"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "samnan-complaint-tracking.firebasestorage.app"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "1009450240995"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:1009450240995:web:6252d7c283f1cef0246ed6"
+    availability:
+      - BUILD
+      - RUNTIME
+
+# No FIREBASE_PROJECT_ID/CLIENT_EMAIL/PRIVATE_KEY here — that prefix is
+# reserved by App Hosting and can't be set via this file. The Admin SDK
+# (src/lib/firebaseAdmin.ts) falls back to Application Default Credentials
+# from this backend's attached service account when those vars are absent,
+# which is what happens here.
