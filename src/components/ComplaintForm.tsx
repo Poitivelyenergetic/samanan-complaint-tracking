@@ -12,18 +12,16 @@ import {
   type ComplaintInput,
   type ComplaintSource,
   type ComplaintStatus,
-  type Customer,
   type StaffUser,
 } from "@/lib/types";
-import CustomerPicker from "./CustomerPicker";
 
 export interface ComplaintFormValues {
   subject: string;
   description: string;
   category: ComplaintCategory;
   source: ComplaintSource;
-  customerId: string | null;
-  customerNumber: string;
+  customerName: string;
+  customerPhone: string;
   customerOrderNumber: string;
   assignedTo: string; // "" means unassigned
   status: ComplaintStatus;
@@ -38,7 +36,6 @@ export interface ComplaintFormValues {
 
 interface ComplaintFormProps {
   staff: StaffUser[];
-  customers: Customer[];
   initialValues?: Partial<ComplaintFormValues>;
   submitLabel: string;
   submittingLabel: string;
@@ -59,8 +56,8 @@ const DEFAULT_VALUES: ComplaintFormValues = {
   description: "",
   category: "Other",
   source: "Website",
-  customerId: null,
-  customerNumber: "",
+  customerName: "",
+  customerPhone: "",
   customerOrderNumber: "",
   assignedTo: "",
   status: "Open",
@@ -73,7 +70,6 @@ const DEFAULT_VALUES: ComplaintFormValues = {
 
 export default function ComplaintForm({
   staff,
-  customers,
   initialValues,
   submitLabel,
   submittingLabel,
@@ -112,17 +108,6 @@ export default function ComplaintForm({
     });
   }
 
-  function handleCustomerChange(customerId: string | null) {
-    const customer = customerId ? customers.find((c) => c.id === customerId) : null;
-    setValues((prev) => ({
-      ...prev,
-      customerId,
-      // Kept in sync as a display convenience (e.g. the dashboard's
-      // "Customer #" column) — never hand-typed by staff anymore.
-      customerNumber: customer?.number ?? prev.customerNumber,
-    }));
-  }
-
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -133,8 +118,8 @@ export default function ComplaintForm({
         description: values.description.trim(),
         category: values.category,
         source: values.source,
-        customerId: values.customerId,
-        customerNumber: values.customerNumber.trim(),
+        customerName: values.customerName.trim(),
+        customerPhone: values.customerPhone.trim(),
         customerOrderNumber: values.customerOrderNumber.trim(),
         assignedTo: values.assignedTo || null,
         status: values.status,
@@ -209,50 +194,48 @@ export default function ComplaintForm({
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-foreground">{t("customer")}</label>
-        <CustomerPicker
-          customers={customers}
-          staff={staff}
-          value={values.customerId}
-          onChange={handleCustomerChange}
-          disabled={readOnly}
-        />
-      </div>
-
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div>
-          <label htmlFor="customerOrderNumber" className="block text-sm font-medium text-foreground">
-            {t("customerOrderNumber")}
+          <label htmlFor="customerName" className="block text-sm font-medium text-foreground">
+            {t("customerName")}
           </label>
           <input
-            id="customerOrderNumber"
+            id="customerName"
             required
             disabled={readOnly}
-            value={values.customerOrderNumber}
-            onChange={(e) => update("customerOrderNumber", e.target.value)}
+            value={values.customerName}
+            onChange={(e) => update("customerName", e.target.value)}
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
           />
         </div>
 
         <div>
-          <label htmlFor="source" className="block text-sm font-medium text-foreground">
-            {t("source")}
+          <label htmlFor="customerPhone" className="block text-sm font-medium text-foreground">
+            {t("customerPhone")}
           </label>
-          <select
-            id="source"
+          <input
+            id="customerPhone"
+            dir="ltr"
             disabled={readOnly}
-            value={values.source}
-            onChange={(e) => update("source", e.target.value as ComplaintSource)}
+            value={values.customerPhone}
+            onChange={(e) => update("customerPhone", e.target.value)}
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
-          >
-            {COMPLAINT_SOURCES.map((source) => (
-              <option key={source} value={source}>
-                {tSource(source)}
-              </option>
-            ))}
-          </select>
+          />
         </div>
+      </div>
+
+      <div>
+        <label htmlFor="customerOrderNumber" className="block text-sm font-medium text-foreground">
+          {t("customerOrderNumber")}
+        </label>
+        <input
+          id="customerOrderNumber"
+          required
+          disabled={readOnly}
+          value={values.customerOrderNumber}
+          onChange={(e) => update("customerOrderNumber", e.target.value)}
+          className="mt-1 w-full max-w-xs rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -275,28 +258,47 @@ export default function ComplaintForm({
           </select>
         </div>
 
-        {!hideAssignedTo && (
-          <div>
-            <label htmlFor="assignedTo" className="block text-sm font-medium text-foreground">
-              {t("assignedTo")}
-            </label>
-            <select
-              id="assignedTo"
-              disabled={readOnly}
-              value={values.assignedTo}
-              onChange={(e) => update("assignedTo", e.target.value)}
-              className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
-            >
-              <option value="">{tCommon("unassigned")}</option>
-              {staff.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {localizedName(member, locale)}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div>
+          <label htmlFor="source" className="block text-sm font-medium text-foreground">
+            {t("source")}
+          </label>
+          <select
+            id="source"
+            disabled={readOnly}
+            value={values.source}
+            onChange={(e) => update("source", e.target.value as ComplaintSource)}
+            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
+          >
+            {COMPLAINT_SOURCES.map((source) => (
+              <option key={source} value={source}>
+                {tSource(source)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
+
+      {!hideAssignedTo && (
+        <div>
+          <label htmlFor="assignedTo" className="block text-sm font-medium text-foreground">
+            {t("assignedTo")}
+          </label>
+          <select
+            id="assignedTo"
+            disabled={readOnly}
+            value={values.assignedTo}
+            onChange={(e) => update("assignedTo", e.target.value)}
+            className="mt-1 w-full max-w-xs rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
+          >
+            <option value="">{tCommon("unassigned")}</option>
+            {staff.map((member) => (
+              <option key={member.id} value={member.id}>
+                {localizedName(member, locale)}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div>
         <label htmlFor="status" className="block text-sm font-medium text-foreground">

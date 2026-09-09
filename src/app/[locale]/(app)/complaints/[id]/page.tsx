@@ -5,9 +5,8 @@ import { useLocale, useTranslations, useFormatter } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { deleteComplaint, reassignComplaint, subscribeToComplaint, updateComplaint } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
-import { subscribeToCustomers } from "@/lib/customers";
 import { useAuth } from "@/lib/auth-context";
-import { hasPermission, localizedName, type Complaint, type ComplaintInput, type Customer, type StaffUser } from "@/lib/types";
+import { hasPermission, localizedName, type Complaint, type ComplaintInput, type StaffUser } from "@/lib/types";
 import ComplaintForm from "@/components/ComplaintForm";
 
 export default function ComplaintDetailPage({
@@ -26,7 +25,6 @@ export default function ComplaintDetailPage({
 
   const [complaint, setComplaint] = useState<Complaint | null | undefined>(undefined);
   const [staff, setStaff] = useState<StaffUser[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [reassignTo, setReassignTo] = useState("");
   const [reassigning, setReassigning] = useState(false);
@@ -48,7 +46,6 @@ export default function ComplaintDetailPage({
     [id]
   );
   useEffect(() => subscribeToStaff(setStaff), []);
-  useEffect(() => subscribeToCustomers(setCustomers), []);
 
   async function handleSubmit(values: ComplaintInput) {
     await updateComplaint(id, values, complaint?.status ?? null, user?.uid ?? null);
@@ -156,14 +153,13 @@ export default function ComplaintDetailPage({
         <ComplaintForm
           key={complaint.id + complaint.updatedAt}
           staff={staff}
-          customers={customers}
           initialValues={{
             subject: complaint.subject,
             description: complaint.description,
             category: complaint.category,
             source: complaint.source,
-            customerId: complaint.customerId,
-            customerNumber: complaint.customerNumber,
+            customerName: complaint.customerName,
+            customerPhone: complaint.customerPhone,
             customerOrderNumber: complaint.customerOrderNumber,
             assignedTo: complaint.assignedTo ?? "",
             status: complaint.status,

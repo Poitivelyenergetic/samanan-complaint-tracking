@@ -46,7 +46,6 @@ function SidebarContents({ onNavigate }: { onNavigate?: () => void }) {
   const visibleSettingsItems = SETTINGS_ITEMS.filter((item) => hasPermission(profile, item.resource, "view"));
   const canViewComplaints = hasPermission(profile, "complaints", "view");
   const canCreateComplaints = hasPermission(profile, "complaints", "create");
-  const canViewUsers = hasPermission(profile, "customers", "view");
   const canAccessMarketing = hasPermission(profile, "marketing", "view");
 
   return (
@@ -62,9 +61,6 @@ function SidebarContents({ onNavigate }: { onNavigate?: () => void }) {
         )}
         {canCreateComplaints && (
           <SidebarLink href="/complaints/new" label={t("newComplaint")} active={isActive("/complaints/new")} onNavigate={onNavigate} />
-        )}
-        {canViewUsers && (
-          <SidebarLink href="/users" label={t("users")} active={isActive("/users")} onNavigate={onNavigate} />
         )}
         {canAccessMarketing && (
           <SidebarLink href="/marketing" label={t("marketing")} active={isActive("/marketing")} onNavigate={onNavigate} />

@@ -24,7 +24,6 @@
   "nav": {
     "dashboard": "الشكاوى",
     "newComplaint": "شكوى جديدة",
-    "users": "المستخدمون",
     "marketing": "التسويق",
     "settings": "الإعدادات",
     "companies": "الشركات",
@@ -85,14 +84,14 @@
     "title": "الشكاوى",
     "subtitle": "جميع شكاوى العملاء المسجلة من قبل الموظفين",
     "newButton": "شكوى جديدة",
-    "searchPlaceholder": "ابحث بالموضوع أو رقم العميل أو الرقم المرجعي...",
+    "searchPlaceholder": "ابحث بالموضوع أو اسم/هاتف العميل أو الرقم المرجعي...",
     "statusFilter": "الحالة",
     "assigneeFilter": "المسندة إلى",
     "noResults": "لا توجد شكاوى.",
     "table": {
       "issueId": "رقم الشكوى",
       "subject": "الموضوع",
-      "customerNumber": "رقم العميل",
+      "customer": "العميل",
       "source": "المصدر",
       "assignedTo": "مسندة إلى",
       "status": "الحالة",
@@ -104,8 +103,8 @@
       "subject": "الموضوع",
       "description": "الوصف",
       "category": "التصنيف",
-      "customer": "المستخدم",
-      "customerNumber": "رقم العميل",
+      "customerName": "اسم العميل",
+      "customerPhone": "رقم هاتف العميل",
       "customerOrderNumber": "رقم طلب العميل",
       "source": "المصدر",
       "assignedTo": "مسندة إلى",
@@ -126,21 +125,6 @@
       "Website": "الموقع الإلكتروني",
       "WalkIn": "زيارة شخصية",
       "Other": "أخرى"
-    },
-    "customerPicker": {
-      "searchPlaceholder": "ابحث عن مستخدم بالرقم أو الاسم...",
-      "noResults": "لا يوجد مستخدمون مطابقون.",
-      "newUser": "+ مستخدم جديد",
-      "change": "تغيير",
-      "quickCreate": {
-        "nameAr": "الاسم (عربي)",
-        "nameEn": "الاسم (إنجليزي)",
-        "number": "الرقم",
-        "phone": "رقم الهاتف",
-        "employeeNotAssigned": "لا يوجد موظف معيّن",
-        "submit": "إنشاء وربط",
-        "cancel": "إلغاء"
-      }
     },
     "new": {
       "title": "شكوى جديدة",
@@ -384,7 +368,6 @@
       "administrations": "الإدارات",
       "departments": "الأقسام",
       "employees": "الموظفون",
-      "customers": "المستخدمون",
       "complaints": "الشكاوى",
       "roles": "الأدوار",
       "marketing": "التسويق",
@@ -414,45 +397,6 @@
       "submit": "حفظ التغييرات",
       "notFound": "الدور غير موجود.",
       "deleteConfirm": "هل أنت متأكد من حذف هذا الدور؟ الموظفون الذين لا يملكون سوى هذا الدور سيفقدون صلاحياته."
-    }
-  },
-  "users": {
-    "title": "المستخدمون",
-    "subtitle": "السجل الخاص بالعملاء الذين يقدمون الشكاوى",
-    "newButton": "+ مستخدم جديد",
-    "noResults": "لا يوجد مستخدمون.",
-    "notFound": "المستخدم غير موجود.",
-    "searchPlaceholder": "ابحث بالرقم أو الاسم أو رقم الهاتف...",
-    "deleteConfirm": "هل أنت متأكد من حذف هذا المستخدم؟",
-    "employeeNotAssigned": "غير مسند",
-    "table": {
-      "number": "الرقم",
-      "nameAr": "الاسم (عربي)",
-      "nameEn": "الاسم (إنجليزي)",
-      "phone": "رقم الهاتف",
-      "assignedEmployee": "الموظف المسؤول"
-    },
-    "fields": {
-      "number": "الرقم",
-      "nameAr": "الاسم (عربي)",
-      "nameEn": "الاسم (إنجليزي)",
-      "phone": "رقم الهاتف",
-      "assignedEmployee": "الموظف المسؤول",
-      "employeeNotAssigned": "لا يوجد موظف معيّن",
-      "responsibleEmployee": "الموظف المسؤول",
-      "responsibleEmployeeHint": "ابحث عن موظف حالي، أو املأ الحقول أدناه لإنشاء موظف جديد.",
-      "changeEmployee": "تغيير",
-      "searchEmployeePlaceholder": "ابحث عن الموظفين بالاسم أو اسم المستخدم...",
-      "noEmployeeResults": "لا يوجد موظفون مطابقون."
-    },
-    "new": {
-      "title": "مستخدم جديد",
-      "submit": "إنشاء المستخدم"
-    },
-    "edit": {
-      "title": "تعديل المستخدم",
-      "submit": "حفظ التغييرات",
-      "notFound": "المستخدم غير موجود."
     }
   }
 }

@@ -70,17 +70,6 @@ service cloud.firestore {
       allow delete: if hasPermission("departments", "delete");
     }
 
-    // Users (the customer-facing record — collection stays `customers`
-    // internally, see types.ts). Unlike the org hierarchy above, this is
-    // customer data, not staff directory info, so even reading it requires
-    // its own view permission rather than being open to any signed-in staff.
-    match /customers/{customerId} {
-      allow read: if hasPermission("customers", "view");
-      allow create: if hasPermission("customers", "create");
-      allow update: if hasPermission("customers", "update");
-      allow delete: if hasPermission("customers", "delete");
-    }
-
     // A reassign-only write (see complaints.reassign below) must touch
     // nothing but assignedTo/updatedAt/history — anyone who also holds
     // complaints.update can write any field regardless.

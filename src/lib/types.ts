@@ -18,7 +18,6 @@ export const PERMISSION_RESOURCES = [
   "administrations",
   "departments",
   "employees",
-  "customers", // UI label is always "Users", never "Customers"
   "complaints",
   "roles",
 ] as const;
@@ -58,7 +57,6 @@ export interface RolePermissions {
   administrations: CrudPermission;
   departments: CrudPermission;
   employees: CrudPermission;
-  customers: CrudPermission;
   complaints: ComplaintsPermission;
   roles: CrudPermission;
   marketing: MarketingPermission;
@@ -86,7 +84,6 @@ export function emptyRolePermissions(): RolePermissions {
     administrations: emptyCrud(),
     departments: emptyCrud(),
     employees: emptyCrud(),
-    customers: emptyCrud(),
     complaints: emptyComplaintsPermission(),
     roles: emptyCrud(),
     marketing: { view: false },
@@ -99,7 +96,6 @@ export function fullRolePermissions(): RolePermissions {
     administrations: fullCrud(),
     departments: fullCrud(),
     employees: fullCrud(),
-    customers: fullCrud(),
     complaints: fullComplaintsPermission(),
     roles: fullCrud(),
     marketing: { view: true },
@@ -281,28 +277,6 @@ export function localizedName(
   return preferred || fallback || "";
 }
 
-// --- Users (customer-facing record) ----------------------------------------
-// Collection/field names stay `customers`/`customerId` internally so they
-// don't collide with the `employees` collection, but every UI-facing label
-// is "Users", never "Customers" (nav item, screen titles, permission name).
-
-export interface Customer {
-  id: string;
-  number: string;
-  nameAr: string;
-  nameEn: string;
-  phone: string;
-  employeeId: string | null; // the staff member responsible for this user
-}
-
-export interface CustomerInput {
-  number: string;
-  nameAr: string;
-  nameEn: string;
-  phone: string;
-  employeeId: string | null;
-}
-
 // --- Complaints --------------------------------------------------------
 
 export const COMPLAINT_STATUSES = [
@@ -368,8 +342,8 @@ export interface Complaint {
   category: ComplaintCategory;
   channel: ComplaintChannel;
   source: ComplaintSource;
-  customerId: string | null; // link to a customers doc — the actual reference
-  customerNumber: string; // display convenience, derived from the linked customer (or contact info for public complaints); never hand-typed by staff anymore
+  customerName: string; // free text — there is no customer account/record, just what staff typed in
+  customerPhone: string;
   customerOrderNumber: string;
   complainantName: string | null; // set when channel is "public"
   contactEmail: string | null;

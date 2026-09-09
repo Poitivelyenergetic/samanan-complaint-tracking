@@ -24,7 +24,6 @@
   "nav": {
     "dashboard": "Complaints",
     "newComplaint": "New Complaint",
-    "users": "Users",
     "marketing": "Marketing",
     "settings": "Settings",
     "companies": "Companies",
@@ -85,14 +84,14 @@
     "title": "Complaints",
     "subtitle": "All customer complaints logged by staff",
     "newButton": "New Complaint",
-    "searchPlaceholder": "Search by subject, customer number, or reference number...",
+    "searchPlaceholder": "Search by subject, customer name/phone, or reference number...",
     "statusFilter": "Status",
     "assigneeFilter": "Assigned to",
     "noResults": "No complaints found.",
     "table": {
       "issueId": "Issue ID",
       "subject": "Subject",
-      "customerNumber": "Customer #",
+      "customer": "Customer",
       "source": "Source",
       "assignedTo": "Assigned To",
       "status": "Status",
@@ -104,8 +103,8 @@
       "subject": "Subject",
       "description": "Description",
       "category": "Category",
-      "customer": "User",
-      "customerNumber": "Customer Number",
+      "customerName": "Customer Name",
+      "customerPhone": "Customer Phone",
       "customerOrderNumber": "Customer Order Number",
       "source": "Source",
       "assignedTo": "Assigned To",
@@ -126,21 +125,6 @@
       "Website": "Website",
       "WalkIn": "Walk-in",
       "Other": "Other"
-    },
-    "customerPicker": {
-      "searchPlaceholder": "Search users by number or name...",
-      "noResults": "No matching users.",
-      "newUser": "+ New user",
-      "change": "Change",
-      "quickCreate": {
-        "nameAr": "Name (Arabic)",
-        "nameEn": "Name (English)",
-        "number": "Number",
-        "phone": "Phone",
-        "employeeNotAssigned": "No employee assigned",
-        "submit": "Create & link",
-        "cancel": "Cancel"
-      }
     },
     "new": {
       "title": "New Complaint",
@@ -384,7 +368,6 @@
       "administrations": "Administrations",
       "departments": "Departments",
       "employees": "Employees",
-      "customers": "Users",
       "complaints": "Complaints",
       "roles": "Roles",
       "marketing": "Marketing",
@@ -414,45 +397,6 @@
       "submit": "Save Changes",
       "notFound": "Role not found.",
       "deleteConfirm": "Are you sure you want to delete this role? Employees holding only this role will lose its permissions."
-    }
-  },
-  "users": {
-    "title": "Users",
-    "subtitle": "The customer-facing record for people who file complaints",
-    "newButton": "+ New user",
-    "noResults": "No users found.",
-    "notFound": "User not found.",
-    "searchPlaceholder": "Search by number, name, or phone...",
-    "deleteConfirm": "Are you sure you want to delete this user?",
-    "employeeNotAssigned": "Not assigned",
-    "table": {
-      "number": "Number",
-      "nameAr": "Name (Arabic)",
-      "nameEn": "Name (English)",
-      "phone": "Phone",
-      "assignedEmployee": "Assigned Employee"
-    },
-    "fields": {
-      "number": "Number",
-      "nameAr": "Name (Arabic)",
-      "nameEn": "Name (English)",
-      "phone": "Phone",
-      "assignedEmployee": "Assigned employee",
-      "employeeNotAssigned": "No employee assigned",
-      "responsibleEmployee": "Responsible Employee",
-      "responsibleEmployeeHint": "Search for an existing employee, or fill in the fields below to create a new one.",
-      "changeEmployee": "Change",
-      "searchEmployeePlaceholder": "Search employees by name or username...",
-      "noEmployeeResults": "No matching employees."
-    },
-    "new": {
-      "title": "New User",
-      "submit": "Create User"
-    },
-    "edit": {
-      "title": "Edit User",
-      "submit": "Save Changes",
-      "notFound": "User not found."
     }
   }
 }

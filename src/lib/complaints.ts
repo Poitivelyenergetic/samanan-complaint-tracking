@@ -37,8 +37,8 @@ function fromDoc(id: string, data: DocumentData): Complaint {
     // Existing complaints predating the Source field default to "Website"
     // (matches the one-time migration for historical data).
     source: data.source ?? "Website",
-    customerId: data.customerId ?? null,
-    customerNumber: data.customerNumber ?? "",
+    customerName: data.customerName ?? "",
+    customerPhone: data.customerPhone ?? "",
     customerOrderNumber: data.customerOrderNumber ?? "",
     complainantName: data.complainantName ?? null,
     contactEmail: data.contactEmail ?? null,

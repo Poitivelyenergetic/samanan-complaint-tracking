@@ -1,8 +1,8 @@
 /**
- * Seeds Firebase Auth + Firestore with a demo org structure (company,
- * administrations, departments, roles), a staff directory, a couple of
- * demo users (customers), and a handful of sample complaints so the app
- * can be demoed immediately after setup.
+ * Bootstraps Firebase Auth + Firestore with the org structure (company,
+ * administrations, departments), the two base roles (Super Admin,
+ * Employee), and the primary admin account, so a fresh environment has
+ * something to sign in with.
  *
  * Usage: npm run seed
  * Requires FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY
@@ -111,7 +111,7 @@ interface SeedStaff {
 const STAFF: SeedStaff[] = [
   {
     uid: "seed-mhmd",
-    nameEn: "Mohammed Al-Otaibi",
+    nameEn: "Mohammed",
     username: "mhmd",
     password: "123456",
     number: "1001",
@@ -120,45 +120,12 @@ const STAFF: SeedStaff[] = [
     departmentId: "seed-dept-support-lead",
     roleId: SUPER_ADMIN_ROLE_ID,
   },
-  {
-    uid: "seed-sara",
-    nameEn: "Sara Al-Harbi",
-    username: "sara",
-    password: "123456",
-    number: "1002",
-    phone: "",
-    jobTitle: "Customer Support Agent",
-    departmentId: "seed-dept-support-agent",
-    roleId: EMPLOYEE_ROLE_ID,
-  },
-  {
-    uid: "seed-ali",
-    nameEn: "Ali Al-Qahtani",
-    username: "ali",
-    password: "123456",
-    number: "1003",
-    phone: "",
-    jobTitle: "Customer Support Agent",
-    departmentId: "seed-dept-support-agent",
-    roleId: EMPLOYEE_ROLE_ID,
-  },
-  {
-    uid: "seed-huda",
-    nameEn: "Huda Al-Zahrani",
-    username: "huda",
-    password: "123456",
-    number: "1004",
-    phone: "",
-    jobTitle: "Quality Assurance Manager",
-    departmentId: "seed-dept-qa-manager",
-    roleId: SUPER_ADMIN_ROLE_ID,
-  },
 ];
 
 async function upsertStaff(staff: SeedStaff) {
   const email = usernameToEmail(staff.username);
   try {
-    await auth.updateUser(staff.uid, { email, password: staff.password, emailVerified: true });
+    await auth.updateUser(staff.uid, { email, password: staff.password, emailVerified: true, displayName: staff.nameEn });
     console.log(`Updated Auth user: ${staff.username}`);
   } catch {
     await auth.createUser({
@@ -178,141 +145,22 @@ async function upsertStaff(staff: SeedStaff) {
     return p;
   })();
 
-  await db.collection("users").doc(staff.uid).set({
-    id: staff.uid,
-    nameEn: staff.nameEn,
-    nameAr: "",
-    username: staff.username,
-    number: staff.number,
-    phone: staff.phone,
-    jobTitle: staff.jobTitle,
-    companyId: COMPANY_ID,
-    administrationId: department.administrationId,
-    departmentId: staff.departmentId,
-    roleIds: [staff.roleId],
-    permissions,
-  });
-}
-
-interface SeedCustomer {
-  id: string;
-  number: string;
-  nameEn: string;
-  phone: string;
-  employeeId: string | null;
-}
-
-const CUSTOMERS: SeedCustomer[] = [
-  { id: "seed-cust-1", number: "CUST-10432", nameEn: "Demo Customer 1", phone: "0500000001", employeeId: null },
-  { id: "seed-cust-2", number: "CUST-10488", nameEn: "Demo Customer 2", phone: "0500000002", employeeId: null },
-  { id: "seed-cust-3", number: "CUST-10510", nameEn: "Demo Customer 3", phone: "0500000003", employeeId: null },
-  { id: "seed-cust-4", number: "CUST-10312", nameEn: "Demo Customer 4", phone: "0500000004", employeeId: null },
-  { id: "seed-cust-5", number: "CUST-10201", nameEn: "Demo Customer 5", phone: "0500000005", employeeId: null },
-];
-
-async function upsertCustomer(customer: SeedCustomer) {
-  const { id, ...data } = customer;
-  await db.collection("customers").doc(id).set({ ...data, nameAr: "" });
-}
-
-interface SeedComplaint {
-  id: string;
-  subject: string;
-  description: string;
-  customerNumber: string;
-  customerId: string;
-  customerOrderNumber: string;
-  assignedTo: string | null;
-  status: "Open" | "Assigned" | "Processing" | "Cancel" | "Closed";
-  source: "Twitter" | "Facebook" | "Phone" | "Website" | "WalkIn" | "Other";
-}
-
-const COMPLAINTS: SeedComplaint[] = [
-  {
-    id: "demo-1",
-    subject: "Product arrived damaged",
-    description:
-      "Customer received the package with a cracked casing. Requesting a replacement unit and confirmation of the return shipping label.",
-    customerNumber: "CUST-10432",
-    customerId: "seed-cust-1",
-    customerOrderNumber: "ORD-88291",
-    assignedTo: null,
-    status: "Open",
-    source: "Website",
-  },
-  {
-    id: "demo-2",
-    subject: "Wrong item shipped",
-    description:
-      "Order was placed for a medium size but a small size was delivered instead. Customer wants an exchange, not a refund.",
-    customerNumber: "CUST-10488",
-    customerId: "seed-cust-2",
-    customerOrderNumber: "ORD-88340",
-    assignedTo: "seed-sara",
-    status: "Assigned",
-    source: "Phone",
-  },
-  {
-    id: "demo-3",
-    subject: "Delayed delivery, order still not received",
-    description:
-      "Order was expected 5 days ago per the tracking info. Customer has contacted twice already and is getting frustrated with the delay.",
-    customerNumber: "CUST-10510",
-    customerId: "seed-cust-3",
-    customerOrderNumber: "ORD-88355",
-    assignedTo: "seed-ali",
-    status: "Processing",
-    source: "Twitter",
-  },
-  {
-    id: "demo-4",
-    subject: "Duplicate charge on card",
-    description:
-      "Customer was charged twice for the same order. Turned out to be a duplicate submission on checkout; customer confirmed the second order was cancelled before shipment.",
-    customerNumber: "CUST-10312",
-    customerId: "seed-cust-4",
-    customerOrderNumber: "ORD-88109",
-    assignedTo: "seed-mhmd",
-    status: "Cancel",
-    source: "WalkIn",
-  },
-  {
-    id: "demo-5",
-    subject: "Refund processed, confirming resolution",
-    description:
-      "Customer requested a refund due to a sizing issue. Refund was issued to the original payment method and customer confirmed receipt.",
-    customerNumber: "CUST-10201",
-    customerId: "seed-cust-5",
-    customerOrderNumber: "ORD-87950",
-    assignedTo: "seed-huda",
-    status: "Closed",
-    source: "Facebook",
-  },
-];
-
-async function upsertComplaint(complaint: SeedComplaint) {
-  const { id, ...data } = complaint;
-  const ref = db.collection("complaints").doc(id);
-  const existing = await ref.get();
-  const existingHistory = existing.exists && Array.isArray(existing.data()?.history) ? existing.data()?.history : null;
-  await ref.set(
+  await db.collection("users").doc(staff.uid).set(
     {
-      ...data,
-      channel: "staff",
-      createdBy: "seed-mhmd",
-      // Matches what createComplaint() would have written for a real
-      // creation, so seeded complaints show the same history timeline a
-      // staff-created one would. Only set once — re-running the seed
-      // script shouldn't reset an already-upserted complaint's log.
-      history: existingHistory ?? [
-        { type: "created", status: "Open", at: new Date().toISOString(), byUid: "seed-mhmd" },
-      ],
-      createdAt: existing.exists ? existing.data()?.createdAt ?? FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
+      id: staff.uid,
+      nameEn: staff.nameEn,
+      username: staff.username,
+      number: staff.number,
+      phone: staff.phone,
+      jobTitle: staff.jobTitle,
+      companyId: COMPANY_ID,
+      administrationId: department.administrationId,
+      departmentId: staff.departmentId,
+      roleIds: [staff.roleId],
+      permissions,
     },
     { merge: true }
   );
-  console.log(`Upserted complaint: ${complaint.subject}`);
 }
 
 async function main() {
@@ -327,17 +175,7 @@ async function main() {
     await upsertStaff(staff);
   }
 
-  console.log("\nSeeding demo users...");
-  for (const customer of CUSTOMERS) {
-    await upsertCustomer(customer);
-  }
-
-  console.log("\nSeeding sample complaints...");
-  for (const complaint of COMPLAINTS) {
-    await upsertComplaint(complaint);
-  }
-
-  console.log("\nDone. Demo login -> username: mhmd, password: 123456 (Super Admin)");
+  console.log("\nDone. Login -> username: mhmd, password: 123456 (Super Admin)");
   process.exit(0);
 }
 

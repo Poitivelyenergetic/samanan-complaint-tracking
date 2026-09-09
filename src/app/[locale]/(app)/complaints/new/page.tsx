@@ -5,9 +5,8 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { createComplaint } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
-import { subscribeToCustomers } from "@/lib/customers";
 import { useAuth } from "@/lib/auth-context";
-import { hasPermission, type ComplaintInput, type Customer, type StaffUser } from "@/lib/types";
+import { hasPermission, type ComplaintInput, type StaffUser } from "@/lib/types";
 import ComplaintForm from "@/components/ComplaintForm";
 
 export default function NewComplaintPage() {
@@ -17,10 +16,8 @@ export default function NewComplaintPage() {
   const { user, profile, loading } = useAuth();
 
   const [staff, setStaff] = useState<StaffUser[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
 
   useEffect(() => subscribeToStaff(setStaff), []);
-  useEffect(() => subscribeToCustomers(setCustomers), []);
 
   useEffect(() => {
     if (!loading && profile && !hasPermission(profile, "complaints", "create")) {
@@ -44,7 +41,6 @@ export default function NewComplaintPage() {
       <div className="mt-6 rounded-lg border border-border bg-surface p-6">
         <ComplaintForm
           staff={staff}
-          customers={customers}
           submitLabel={t("submit")}
           submittingLabel={tCommon("saving")}
           onSubmit={handleSubmit}

@@ -31,7 +31,6 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
       administrations: { view: next, create: next, update: next, delete: next },
       departments: { view: next, create: next, update: next, delete: next },
       employees: { view: next, create: next, update: next, delete: next },
-      customers: { view: next, create: next, update: next, delete: next },
       complaints: { view: next, create: next, update: next, delete: next, viewAll: next, reassign: next },
       roles: { view: next, create: next, update: next, delete: next },
       marketing: { view: next },

@@ -51,7 +51,8 @@ export default function DashboardPage() {
       if (
         term &&
         !c.subject.toLowerCase().includes(term) &&
-        !c.customerNumber.toLowerCase().includes(term) &&
+        !c.customerName.toLowerCase().includes(term) &&
+        !c.customerPhone.toLowerCase().includes(term) &&
         !c.id.toLowerCase().includes(term)
       ) {
         return false;
@@ -119,7 +120,7 @@ export default function DashboardPage() {
             <tr className="border-b border-border bg-black/[0.02] text-start text-xs font-semibold uppercase tracking-wide text-foreground/50">
               <th className="px-4 py-3 text-start">{t("table.issueId")}</th>
               <th className="px-4 py-3 text-start">{t("table.subject")}</th>
-              <th className="px-4 py-3 text-start">{t("table.customerNumber")}</th>
+              <th className="px-4 py-3 text-start">{t("table.customer")}</th>
               <th className="px-4 py-3 text-start">{t("table.source")}</th>
               <th className="px-4 py-3 text-start">{t("table.assignedTo")}</th>
               <th className="px-4 py-3 text-start">{t("table.status")}</th>
@@ -155,7 +156,9 @@ export default function DashboardPage() {
                       {c.subject}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-foreground/70">{c.customerNumber}</td>
+                  <td className="px-4 py-3 text-foreground/70">
+                    {c.customerName || c.customerPhone || "—"}
+                  </td>
                   <td className="px-4 py-3 text-foreground/70">{tSource(c.source)}</td>
                   <td className="px-4 py-3 text-foreground/70">
                     {c.assignedTo ? localizedName(staffById.get(c.assignedTo), locale) || c.assignedTo : tCommon("unassigned")}
