@@ -2,22 +2,7 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, ApiAuthError } from "@/lib/api-auth";
-import { emptyRolePermissions, PERMISSION_RESOURCES, CRUD_ACTIONS, type RoleInput } from "@/lib/types";
-
-function normalizePermissions(input: unknown) {
-  const result = emptyRolePermissions();
-  if (typeof input !== "object" || input === null) return result;
-  const record = input as Record<string, unknown>;
-  for (const resource of PERMISSION_RESOURCES) {
-    const grant = record[resource];
-    if (typeof grant !== "object" || grant === null) continue;
-    for (const action of CRUD_ACTIONS) {
-      if ((grant as Record<string, unknown>)[action] === true) result[resource][action] = true;
-    }
-  }
-  if ((record.marketing as { view?: unknown } | undefined)?.view === true) result.marketing.view = true;
-  return result;
-}
+import { normalizeRolePermissionsInput, type RoleInput } from "@/lib/types";
 
 // A brand-new role has no employees referencing it yet, so — unlike editing
 // or deleting one — creating a role needs no cascade and could in principle
@@ -39,7 +24,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
   }
 
-  const permissions = normalizePermissions(body.permissions);
+  const permissions = normalizeRolePermissionsInput(body.permissions);
   const ref = await getAdminDb()
     .collection("roles")
     .add({ name, permissions, updatedAt: FieldValue.serverTimestamp() });

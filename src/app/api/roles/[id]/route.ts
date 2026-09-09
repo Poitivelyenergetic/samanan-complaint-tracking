@@ -3,22 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, ApiAuthError } from "@/lib/api-auth";
 import { computeUnionPermissions } from "@/lib/permissions-server";
-import { emptyRolePermissions, PERMISSION_RESOURCES, CRUD_ACTIONS, type RoleInput } from "@/lib/types";
-
-function normalizePermissions(input: unknown) {
-  const result = emptyRolePermissions();
-  if (typeof input !== "object" || input === null) return result;
-  const record = input as Record<string, unknown>;
-  for (const resource of PERMISSION_RESOURCES) {
-    const grant = record[resource];
-    if (typeof grant !== "object" || grant === null) continue;
-    for (const action of CRUD_ACTIONS) {
-      if ((grant as Record<string, unknown>)[action] === true) result[resource][action] = true;
-    }
-  }
-  if ((record.marketing as { view?: unknown } | undefined)?.view === true) result.marketing.view = true;
-  return result;
-}
+import { normalizeRolePermissionsInput, type RoleInput } from "@/lib/types";
 
 // Recomputes and persists the denormalized `permissions` union for every
 // employee who currently holds `roleId` — called after that role's own
@@ -56,7 +41,7 @@ export async function PATCH(
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
   }
 
-  const permissions = normalizePermissions(body.permissions);
+  const permissions = normalizeRolePermissionsInput(body.permissions);
   await getAdminDb()
     .collection("roles")
     .doc(id)

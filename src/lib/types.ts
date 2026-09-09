@@ -41,13 +41,25 @@ export interface MarketingPermission {
   view: boolean;
 }
 
+// Complaints carries two extra flags beyond the standard CRUD set:
+//  - viewAll: see every complaint, not just ones assigned to you (default
+//    scoping — see hasPermission's callers in the dashboard/detail pages —
+//    is "only your own assigned complaints").
+//  - reassign: change who a complaint is assigned to. Deliberately separate
+//    from `update` so a role can edit complaint details without being able
+//    to reassign them, or vice versa.
+export interface ComplaintsPermission extends CrudPermission {
+  viewAll: boolean;
+  reassign: boolean;
+}
+
 export interface RolePermissions {
   companies: CrudPermission;
   administrations: CrudPermission;
   departments: CrudPermission;
   employees: CrudPermission;
   customers: CrudPermission;
-  complaints: CrudPermission;
+  complaints: ComplaintsPermission;
   roles: CrudPermission;
   marketing: MarketingPermission;
 }
@@ -60,6 +72,14 @@ export function fullCrud(): CrudPermission {
   return { view: true, create: true, update: true, delete: true };
 }
 
+function emptyComplaintsPermission(): ComplaintsPermission {
+  return { ...emptyCrud(), viewAll: false, reassign: false };
+}
+
+function fullComplaintsPermission(): ComplaintsPermission {
+  return { ...fullCrud(), viewAll: true, reassign: true };
+}
+
 export function emptyRolePermissions(): RolePermissions {
   return {
     companies: emptyCrud(),
@@ -67,7 +87,7 @@ export function emptyRolePermissions(): RolePermissions {
     departments: emptyCrud(),
     employees: emptyCrud(),
     customers: emptyCrud(),
-    complaints: emptyCrud(),
+    complaints: emptyComplaintsPermission(),
     roles: emptyCrud(),
     marketing: { view: false },
   };
@@ -80,7 +100,7 @@ export function fullRolePermissions(): RolePermissions {
     departments: fullCrud(),
     employees: fullCrud(),
     customers: fullCrud(),
-    complaints: fullCrud(),
+    complaints: fullComplaintsPermission(),
     roles: fullCrud(),
     marketing: { view: true },
   };
@@ -99,6 +119,11 @@ export function unionRolePermissions(rolePermissions: Partial<RolePermissions>[]
       for (const action of CRUD_ACTIONS) {
         if (grant[action]) result[resource][action] = true;
       }
+      if (resource === "complaints") {
+        const complaintsGrant = grant as Partial<ComplaintsPermission>;
+        if (complaintsGrant.viewAll) result.complaints.viewAll = true;
+        if (complaintsGrant.reassign) result.complaints.reassign = true;
+      }
     }
     if (perms.marketing?.view) result.marketing.view = true;
   }
@@ -111,11 +136,39 @@ export function unionRolePermissions(rolePermissions: Partial<RolePermissions>[]
 export function hasPermission(
   profile: { permissions?: RolePermissions } | null | undefined,
   resource: PermissionResource | "marketing",
-  action: CrudAction
+  action: CrudAction | "viewAll" | "reassign"
 ): boolean {
   const resourcePerms = profile?.permissions?.[resource as keyof RolePermissions];
   if (!resourcePerms) return false;
   return (resourcePerms as unknown as Record<string, boolean>)[action] === true;
+}
+
+// Turns an arbitrary (client-supplied) permissions payload into a well-formed
+// RolePermissions object — every resource/action defaults to false unless
+// the input explicitly grants it. Shared by the create and update role API
+// routes so the complaints.viewAll/reassign handling only lives in one place.
+export function normalizeRolePermissionsInput(input: unknown): RolePermissions {
+  const result = emptyRolePermissions();
+  if (typeof input !== "object" || input === null) return result;
+  const record = input as Record<string, unknown>;
+
+  for (const resource of PERMISSION_RESOURCES) {
+    const grant = record[resource];
+    if (typeof grant !== "object" || grant === null) continue;
+    const grantRecord = grant as Record<string, unknown>;
+    for (const action of CRUD_ACTIONS) {
+      if (grantRecord[action] === true) result[resource][action] = true;
+    }
+    if (resource === "complaints") {
+      if (grantRecord.viewAll === true) result.complaints.viewAll = true;
+      if (grantRecord.reassign === true) result.complaints.reassign = true;
+    }
+  }
+
+  const marketingGrant = record.marketing as { view?: unknown } | undefined;
+  if (marketingGrant?.view === true) result.marketing.view = true;
+
+  return result;
 }
 
 export interface Role {

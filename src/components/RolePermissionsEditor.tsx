@@ -9,6 +9,7 @@ interface RolePermissionsEditorProps {
 }
 
 const ALL_RESOURCES = [...PERMISSION_RESOURCES, "marketing" as const];
+const COMPLAINTS_EXTRA_ACTIONS = ["viewAll", "reassign"] as const;
 
 export default function RolePermissionsEditor({ value, onChange }: RolePermissionsEditorProps) {
   const t = useTranslations("roles.resources");
@@ -17,7 +18,11 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
   const allGranted = ALL_RESOURCES.every((resource) =>
     resource === "marketing"
       ? value.marketing.view
-      : CRUD_ACTIONS.every((action) => value[resource][action])
+      : resource === "complaints"
+        ? CRUD_ACTIONS.every((action) => value.complaints[action]) &&
+          value.complaints.viewAll &&
+          value.complaints.reassign
+        : CRUD_ACTIONS.every((action) => value[resource][action])
   );
 
   function toggleAll(next: boolean) {
@@ -27,7 +32,7 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
       departments: { view: next, create: next, update: next, delete: next },
       employees: { view: next, create: next, update: next, delete: next },
       customers: { view: next, create: next, update: next, delete: next },
-      complaints: { view: next, create: next, update: next, delete: next },
+      complaints: { view: next, create: next, update: next, delete: next, viewAll: next, reassign: next },
       roles: { view: next, create: next, update: next, delete: next },
       marketing: { view: next },
     };
@@ -39,6 +44,10 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
       onChange({ ...value, marketing: { view: next } });
       return;
     }
+    if (resource === "complaints") {
+      onChange({ ...value, complaints: { view: next, create: next, update: next, delete: next, viewAll: next, reassign: next } });
+      return;
+    }
     onChange({ ...value, [resource]: { view: next, create: next, update: next, delete: next } });
   }
 
@@ -48,6 +57,22 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
     next: boolean
   ) {
     onChange({ ...value, [resource]: { ...value[resource], [action]: next } });
+  }
+
+  function toggleComplaintsExtra(action: (typeof COMPLAINTS_EXTRA_ACTIONS)[number], next: boolean) {
+    onChange({ ...value, complaints: { ...value.complaints, [action]: next } });
+  }
+
+  function isResourceAllGranted(resource: (typeof ALL_RESOURCES)[number]) {
+    if (resource === "marketing") return value.marketing.view;
+    if (resource === "complaints") {
+      return (
+        CRUD_ACTIONS.every((action) => value.complaints[action]) &&
+        value.complaints.viewAll &&
+        value.complaints.reassign
+      );
+    }
+    return CRUD_ACTIONS.every((action) => value[resource][action]);
   }
 
   return (
@@ -65,9 +90,8 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
       <div className="space-y-3">
         {ALL_RESOURCES.map((resource) => {
           const isMarketing = resource === "marketing";
-          const resourceAllGranted = isMarketing
-            ? value.marketing.view
-            : CRUD_ACTIONS.every((action) => value[resource][action]);
+          const isComplaints = resource === "complaints";
+          const resourceAllGranted = isResourceAllGranted(resource);
 
           return (
             <div key={resource} className="rounded-lg border border-border bg-surface p-4">
@@ -93,17 +117,31 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
                     {tActions("view")}
                   </label>
                 ) : (
-                  CRUD_ACTIONS.map((action) => (
-                    <label key={action} className="flex items-center gap-2 text-sm text-foreground/80">
-                      <input
-                        type="checkbox"
-                        checked={value[resource][action]}
-                        onChange={(e) => toggleAction(resource, action, e.target.checked)}
-                        className="h-4 w-4 rounded border-border text-brand focus:ring-brand"
-                      />
-                      {tActions(action)}
-                    </label>
-                  ))
+                  <>
+                    {CRUD_ACTIONS.map((action) => (
+                      <label key={action} className="flex items-center gap-2 text-sm text-foreground/80">
+                        <input
+                          type="checkbox"
+                          checked={value[resource][action]}
+                          onChange={(e) => toggleAction(resource, action, e.target.checked)}
+                          className="h-4 w-4 rounded border-border text-brand focus:ring-brand"
+                        />
+                        {tActions(action)}
+                      </label>
+                    ))}
+                    {isComplaints &&
+                      COMPLAINTS_EXTRA_ACTIONS.map((action) => (
+                        <label key={action} className="flex items-center gap-2 text-sm text-foreground/80">
+                          <input
+                            type="checkbox"
+                            checked={value.complaints[action]}
+                            onChange={(e) => toggleComplaintsExtra(action, e.target.checked)}
+                            className="h-4 w-4 rounded border-border text-brand focus:ring-brand"
+                          />
+                          {tActions(action)}
+                        </label>
+                      ))}
+                  </>
                 )}
               </div>
             </div>

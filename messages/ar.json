@@ -413,7 +413,9 @@
       "view": "عرض",
       "create": "إضافة",
       "update": "تعديل",
-      "delete": "حذف"
+      "delete": "حذف",
+      "viewAll": "عرض الكل",
+      "reassign": "إعادة الإسناد"
     },
     "errors": {
       "missing_fields": "يرجى إدخال اسم الدور.",

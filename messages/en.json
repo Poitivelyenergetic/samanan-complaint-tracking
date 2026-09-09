@@ -413,7 +413,9 @@
       "view": "View",
       "create": "Create",
       "update": "Update",
-      "delete": "Delete"
+      "delete": "Delete",
+      "viewAll": "View All",
+      "reassign": "Reassign"
     },
     "errors": {
       "missing_fields": "Please enter a role name.",

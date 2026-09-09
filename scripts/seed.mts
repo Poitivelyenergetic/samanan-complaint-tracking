@@ -80,7 +80,14 @@ async function upsertRoles() {
     .set({ name: "Super Admin", permissions: fullRolePermissions(), updatedAt: FieldValue.serverTimestamp() });
 
   const employeePermissions = emptyRolePermissions();
-  employeePermissions.complaints = { view: true, create: true, update: false, delete: false };
+  employeePermissions.complaints = {
+    view: true,
+    create: true,
+    update: false,
+    delete: false,
+    viewAll: false,
+    reassign: false,
+  };
   await db
     .collection("roles")
     .doc(EMPLOYEE_ROLE_ID)
@@ -167,7 +174,7 @@ async function upsertStaff(staff: SeedStaff) {
   const department = DEPARTMENTS.find((d) => d.id === staff.departmentId)!;
   const permissions = staff.roleId === SUPER_ADMIN_ROLE_ID ? fullRolePermissions() : (() => {
     const p = emptyRolePermissions();
-    p.complaints = { view: true, create: true, update: false, delete: false };
+    p.complaints = { view: true, create: true, update: false, delete: false, viewAll: false, reassign: false };
     return p;
   })();
 
