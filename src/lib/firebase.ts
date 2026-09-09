@@ -1,7 +1,7 @@
 // Client-side Firebase initialization.
 // Values come from NEXT_PUBLIC_* environment variables — see .env.example
 // and the README for how to obtain them from your Firebase project settings.
-import { initializeApp, getApps, getApp, type FirebaseOptions } from "firebase/app";
+import { initializeApp, getApps, getApp, type FirebaseOptions, type FirebaseApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
@@ -44,3 +44,16 @@ export const auth = getAuth(firebaseApp);
 export const db = getFirestore(firebaseApp);
 
 export { usernameToEmail } from "./username";
+
+const PHONE_VERIFY_APP_NAME = "phone-verify";
+
+// A separate, throwaway Firebase App instance used only for the
+// forgot-password SMS verification step (see login/staff/reset-password).
+// Firebase's phone sign-in is a real (if temporary) Auth session — running
+// it on a second app instance keeps it fully isolated from `auth` above, so
+// verifying a phone number never touches whoever might already be signed in
+// on this device. The caller deletes this app when the verification flow
+// ends (success, cancel, or unmount).
+export function createPhoneVerifyApp(): FirebaseApp {
+  return initializeApp(firebaseConfig, `${PHONE_VERIFY_APP_NAME}-${Date.now()}`);
+}

@@ -93,6 +93,12 @@ export default function StaffLoginPage() {
           </button>
         </form>
 
+        <p className="mt-3 text-center text-sm">
+          <Link href="/login/staff/reset-password" className="text-brand hover:underline">
+            {t("forgotPassword")}
+          </Link>
+        </p>
+
         <p className="mt-4 text-center text-sm text-foreground/60">
           {t("noAccount")}{" "}
           <Link href="/login/staff/signup" className="text-brand hover:underline">

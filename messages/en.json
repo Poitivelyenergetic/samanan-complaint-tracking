@@ -45,7 +45,34 @@
     "error": "Invalid username or password",
     "demoHint": "Demo login: username \"mhmd\", password \"123456\"",
     "noAccount": "New staff member?",
-    "signUp": "Request an account"
+    "signUp": "Request an account",
+    "forgotPassword": "Forgot password?",
+    "reset": {
+      "title": "Reset Password",
+      "requestSubtitle": "Enter your username and the phone number on file to receive a verification code.",
+      "phone": "Phone Number",
+      "phoneHint": "e.g. 05XXXXXXXX — must match the number on your staff account.",
+      "sendCode": "Send Code",
+      "sending": "Sending...",
+      "verifySubtitle": "Enter the 6-digit code sent to your phone.",
+      "code": "Verification Code",
+      "verifyCode": "Verify",
+      "verifying": "Verifying...",
+      "newPasswordSubtitle": "Choose a new password for your account.",
+      "newPassword": "New Password",
+      "setPassword": "Set New Password",
+      "doneMessage": "Your password has been reset. You can now sign in with your new password.",
+      "backToLogin": "Back to Sign In",
+      "errors": {
+        "sendFailed": "Could not send a verification code to that number. Please check it and try again.",
+        "invalidCode": "That code is incorrect or has expired. Please try again.",
+        "missing_fields": "Please fill in all fields.",
+        "weak_password": "Password must be at least 6 characters.",
+        "verification_failed": "We couldn't verify that username and phone number together. Please check them and try again.",
+        "too_many_attempts": "Too many reset attempts. Please try again later.",
+        "request_failed": "Something went wrong. Please try again."
+      }
+    }
   },
   "status": {
     "Open": "Open",
