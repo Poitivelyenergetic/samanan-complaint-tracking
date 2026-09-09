@@ -454,7 +454,12 @@
       "nameEn": "Name (English)",
       "phone": "Phone",
       "assignedEmployee": "Assigned employee",
-      "employeeNotAssigned": "No employee assigned"
+      "employeeNotAssigned": "No employee assigned",
+      "responsibleEmployee": "Responsible Employee",
+      "responsibleEmployeeHint": "Search for an existing employee, or fill in the fields below to create a new one.",
+      "changeEmployee": "Change",
+      "searchEmployeePlaceholder": "Search employees by name or username...",
+      "noEmployeeResults": "No matching employees."
     },
     "new": {
       "title": "New User",

@@ -39,6 +39,8 @@ export default function UsersPage() {
     );
   }, [customers, search]);
 
+  const columnCount = 5 + (canUpdate || canDelete ? 1 : 0);
+
   async function handleDelete(customer: Customer) {
     if (!window.confirm(t("deleteConfirm"))) return;
     await deleteCustomer(customer.id);
@@ -80,19 +82,19 @@ export default function UsersPage() {
               <th className="px-4 py-3 text-start">{t("table.nameEn")}</th>
               <th className="px-4 py-3 text-start">{t("table.phone")}</th>
               <th className="px-4 py-3 text-start">{t("table.assignedEmployee")}</th>
-              {canDelete && <th className="px-4 py-3 text-start">{tCommon("actions")}</th>}
+              {(canUpdate || canDelete) && <th className="px-4 py-3 text-start">{tCommon("actions")}</th>}
             </tr>
           </thead>
           <tbody>
             {customers === null ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={columnCount} className="px-4 py-8 text-center text-foreground/50">
                   {tCommon("loading")}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={columnCount} className="px-4 py-8 text-center text-foreground/50">
                   {t("noResults")}
                 </td>
               </tr>
@@ -118,15 +120,27 @@ export default function UsersPage() {
                       ? localizedName(staffById.get(customer.employeeId), locale) || "—"
                       : t("employeeNotAssigned")}
                   </td>
-                  {canDelete && (
+                  {(canUpdate || canDelete) && (
                     <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(customer)}
-                        className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
-                      >
-                        {tCommon("delete")}
-                      </button>
+                      <div className="flex gap-2">
+                        {canUpdate && (
+                          <Link
+                            href={`/users/${customer.id}`}
+                            className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground/70 hover:bg-black/5"
+                          >
+                            {tCommon("edit")}
+                          </Link>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(customer)}
+                            className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                          >
+                            {tCommon("delete")}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   )}
                 </tr>

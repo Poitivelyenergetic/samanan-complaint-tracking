@@ -454,7 +454,12 @@
       "nameEn": "الاسم (إنجليزي)",
       "phone": "رقم الهاتف",
       "assignedEmployee": "الموظف المسؤول",
-      "employeeNotAssigned": "لا يوجد موظف معيّن"
+      "employeeNotAssigned": "لا يوجد موظف معيّن",
+      "responsibleEmployee": "الموظف المسؤول",
+      "responsibleEmployeeHint": "ابحث عن موظف حالي، أو املأ الحقول أدناه لإنشاء موظف جديد.",
+      "changeEmployee": "تغيير",
+      "searchEmployeePlaceholder": "ابحث عن الموظفين بالاسم أو اسم المستخدم...",
+      "noEmployeeResults": "لا يوجد موظفون مطابقون."
     },
     "new": {
       "title": "مستخدم جديد",
