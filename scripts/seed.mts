@@ -294,11 +294,19 @@ async function upsertComplaint(complaint: SeedComplaint) {
   const { id, ...data } = complaint;
   const ref = db.collection("complaints").doc(id);
   const existing = await ref.get();
+  const existingHistory = existing.exists && Array.isArray(existing.data()?.history) ? existing.data()?.history : null;
   await ref.set(
     {
       ...data,
       channel: "staff",
       createdBy: "seed-mhmd",
+      // Matches what createComplaint() would have written for a real
+      // creation, so seeded complaints show the same history timeline a
+      // staff-created one would. Only set once — re-running the seed
+      // script shouldn't reset an already-upserted complaint's log.
+      history: existingHistory ?? [
+        { type: "created", status: "Open", at: new Date().toISOString(), byUid: "seed-mhmd" },
+      ],
       createdAt: existing.exists ? existing.data()?.createdAt ?? FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     },
