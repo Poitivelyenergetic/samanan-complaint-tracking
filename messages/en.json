@@ -35,20 +35,6 @@
     "logout": "Log out",
     "signedInAs": "Signed in as"
   },
-  "landing": {
-    "complaintOption": {
-      "title": "File a Complaint",
-      "subtitle": "No account needed — submit a customer complaint and get a reference number.",
-      "cta": "Get started"
-    },
-    "staffOption": {
-      "title": "Staff",
-      "subtitle": "Sign in to manage and resolve customer complaints.",
-      "cta": "Staff login"
-    },
-    "statusPrompt": "Already submitted a complaint?",
-    "statusLink": "Check its status"
-  },
   "login": {
     "title": "Staff Login",
     "subtitle": "Sign in to manage customer complaints",
@@ -153,44 +139,6 @@
       "historyReassigned": "Reassigned from {from} to {to}",
       "historyActorPublic": "Public"
     }
-  },
-  "publicComplaint": {
-    "title": "File a Complaint",
-    "subtitle": "Tell us what happened and we'll get back to you.",
-    "submit": "Submit Complaint",
-    "submitting": "Submitting...",
-    "fields": {
-      "orderId": "Order ID",
-      "name": "Your Name",
-      "email": "Email",
-      "phone": "Phone",
-      "contactHint": "At least one of email or phone is required so we can reach you.",
-      "category": "Complaint Category",
-      "description": "Describe the issue"
-    },
-    "errors": {
-      "orderIdRequired": "Please enter your order ID.",
-      "nameRequired": "Please enter your name.",
-      "contactRequired": "Please provide an email or phone number.",
-      "emailInvalid": "Please enter a valid email address.",
-      "phoneInvalid": "Please enter a valid phone number.",
-      "descriptionTooShort": "Please describe the issue in a bit more detail (at least 10 characters)."
-    },
-    "success": {
-      "title": "Complaint submitted",
-      "subtitle": "Thank you — our team will review it shortly.",
-      "referenceLabel": "Your reference number",
-      "saveHint": "Save this number — you'll need it to check your complaint's status later.",
-      "checkStatusCta": "Check status later",
-      "backHome": "Back to home"
-    }
-  },
-  "statusLookup": {
-    "title": "Check Complaint Status",
-    "subtitle": "Enter the reference number you received when you submitted your complaint.",
-    "placeholder": "e.g. aB3xY9pQ...",
-    "checkButton": "Check",
-    "notFound": "No complaint found with that reference number."
   },
   "staffSignup": {
     "title": "Request a Staff Account",

@@ -15,7 +15,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Complaint, ComplaintCategory, ComplaintHistoryEntry, ComplaintInput } from "./types";
+import type { Complaint, ComplaintHistoryEntry, ComplaintInput } from "./types";
 
 const COLLECTION = "complaints";
 
@@ -99,48 +99,6 @@ export async function createComplaint(input: ComplaintInput): Promise<string> {
   const ref = await addDoc(collection(db, COLLECTION), {
     ...input,
     history: initialHistory,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-  return ref.id;
-}
-
-export interface PublicComplaintInput {
-  customerOrderNumber: string;
-  complainantName: string;
-  contactEmail: string | null;
-  contactPhone: string | null;
-  category: ComplaintCategory;
-  description: string;
-  attachmentUrl: string | null;
-}
-
-// Used by the unauthenticated complaint intake form. The shape here must
-// match `isValidPublicComplaint()` in firestore.rules exactly, since that
-// rule is what actually enforces these values server-side — this function
-// merely assembles the same document.
-export async function createPublicComplaint(
-  input: PublicComplaintInput
-): Promise<string> {
-  const ref = await addDoc(collection(db, COLLECTION), {
-    subject: input.category,
-    description: input.description,
-    category: input.category,
-    channel: "public",
-    // Every public submission comes in through the website — there's no
-    // dropdown for it here, unlike the staff-side form.
-    source: "Website",
-    customerId: null,
-    customerNumber: input.contactPhone ?? input.contactEmail ?? "",
-    customerOrderNumber: input.customerOrderNumber,
-    complainantName: input.complainantName,
-    contactEmail: input.contactEmail,
-    contactPhone: input.contactPhone,
-    attachmentUrl: input.attachmentUrl,
-    assignedTo: null,
-    status: "Open",
-    history: [{ type: "created", status: "Open", at: new Date().toISOString(), byUid: null }],
-    createdBy: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

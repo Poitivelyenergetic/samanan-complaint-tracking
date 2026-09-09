@@ -25,30 +25,13 @@ service cloud.firestore {
       return isSignedIn() && myPermissions()[resource][action] == true;
     }
 
-    // Anyone signed in may log a staff-side complaint, but only a
-    // self-attributed one: they can't forge createdBy to impersonate someone
-    // else, and can't submit through the "public" channel meant for
-    // anonymous customers (that path is covered by isValidPublicComplaint).
+    // Complaints are logged internally by staff only — there is no public
+    // complaint-intake or status-check flow. Anyone signed in with
+    // complaints.create may log one, but only a self-attributed one: they
+    // can't forge createdBy to impersonate someone else.
     function isSelfCreatedComplaint() {
       let d = request.resource.data;
       return d.channel == "staff" && d.createdBy == request.auth.uid;
-    }
-
-    // A complaint submitted through the public intake form (no login) must
-    // land as Open/unassigned with the fields the form actually collects —
-    // this is what stops an anonymous client from writing an arbitrary
-    // complaint (e.g. pre-closing it, assigning it to a staff member, or
-    // impersonating a staff-logged entry).
-    function isValidPublicComplaint() {
-      let d = request.resource.data;
-      return d.channel == "public"
-        && d.status == "Open"
-        && d.assignedTo == null
-        && d.createdBy == null
-        && d.description is string && d.description.size() > 0
-        && d.category is string
-        && d.complainantName is string && d.complainantName.size() > 0
-        && d.customerOrderNumber is string && d.customerOrderNumber.size() > 0;
     }
 
     // Employee accounts (Firebase Auth UID-keyed). Any signed-in staff
@@ -117,17 +100,12 @@ service cloud.firestore {
     }
 
     match /complaints/{complaintId} {
-      // The public status-lookup page fetches one complaint by its exact
-      // reference number (a capability token, not something to enumerate),
-      // but only for complaints that were themselves submitted publicly —
-      // a guessed ID pointing at a staff-logged complaint still 404s.
-      allow get: if resource.data.channel == "public" || canReadComplaint();
+      allow get: if canReadComplaint();
       allow list: if canReadComplaint();
       allow update: if hasPermission("complaints", "update")
         || (hasPermission("complaints", "reassign") && isReassignOnlyWrite());
       allow delete: if hasPermission("complaints", "delete");
-      allow create: if (isSignedIn() && hasPermission("complaints", "create") && isSelfCreatedComplaint())
-        || isValidPublicComplaint();
+      allow create: if isSignedIn() && hasPermission("complaints", "create") && isSelfCreatedComplaint();
     }
 
     // Public staff-account requests. Deliberately holds no password — an

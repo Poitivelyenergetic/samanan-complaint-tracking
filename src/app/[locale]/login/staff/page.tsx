@@ -44,10 +44,7 @@ export default function StaffLoginPage() {
       <BrandHeader subtitle={tCommon("appSubtitle")} />
 
       <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-        <Link href="/login" className="text-sm text-brand hover:underline">
-          &larr; {tCommon("back")}
-        </Link>
-        <h2 className="mt-2 text-lg font-semibold text-foreground">{t("title")}</h2>
+        <h2 className="text-lg font-semibold text-foreground">{t("title")}</h2>
         <p className="mt-1 text-sm text-foreground/60">{t("subtitle")}</p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
