@@ -23,6 +23,7 @@
   },
   "nav": {
     "dashboard": "الشكاوى",
+    "tasks": "المهام",
     "newComplaint": "شكوى جديدة",
     "marketing": "التسويق",
     "settings": "الإعدادات",
@@ -83,6 +84,8 @@
   "dashboard": {
     "title": "الشكاوى",
     "subtitle": "جميع شكاوى العملاء المسجلة من قبل الموظفين",
+    "tasksTitle": "المهام",
+    "tasksSubtitle": "الشكاوى المسندة إليك",
     "newButton": "شكوى جديدة",
     "searchPlaceholder": "ابحث بالموضوع أو اسم/هاتف العميل أو الرقم المرجعي...",
     "statusFilter": "الحالة",

@@ -23,6 +23,7 @@
   },
   "nav": {
     "dashboard": "Complaints",
+    "tasks": "Tasks",
     "newComplaint": "New Complaint",
     "marketing": "Marketing",
     "settings": "Settings",
@@ -83,6 +84,8 @@
   "dashboard": {
     "title": "Complaints",
     "subtitle": "All customer complaints logged by staff",
+    "tasksTitle": "Tasks",
+    "tasksSubtitle": "Complaints assigned to you",
     "newButton": "New Complaint",
     "searchPlaceholder": "Search by subject, customer name/phone, or reference number...",
     "statusFilter": "Status",

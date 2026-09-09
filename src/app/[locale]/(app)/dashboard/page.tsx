@@ -65,8 +65,8 @@ export default function DashboardPage() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
-          <p className="mt-0.5 text-sm text-foreground/60">{t("subtitle")}</p>
+          <h1 className="text-xl font-bold text-foreground">{canViewAll ? t("title") : t("tasksTitle")}</h1>
+          <p className="mt-0.5 text-sm text-foreground/60">{canViewAll ? t("subtitle") : t("tasksSubtitle")}</p>
         </div>
         {canCreate && (
           <Link
@@ -99,19 +99,21 @@ export default function DashboardPage() {
             </option>
           ))}
         </select>
-        <select
-          value={assigneeFilter}
-          onChange={(e) => setAssigneeFilter(e.target.value)}
-          className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-          aria-label={t("assigneeFilter")}
-        >
-          <option value="">{t("assigneeFilter")}: {tCommon("all")}</option>
-          {staff.map((member) => (
-            <option key={member.id} value={member.id}>
-              {localizedName(member, locale)}
-            </option>
-          ))}
-        </select>
+        {canViewAll && (
+          <select
+            value={assigneeFilter}
+            onChange={(e) => setAssigneeFilter(e.target.value)}
+            className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+            aria-label={t("assigneeFilter")}
+          >
+            <option value="">{t("assigneeFilter")}: {tCommon("all")}</option>
+            {staff.map((member) => (
+              <option key={member.id} value={member.id}>
+                {localizedName(member, locale)}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-surface">
