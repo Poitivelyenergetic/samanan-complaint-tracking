@@ -15,7 +15,9 @@ export default function CompaniesPage() {
   const locale = useLocale();
   const { profile } = useAuth();
   const canCreate = hasPermission(profile, "companies", "create");
+  const canUpdate = hasPermission(profile, "companies", "update");
   const canDelete = hasPermission(profile, "companies", "delete");
+  const showActions = canUpdate || canDelete;
 
   const [companies, setCompanies] = useState<Company[] | null>(null);
   const [administrations, setAdministrations] = useState<Administration[]>([]);
@@ -66,19 +68,19 @@ export default function CompaniesPage() {
               <th className="px-4 py-3 text-start">{t("table.nameAr")}</th>
               <th className="px-4 py-3 text-start">{t("table.nameEn")}</th>
               <th className="px-4 py-3 text-start">{t("table.manager")}</th>
-              {canDelete && <th className="px-4 py-3 text-start">{tCommon("actions")}</th>}
+              {showActions && <th className="px-4 py-3 text-start">{tCommon("actions")}</th>}
             </tr>
           </thead>
           <tbody>
             {companies === null ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={showActions ? 5 : 4} className="px-4 py-8 text-center text-foreground/50">
                   {tCommon("loading")}
                 </td>
               </tr>
             ) : companies.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={showActions ? 5 : 4} className="px-4 py-8 text-center text-foreground/50">
                   {t("noResults")}
                 </td>
               </tr>
@@ -97,15 +99,27 @@ export default function CompaniesPage() {
                       ? localizedName(staffById.get(company.managerId), locale) || "—"
                       : t("managerNotAssigned")}
                   </td>
-                  {canDelete && (
+                  {showActions && (
                     <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(company)}
-                        className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
-                      >
-                        {tCommon("delete")}
-                      </button>
+                      <div className="flex gap-2">
+                        {canUpdate && (
+                          <Link
+                            href={`/companies/${company.id}`}
+                            className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground/70 hover:bg-black/5"
+                          >
+                            {tCommon("edit")}
+                          </Link>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(company)}
+                            className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                          >
+                            {tCommon("delete")}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   )}
                 </tr>

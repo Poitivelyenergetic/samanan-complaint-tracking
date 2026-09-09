@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslations, useFormatter } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { subscribeToRoles } from "@/lib/roles";
+import { deleteRole } from "@/lib/roles-api";
 import { useAuth } from "@/lib/auth-context";
 import { CRUD_ACTIONS, hasPermission, PERMISSION_RESOURCES, type Role } from "@/lib/types";
 
@@ -24,10 +25,18 @@ export default function RolesPage() {
   const format = useFormatter();
   const { profile } = useAuth();
   const canCreate = hasPermission(profile, "roles", "create");
+  const canUpdate = hasPermission(profile, "roles", "update");
+  const canDelete = hasPermission(profile, "roles", "delete");
+  const showActions = canUpdate || canDelete;
 
   const [roles, setRoles] = useState<Role[] | null>(null);
 
   useEffect(() => subscribeToRoles(setRoles), []);
+
+  async function handleDelete(role: Role) {
+    if (!window.confirm(t("deleteConfirm"))) return;
+    await deleteRole(role.id);
+  }
 
   return (
     <div>
@@ -53,18 +62,19 @@ export default function RolesPage() {
               <th className="px-4 py-3 text-start">{t("table.name")}</th>
               <th className="px-4 py-3 text-start">{t("table.permissionCount")}</th>
               <th className="px-4 py-3 text-start">{t("table.updatedAt")}</th>
+              {showActions && <th className="px-4 py-3 text-start">{tCommon("actions")}</th>}
             </tr>
           </thead>
           <tbody>
             {roles === null ? (
               <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={showActions ? 4 : 3} className="px-4 py-8 text-center text-foreground/50">
                   {tCommon("loading")}
                 </td>
               </tr>
             ) : roles.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={showActions ? 4 : 3} className="px-4 py-8 text-center text-foreground/50">
                   {t("noResults")}
                 </td>
               </tr>
@@ -80,6 +90,29 @@ export default function RolesPage() {
                   <td className="px-4 py-3 text-foreground/60">
                     {format.dateTime(new Date(role.updatedAt), { dateStyle: "medium", timeStyle: "short" })}
                   </td>
+                  {showActions && (
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        {canUpdate && (
+                          <Link
+                            href={`/roles/${role.id}`}
+                            className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground/70 hover:bg-black/5"
+                          >
+                            {tCommon("edit")}
+                          </Link>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(role)}
+                            className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                          >
+                            {tCommon("delete")}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))
             )}
