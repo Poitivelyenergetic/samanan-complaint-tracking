@@ -39,10 +39,6 @@ function SidebarContents({ onNavigate }: { onNavigate?: () => void }) {
   const locale = useLocale();
   const { profile, signOut } = useAuth();
 
-  const [settingsOpen, setSettingsOpen] = useState(() =>
-    SETTINGS_ITEMS.some((item) => pathname === item.href || pathname.startsWith(item.href + "/"))
-  );
-
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + "/");
   }
@@ -75,37 +71,19 @@ function SidebarContents({ onNavigate }: { onNavigate?: () => void }) {
         )}
 
         {visibleSettingsItems.length > 0 && (
-          <div className="pt-1">
-            <button
-              type="button"
-              onClick={() => setSettingsOpen((o) => !o)}
-              className="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-[#aab2c5] transition-colors hover:bg-white/5 hover:text-white"
-              aria-expanded={settingsOpen}
-            >
-              {t("settings")}
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 20 20"
-                fill="none"
-                className={`shrink-0 text-brand transition-transform duration-150 ${settingsOpen ? "rotate-90" : "rtl:rotate-180"}`}
-              >
-                <path d="M7 5l6 5-6 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            {settingsOpen && (
-              <div className="ms-3 mt-1 space-y-1 border-s border-white/10 ps-3">
-                {visibleSettingsItems.map((item) => (
-                  <SidebarLink
-                    key={item.href}
-                    href={item.href}
-                    label={t(item.key)}
-                    active={isActive(item.href)}
-                    onNavigate={onNavigate}
-                  />
-                ))}
-              </div>
-            )}
+          <div className="pt-3">
+            <p className="px-3 text-xs font-bold text-[#6b7284]">{t("settings")}</p>
+            <div className="mt-1 space-y-1">
+              {visibleSettingsItems.map((item) => (
+                <SidebarLink
+                  key={item.href}
+                  href={item.href}
+                  label={t(item.key)}
+                  active={isActive(item.href)}
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </div>
           </div>
         )}
       </nav>
