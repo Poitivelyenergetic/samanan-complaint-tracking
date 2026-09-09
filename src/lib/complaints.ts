@@ -1,5 +1,6 @@
 import {
   addDoc,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
@@ -11,9 +12,10 @@ import {
   serverTimestamp,
   Timestamp,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Complaint, ComplaintCategory, ComplaintInput } from "./types";
+import type { Complaint, ComplaintCategory, ComplaintHistoryEntry, ComplaintInput } from "./types";
 
 const COLLECTION = "complaints";
 
@@ -44,17 +46,28 @@ function fromDoc(id: string, data: DocumentData): Complaint {
     attachmentUrl: data.attachmentUrl ?? null,
     assignedTo: data.assignedTo ?? null,
     status: data.status ?? "Open",
+    // Complaints predating history tracking have none — treat as empty
+    // rather than throwing.
+    history: Array.isArray(data.history) ? (data.history as ComplaintHistoryEntry[]) : [],
     createdAt: toIso(data.createdAt),
     updatedAt: toIso(data.updatedAt),
     createdBy: data.createdBy ?? null,
   };
 }
 
+// Pass `scopeToUid` for a caller who only has complaints.view (not viewAll)
+// — firestore.rules requires the query itself to be constrained to that
+// uid's own assigned complaints, since Firestore denies (rather than
+// silently filters) a list query that could return a document the rule
+// would reject.
 export function subscribeToComplaints(
   callback: (complaints: Complaint[]) => void,
-  onError?: (error: unknown) => void
+  onError?: (error: unknown) => void,
+  scopeToUid?: string
 ) {
-  const q = query(collection(db, COLLECTION), orderBy("createdAt", "desc"));
+  const q = scopeToUid
+    ? query(collection(db, COLLECTION), where("assignedTo", "==", scopeToUid), orderBy("createdAt", "desc"))
+    : query(collection(db, COLLECTION), orderBy("createdAt", "desc"));
   return onSnapshot(
     q,
     (snap) => callback(snap.docs.map((d) => fromDoc(d.id, d.data()))),
@@ -80,8 +93,12 @@ export async function getComplaint(id: string): Promise<Complaint | null> {
 }
 
 export async function createComplaint(input: ComplaintInput): Promise<string> {
+  const initialHistory: ComplaintHistoryEntry[] = [
+    { type: "status", status: input.status, at: new Date().toISOString(), byUid: input.createdBy },
+  ];
   const ref = await addDoc(collection(db, COLLECTION), {
     ...input,
+    history: initialHistory,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -122,6 +139,7 @@ export async function createPublicComplaint(
     attachmentUrl: input.attachmentUrl,
     assignedTo: null,
     status: "Open",
+    history: [{ type: "status", status: "Open", at: new Date().toISOString(), byUid: null }],
     createdBy: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -129,13 +147,40 @@ export async function createPublicComplaint(
   return ref.id;
 }
 
+// `previousStatus` is whatever the caller already has loaded (the complaint
+// being edited) — passed in rather than re-fetched so a status change can be
+// appended to `history`. Reassignment is handled separately by
+// reassignComplaint(), not through this general update.
 export async function updateComplaint(
   id: string,
-  updates: Partial<ComplaintInput>
+  updates: Partial<ComplaintInput>,
+  previousStatus: string | null,
+  byUid: string | null
 ): Promise<void> {
+  const historyAppend: ComplaintHistoryEntry[] =
+    updates.status && updates.status !== previousStatus
+      ? [{ type: "status", status: updates.status, at: new Date().toISOString(), byUid }]
+      : [];
+
   await updateDoc(doc(db, COLLECTION, id), {
     ...updates,
     updatedAt: serverTimestamp(),
+    ...(historyAppend.length ? { history: arrayUnion(...historyAppend) } : {}),
+  });
+}
+
+// The dedicated Reassign action — separate from updateComplaint so that
+// reassigning always logs a "reassigned" history entry, and so the
+// complaints.reassign permission gate has one clear call site.
+export async function reassignComplaint(
+  id: string,
+  assignedTo: string | null,
+  byUid: string | null
+): Promise<void> {
+  await updateDoc(doc(db, COLLECTION, id), {
+    assignedTo,
+    updatedAt: serverTimestamp(),
+    history: arrayUnion({ type: "reassigned", assignedTo, at: new Date().toISOString(), byUid }),
   });
 }
 

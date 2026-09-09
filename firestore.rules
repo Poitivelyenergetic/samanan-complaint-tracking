@@ -98,17 +98,36 @@ service cloud.firestore {
       allow delete: if hasPermission("customers", "delete");
     }
 
+    // A reassign-only write (see complaints.reassign below) must touch
+    // nothing but assignedTo/updatedAt/history — anyone who also holds
+    // complaints.update can write any field regardless.
+    function isReassignOnlyWrite() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return affected.hasOnly(["assignedTo", "updatedAt", "history"]);
+    }
+
+    // Without complaints.viewAll, a staff member only sees complaints
+    // currently assigned to them. `list` queries are validated against the
+    // query shape, not fetched-then-filtered — the client must query with a
+    // matching where("assignedTo","==",uid) clause, or Firestore denies the
+    // whole request rather than silently returning a subset.
+    function canReadComplaint() {
+      return hasPermission("complaints", "viewAll")
+        || (hasPermission("complaints", "view") && resource.data.assignedTo == request.auth.uid);
+    }
+
     match /complaints/{complaintId} {
-      allow read: if hasPermission("complaints", "view");
-      allow update: if hasPermission("complaints", "update");
-      allow delete: if hasPermission("complaints", "delete");
-      allow create: if (isSignedIn() && hasPermission("complaints", "create") && isSelfCreatedComplaint())
-        || isValidPublicComplaint();
       // The public status-lookup page fetches one complaint by its exact
       // reference number (a capability token, not something to enumerate),
       // but only for complaints that were themselves submitted publicly —
       // a guessed ID pointing at a staff-logged complaint still 404s.
-      allow get: if resource.data.channel == "public";
+      allow get: if resource.data.channel == "public" || canReadComplaint();
+      allow list: if canReadComplaint();
+      allow update: if hasPermission("complaints", "update")
+        || (hasPermission("complaints", "reassign") && isReassignOnlyWrite());
+      allow delete: if hasPermission("complaints", "delete");
+      allow create: if (isSignedIn() && hasPermission("complaints", "create") && isSelfCreatedComplaint())
+        || isValidPublicComplaint();
     }
 
     // Public staff-account requests. Deliberately holds no password — an

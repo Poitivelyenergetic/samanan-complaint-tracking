@@ -144,7 +144,12 @@
       "assignHint": "هل تريد إسناد هذه الشكوى لموظف؟ يمكنك تغيير الحالة إلى \"مسندة\".",
       "submittedByCustomer": "مقدَّمة مباشرة من العميل",
       "viewAttachment": "عرض المرفق",
-      "readOnlyNotice": "لديك صلاحية العرض فقط لهذه الشكوى."
+      "readOnlyNotice": "لديك صلاحية العرض فقط لهذه الشكوى.",
+      "assignedTo": "مسندة إلى",
+      "reassign": "إعادة الإسناد",
+      "history": "السجل",
+      "historyStatus": "تم تغيير الحالة إلى \"{status}\"",
+      "historyReassigned": "تمت إعادة الإسناد إلى {name}"
     }
   },
   "publicComplaint": {

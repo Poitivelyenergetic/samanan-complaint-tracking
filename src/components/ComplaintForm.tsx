@@ -47,6 +47,11 @@ interface ComplaintFormProps {
   // roles that can view but not edit/reassign/change the status of a
   // complaint.
   readOnly?: boolean;
+  // Hides the "assigned to" field entirely and excludes it from the submit
+  // payload. Used on the complaint detail page, where reassignment is a
+  // separate, permission-gated action (see the Reassign control) rather
+  // than part of the general edit form.
+  hideAssignedTo?: boolean;
 }
 
 const DEFAULT_VALUES: ComplaintFormValues = {
@@ -74,6 +79,7 @@ export default function ComplaintForm({
   submittingLabel,
   onSubmit,
   readOnly = false,
+  hideAssignedTo = false,
 }: ComplaintFormProps) {
   const t = useTranslations("complaint.fields");
   const tCategory = useTranslations("complaint.categories");
@@ -269,25 +275,27 @@ export default function ComplaintForm({
           </select>
         </div>
 
-        <div>
-          <label htmlFor="assignedTo" className="block text-sm font-medium text-foreground">
-            {t("assignedTo")}
-          </label>
-          <select
-            id="assignedTo"
-            disabled={readOnly}
-            value={values.assignedTo}
-            onChange={(e) => update("assignedTo", e.target.value)}
-            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
-          >
-            <option value="">{tCommon("unassigned")}</option>
-            {staff.map((member) => (
-              <option key={member.id} value={member.id}>
-                {localizedName(member, locale)}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!hideAssignedTo && (
+          <div>
+            <label htmlFor="assignedTo" className="block text-sm font-medium text-foreground">
+              {t("assignedTo")}
+            </label>
+            <select
+              id="assignedTo"
+              disabled={readOnly}
+              value={values.assignedTo}
+              onChange={(e) => update("assignedTo", e.target.value)}
+              className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
+            >
+              <option value="">{tCommon("unassigned")}</option>
+              {staff.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {localizedName(member, locale)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div>

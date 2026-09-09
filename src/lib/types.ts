@@ -341,6 +341,20 @@ export type ComplaintSource = (typeof COMPLAINT_SOURCES)[number];
 // "public" = submitted directly by a customer through the public intake form.
 export type ComplaintChannel = "staff" | "public";
 
+// A single entry in a complaint's process/status trail. "status" entries
+// record every status change (including the implicit one at creation);
+// "reassigned" entries record every change of `assignedTo`. Rendered
+// together, oldest first, as the complaint's history timeline.
+export type ComplaintHistoryEntryType = "status" | "reassigned";
+
+export interface ComplaintHistoryEntry {
+  type: ComplaintHistoryEntryType;
+  status?: ComplaintStatus; // set when type === "status"
+  assignedTo?: string | null; // set when type === "reassigned" — the new assignee
+  at: string; // ISO string (client clock — Firestore's arrayUnion can't hold serverTimestamp() inside array elements)
+  byUid: string | null;
+}
+
 export interface Complaint {
   id: string; // Firestore document ID (issue_id) — also used as the public tracking/reference number
   subject: string;
@@ -357,6 +371,7 @@ export interface Complaint {
   attachmentUrl: string | null;
   assignedTo: string | null; // Firestore UID of staff, or null if unassigned
   status: ComplaintStatus;
+  history: ComplaintHistoryEntry[];
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
   createdBy: string | null; // UID of staff who created it, null for public submissions
@@ -364,7 +379,7 @@ export interface Complaint {
 
 export type ComplaintInput = Omit<
   Complaint,
-  "id" | "createdAt" | "updatedAt"
+  "id" | "createdAt" | "updatedAt" | "history"
 >;
 
 export type SignupRequestStatus = "pending" | "approved" | "rejected";

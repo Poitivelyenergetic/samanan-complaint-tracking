@@ -144,7 +144,12 @@
       "assignHint": "Assigning this complaint to a staff member? Consider moving the status to \"Assigned\".",
       "submittedByCustomer": "Submitted directly by the customer",
       "viewAttachment": "View attachment",
-      "readOnlyNotice": "You have view-only access to this complaint."
+      "readOnlyNotice": "You have view-only access to this complaint.",
+      "assignedTo": "Assigned To",
+      "reassign": "Reassign",
+      "history": "History",
+      "historyStatus": "Status changed to \"{status}\"",
+      "historyReassigned": "Reassigned to {name}"
     }
   },
   "publicComplaint": {

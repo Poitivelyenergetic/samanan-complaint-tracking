@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const { profile } = useAuth();
   const canView = hasPermission(profile, "complaints", "view");
   const canCreate = hasPermission(profile, "complaints", "create");
+  const canViewAll = hasPermission(profile, "complaints", "viewAll");
 
   const [complaints, setComplaints] = useState<Complaint[] | null>(null);
   const [staff, setStaff] = useState<StaffUser[]>([]);
@@ -29,8 +30,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!profile || !canView) return;
-    return subscribeToComplaints(setComplaints);
-  }, [profile, canView]);
+    return subscribeToComplaints(setComplaints, undefined, canViewAll ? undefined : profile.id);
+  }, [profile, canView, canViewAll]);
   useEffect(() => subscribeToStaff(setStaff), []);
 
   const staffById = useMemo(() => {

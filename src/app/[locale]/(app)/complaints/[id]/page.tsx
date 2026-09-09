@@ -1,13 +1,13 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { useTranslations, useFormatter } from "next-intl";
+import { useLocale, useTranslations, useFormatter } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { deleteComplaint, subscribeToComplaint, updateComplaint } from "@/lib/complaints";
+import { deleteComplaint, reassignComplaint, subscribeToComplaint, updateComplaint } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { subscribeToCustomers } from "@/lib/customers";
 import { useAuth } from "@/lib/auth-context";
-import { hasPermission, type Complaint, type ComplaintInput, type Customer, type StaffUser } from "@/lib/types";
+import { hasPermission, localizedName, type Complaint, type ComplaintInput, type Customer, type StaffUser } from "@/lib/types";
 import ComplaintForm from "@/components/ComplaintForm";
 
 export default function ComplaintDetailPage({
@@ -17,21 +17,26 @@ export default function ComplaintDetailPage({
 }) {
   const { id } = use(params);
   const t = useTranslations("complaint.detail");
+  const tStatus = useTranslations("status");
   const tCommon = useTranslations("common");
   const format = useFormatter();
+  const locale = useLocale();
   const router = useRouter();
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
 
   const [complaint, setComplaint] = useState<Complaint | null | undefined>(undefined);
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [deleting, setDeleting] = useState(false);
+  const [reassignTo, setReassignTo] = useState("");
+  const [reassigning, setReassigning] = useState(false);
 
   // Without complaints.update, an account gets a read-only view. Default to
   // read-only (rather than editable) if the profile hasn't loaded yet,
   // since that's the safer failure mode.
   const canEdit = hasPermission(profile, "complaints", "update");
   const canDelete = hasPermission(profile, "complaints", "delete");
+  const canReassign = hasPermission(profile, "complaints", "reassign");
 
   useEffect(
     () =>
@@ -46,7 +51,17 @@ export default function ComplaintDetailPage({
   useEffect(() => subscribeToCustomers(setCustomers), []);
 
   async function handleSubmit(values: ComplaintInput) {
-    await updateComplaint(id, values);
+    await updateComplaint(id, values, complaint?.status ?? null, user?.uid ?? null);
+  }
+
+  async function handleReassign() {
+    setReassigning(true);
+    try {
+      await reassignComplaint(id, reassignTo || null, user?.uid ?? null);
+      setReassignTo("");
+    } finally {
+      setReassigning(false);
+    }
   }
 
   async function handleDelete() {
@@ -70,6 +85,8 @@ export default function ComplaintDetailPage({
       </div>
     );
   }
+
+  const staffById = new Map(staff.map((s) => [s.id, s]));
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -103,6 +120,39 @@ export default function ComplaintDetailPage({
       </div>
 
       <div className="mt-6 rounded-lg border border-border bg-surface p-6">
+        <div className="mb-5 flex items-end justify-between gap-3 border-b border-border pb-5">
+          <div>
+            <p className="text-xs font-medium text-foreground/50">{t("assignedTo")}</p>
+            <p className="mt-0.5 text-sm font-medium text-foreground">
+              {complaint.assignedTo ? localizedName(staffById.get(complaint.assignedTo), locale) || complaint.assignedTo : tCommon("unassigned")}
+            </p>
+          </div>
+          {canReassign && (
+            <div className="flex items-center gap-2">
+              <select
+                value={reassignTo}
+                onChange={(e) => setReassignTo(e.target.value)}
+                className="rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+              >
+                <option value="">{tCommon("unassigned")}</option>
+                {staff.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {localizedName(member, locale)}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handleReassign}
+                disabled={reassigning}
+                className="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-brand-foreground hover:opacity-90 disabled:opacity-60"
+              >
+                {t("reassign")}
+              </button>
+            </div>
+          )}
+        </div>
+
         <ComplaintForm
           key={complaint.id + complaint.updatedAt}
           staff={staff}
@@ -127,8 +177,36 @@ export default function ComplaintDetailPage({
           submittingLabel={tCommon("saving")}
           onSubmit={handleSubmit}
           readOnly={!canEdit}
+          hideAssignedTo
         />
       </div>
+
+      {complaint.history.length > 0 && (
+        <div className="mt-6 rounded-lg border border-border bg-surface p-6">
+          <h2 className="text-sm font-semibold text-foreground">{t("history")}</h2>
+          <ol className="mt-3 space-y-3">
+            {[...complaint.history].reverse().map((entry, i) => (
+              <li key={i} className="flex items-start gap-3 text-sm">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
+                <div>
+                  <p className="text-foreground/80">
+                    {entry.type === "status"
+                      ? t("historyStatus", { status: entry.status ? tStatus(entry.status) : "" })
+                      : t("historyReassigned", {
+                          name: entry.assignedTo
+                            ? localizedName(staffById.get(entry.assignedTo), locale) || entry.assignedTo
+                            : tCommon("unassigned"),
+                        })}
+                  </p>
+                  <p className="text-xs text-foreground/50">
+                    {format.dateTime(new Date(entry.at), { dateStyle: "medium", timeStyle: "short" })}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </div>
   );
 }
