@@ -25,7 +25,7 @@ export default function AdministrationsPage() {
   const canCreate = hasPermission(profile, "administrations", "create");
   const canUpdate = hasPermission(profile, "administrations", "update");
   const canDelete = hasPermission(profile, "administrations", "delete");
-  const showActions = canUpdate || canDelete;
+  const showActions = true;
 
   const [administrations, setAdministrations] = useState<Administration[] | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -92,6 +92,7 @@ export default function AdministrationsPage() {
         <table className="w-full min-w-[560px] text-start text-sm">
           <thead>
             <tr className="border-b border-border bg-black/[0.02] text-start text-xs font-semibold uppercase tracking-wide text-foreground/50">
+              <th className="px-4 py-3 text-start">{t("table.number")}</th>
               <th className="px-4 py-3 text-start">{t("table.nameAr")}</th>
               <th className="px-4 py-3 text-start">{t("table.nameEn")}</th>
               <th className="px-4 py-3 text-start">{t("table.company")}</th>
@@ -102,19 +103,20 @@ export default function AdministrationsPage() {
           <tbody>
             {administrations === null ? (
               <tr>
-                <td colSpan={showActions ? 5 : 4} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={showActions ? 6 : 5} className="px-4 py-8 text-center text-foreground/50">
                   {tCommon("loading")}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={showActions ? 5 : 4} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={showActions ? 6 : 5} className="px-4 py-8 text-center text-foreground/50">
                   {t("noResults")}
                 </td>
               </tr>
             ) : (
               filtered.map((administration) => (
                 <tr key={administration.id} className="border-b border-border last:border-0 hover:bg-black/[0.02]">
+                  <td className="px-4 py-3 font-mono text-foreground/70">{administration.number || "—"}</td>
                   <td className="px-4 py-3">
                     <Link
                       href={`/administrations/${administration.id}`}
@@ -135,9 +137,15 @@ export default function AdministrationsPage() {
                   {showActions && (
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
+                        <Link
+                          href={`/administrations/${administration.id}`}
+                          className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground/70 hover:bg-black/5"
+                        >
+                          {tCommon("view")}
+                        </Link>
                         {canUpdate && (
                           <Link
-                            href={`/administrations/${administration.id}`}
+                            href={`/administrations/${administration.id}/edit`}
                             className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground/70 hover:bg-black/5"
                           >
                             {tCommon("edit")}

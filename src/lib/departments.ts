@@ -16,6 +16,7 @@ const COLLECTION = "departments";
 function fromDoc(id: string, data: DocumentData): Department {
   return {
     id,
+    number: data.number ?? "",
     nameAr: data.nameAr ?? "",
     nameEn: data.nameEn ?? "",
     administrationId: data.administrationId ?? "",

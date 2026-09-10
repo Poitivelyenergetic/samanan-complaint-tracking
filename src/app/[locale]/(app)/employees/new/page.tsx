@@ -60,11 +60,11 @@ export default function NewEmployeePage() {
   }, [loading, profile, canCreate, router]);
 
   async function handleSubmit(values: EmployeeInput) {
-    const { id } = await createEmployee({ ...values, password: values.password ?? "" });
+    await createEmployee({ ...values, password: values.password ?? "" });
     if (fromRequestId) {
       await markSignupRequestApproved(fromRequestId);
     }
-    router.push(`/employees/${id}`);
+    router.back();
   }
 
   if (loading || !profile || !canCreate) {

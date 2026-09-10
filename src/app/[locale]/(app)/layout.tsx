@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "@/i18n/navigation";
 import Sidebar from "@/components/Sidebar";
+import TopBar from "@/components/TopBar";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const t = useTranslations("common");
@@ -35,7 +36,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-background md:flex-row">
       <Sidebar />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
+      <div className="flex min-h-screen flex-1 flex-col">
+        <TopBar />
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
+      </div>
     </div>
   );
 }

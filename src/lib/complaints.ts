@@ -30,14 +30,18 @@ function fromDoc(id: string, data: DocumentData): Complaint {
     id,
     subject: data.subject ?? "",
     description: data.description ?? "",
-    // Older, pre-public-intake documents have neither field — treat them as
-    // staff-logged with the "Other" category rather than leaving gaps.
-    category: data.category ?? "Other",
+    // Category/source/customer name used to be single free-text fields —
+    // older documents only have `category`/`source`/`customerName`. Read
+    // those into the English slot so nothing is lost; the Arabic slot is
+    // left blank until someone edits the complaint.
+    categoryAr: data.categoryAr ?? "",
+    categoryEn: data.categoryEn ?? data.category ?? "",
     channel: data.channel ?? "staff",
-    // Existing complaints predating the Source field default to "Website"
-    // (matches the one-time migration for historical data).
-    source: data.source ?? "Website",
-    customerName: data.customerName ?? "",
+    sourceAr: data.sourceAr ?? "",
+    sourceEn: data.sourceEn ?? data.source ?? "",
+    companyId: data.companyId ?? null,
+    customerNameAr: data.customerNameAr ?? "",
+    customerNameEn: data.customerNameEn ?? data.customerName ?? "",
     customerPhone: data.customerPhone ?? "",
     customerOrderNumber: data.customerOrderNumber ?? "",
     complainantName: data.complainantName ?? null,
@@ -127,13 +131,16 @@ export async function createComplaint(input: ComplaintInput): Promise<string> {
 
 // `previousStatus` is whatever the caller already has loaded (the complaint
 // being edited) — passed in rather than re-fetched so a status change can be
-// appended to `history`. Reassignment is handled separately by
-// reassignComplaint(), not through this general update.
+// appended to `history`. `statusNote` is required by the UI whenever the
+// status actually changes (what the employee did) and is stored on that
+// history entry. Reassignment is handled separately by reassignComplaint(),
+// not through this general update.
 export async function updateComplaint(
   id: string,
   updates: Partial<ComplaintInput>,
   previousStatus: string | null,
-  byUid: string | null
+  byUid: string | null,
+  statusNote?: string
 ): Promise<void> {
   const historyAppend: ComplaintHistoryEntry[] =
     updates.status && updates.status !== previousStatus
@@ -141,7 +148,8 @@ export async function updateComplaint(
           {
             type: "status",
             status: updates.status,
-            previousStatus: (previousStatus as Complaint["status"] | null) ?? undefined,
+            ...(previousStatus ? { previousStatus: previousStatus as Complaint["status"] } : {}),
+            ...(statusNote ? { note: statusNote } : {}),
             at: new Date().toISOString(),
             byUid,
           },

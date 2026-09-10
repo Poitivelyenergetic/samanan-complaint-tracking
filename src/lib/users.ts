@@ -1,4 +1,4 @@
-import { collection, doc, DocumentData, getDoc, onSnapshot } from "firebase/firestore";
+import { collection, doc, DocumentData, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import { emptyRolePermissions, type StaffUser } from "./types";
 
@@ -22,6 +22,7 @@ function fromDoc(id: string, data: DocumentData): StaffUser {
     departmentId: data.departmentId ?? "",
     roleIds: Array.isArray(data.roleIds) ? data.roleIds : [],
     permissions: { ...emptyRolePermissions(), ...data.permissions },
+    avatarUrl: data.avatarUrl ?? null,
   };
 }
 
@@ -51,4 +52,14 @@ export function subscribeToStaffMember(
     (snap) => callback(snap.exists() ? fromDoc(snap.id, snap.data()) : null),
     onError
   );
+}
+
+// Lets a signed-in staff member update their own contact info/avatar without
+// needing employees.update — firestore.rules only allows this write when the
+// caller is updating their own doc and touching just these two fields.
+export async function updateOwnProfile(
+  uid: string,
+  data: { phone?: string; avatarUrl?: string | null }
+): Promise<void> {
+  await updateDoc(doc(db, COLLECTION, uid), data);
 }

@@ -6,7 +6,14 @@ import { Link } from "@/i18n/navigation";
 import { subscribeToComplaints } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
-import { hasPermission, localizedName, type Complaint, type ComplaintStatus, type StaffUser } from "@/lib/types";
+import {
+  bilingualValue,
+  hasPermission,
+  localizedName,
+  type Complaint,
+  type ComplaintStatus,
+  type StaffUser,
+} from "@/lib/types";
 import { COMPLAINT_STATUSES } from "@/lib/types";
 import StatusBadge from "@/components/StatusBadge";
 
@@ -14,7 +21,6 @@ export default function DashboardPage() {
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
   const tStatus = useTranslations("status");
-  const tSource = useTranslations("complaint.sources");
   const format = useFormatter();
   const locale = useLocale();
   const { profile } = useAuth();
@@ -51,7 +57,8 @@ export default function DashboardPage() {
       if (
         term &&
         !c.subject.toLowerCase().includes(term) &&
-        !c.customerName.toLowerCase().includes(term) &&
+        !c.customerNameAr.toLowerCase().includes(term) &&
+        !c.customerNameEn.toLowerCase().includes(term) &&
         !c.customerPhone.toLowerCase().includes(term) &&
         !c.id.toLowerCase().includes(term)
       ) {
@@ -159,9 +166,11 @@ export default function DashboardPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-foreground/70">
-                    {c.customerName || c.customerPhone || "—"}
+                    {bilingualValue(c.customerNameAr, c.customerNameEn, locale) || c.customerPhone || "—"}
                   </td>
-                  <td className="px-4 py-3 text-foreground/70">{tSource(c.source)}</td>
+                  <td className="px-4 py-3 text-foreground/70">
+                    {bilingualValue(c.sourceAr, c.sourceEn, locale) || "—"}
+                  </td>
                   <td className="px-4 py-3 text-foreground/70">
                     {c.assignedTo ? localizedName(staffById.get(c.assignedTo), locale) || c.assignedTo : tCommon("unassigned")}
                   </td>

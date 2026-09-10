@@ -22,8 +22,8 @@ export default function NewDepartmentPage() {
   useEffect(() => subscribeToStaff(setStaff), []);
 
   async function handleSubmit(values: DepartmentInput) {
-    const id = await createDepartment(values);
-    router.push(`/departments/${id}`);
+    await createDepartment(values);
+    router.back();
   }
 
   if (loading || !profile || !hasPermission(profile, "departments", "create")) {

@@ -210,6 +210,7 @@ export interface CompanyInput {
 
 export interface Administration {
   id: string;
+  number: string; // mandatory, hand-assigned identifier — same idea as Company.number
   nameAr: string;
   nameEn: string;
   companyId: string;
@@ -217,6 +218,7 @@ export interface Administration {
 }
 
 export interface AdministrationInput {
+  number: string;
   nameAr: string;
   nameEn: string;
   companyId: string;
@@ -228,6 +230,7 @@ export interface AdministrationInput {
 // (StaffUser.jobTitle) and unrelated to this hierarchy.
 export interface Department {
   id: string;
+  number: string; // mandatory, hand-assigned identifier — same idea as Company.number
   nameAr: string;
   nameEn: string;
   administrationId: string;
@@ -235,6 +238,7 @@ export interface Department {
 }
 
 export interface DepartmentInput {
+  number: string;
   nameAr: string;
   nameEn: string;
   administrationId: string;
@@ -254,6 +258,7 @@ export interface StaffUser {
   departmentId: string;
   roleIds: string[]; // an employee can hold multiple roles at once
   permissions: RolePermissions; // denormalized union of all roleIds' permissions — see note above
+  avatarUrl: string | null; // self-uploaded profile picture (Firebase Storage download URL)
 }
 
 export interface EmployeeInput {
@@ -284,6 +289,15 @@ export function localizedName(
   return preferred || fallback || "";
 }
 
+// Same fallback logic as localizedName, for the handwritten Arabic/English
+// pairs that live directly on a Complaint (category, source, customer name)
+// rather than on a named entity.
+export function bilingualValue(ar: string, en: string, locale: string): string {
+  const preferred = locale === "ar" ? ar : en;
+  const fallback = locale === "ar" ? en : ar;
+  return preferred || fallback || "";
+}
+
 // --- Complaints --------------------------------------------------------
 
 export const COMPLAINT_STATUSES = [
@@ -296,27 +310,9 @@ export const COMPLAINT_STATUSES = [
 
 export type ComplaintStatus = (typeof COMPLAINT_STATUSES)[number];
 
-export const COMPLAINT_CATEGORIES = [
-  "ProductQuality",
-  "DeliveryDelay",
-  "BillingIssue",
-  "OrderDiscrepancy",
-  "CustomerService",
-  "Other",
-] as const;
-
-export type ComplaintCategory = (typeof COMPLAINT_CATEGORIES)[number];
-
-export const COMPLAINT_SOURCES = [
-  "Twitter",
-  "Facebook",
-  "Phone",
-  "Website",
-  "WalkIn",
-  "Other",
-] as const;
-
-export type ComplaintSource = (typeof COMPLAINT_SOURCES)[number];
+// Category and source are handwritten free text in both Arabic and
+// English — there is no fixed preset list. See bilingualValue() for reading
+// them back in whichever language the current locale prefers.
 
 // "staff" = logged via the internal New Complaint form by a staff member.
 // "public" = submitted directly by a customer through the public intake form.
@@ -344,6 +340,7 @@ export interface ComplaintHistoryEntry {
   type: ComplaintHistoryEntryType;
   status?: ComplaintStatus; // set when type is "created" or "status" — the new status
   previousStatus?: ComplaintStatus; // set when type === "status" — the status it changed from
+  note?: string; // set when type === "status" — what the employee did, required on every status change
   assignedTo?: string | null; // set on every reassign* type — the proposed/new assignee
   previousAssignedTo?: string | null; // set on every reassign* type — who it was (or would be) reassigned from
   reason?: string; // set on every reassign* type — why the complaint was proposed for reassignment
@@ -368,11 +365,15 @@ export interface Complaint {
   id: string; // Firestore document ID (issue_id) — also used as the public tracking/reference number
   subject: string;
   description: string;
-  category: ComplaintCategory;
+  categoryAr: string; // handwritten, no fixed preset list
+  categoryEn: string;
   channel: ComplaintChannel;
-  source: ComplaintSource;
-  customerName: string; // free text — there is no customer account/record, just what staff typed in
-  customerPhone: string;
+  sourceAr: string; // handwritten, no fixed preset list
+  sourceEn: string;
+  companyId: string | null; // which Company (org entity) this complaint concerns
+  customerNameAr: string; // free text — there is no customer account/record, just what staff typed in
+  customerNameEn: string;
+  customerPhone: string; // always Latin digits — see toLatinDigits()
   customerOrderNumber: string;
   complainantName: string | null; // set when channel is "public"
   contactEmail: string | null;

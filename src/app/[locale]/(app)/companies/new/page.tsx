@@ -19,8 +19,8 @@ export default function NewCompanyPage() {
   useEffect(() => subscribeToStaff(setStaff), []);
 
   async function handleSubmit(values: CompanyInput) {
-    const id = await createCompany(values);
-    router.push(`/companies/${id}`);
+    await createCompany(values);
+    router.back();
   }
 
   if (loading || !profile || !hasPermission(profile, "companies", "create")) {

@@ -13,7 +13,7 @@ interface AdministrationFormProps {
   onSubmit: (values: AdministrationInput) => Promise<void>;
 }
 
-const DEFAULT_VALUES: AdministrationInput = { nameAr: "", nameEn: "", companyId: "", managerId: null };
+const DEFAULT_VALUES: AdministrationInput = { number: "", nameAr: "", nameEn: "", companyId: "", managerId: null };
 
 export default function AdministrationForm({
   companies,
@@ -40,7 +40,7 @@ export default function AdministrationForm({
     setError(null);
     setSubmitting(true);
     try {
-      await onSubmit({ ...values, nameAr: values.nameAr.trim(), nameEn: values.nameEn.trim() });
+      await onSubmit({ ...values, number: values.number.trim(), nameAr: values.nameAr.trim(), nameEn: values.nameEn.trim() });
     } catch {
       setError(tCommon("somethingWentWrong"));
       setSubmitting(false);
@@ -49,6 +49,19 @@ export default function AdministrationForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      <div>
+        <label htmlFor="number" className="block text-sm font-medium text-foreground">
+          {t("number")}
+        </label>
+        <input
+          id="number"
+          required
+          value={values.number}
+          onChange={(e) => update("number", e.target.value)}
+          className="mt-1 w-full max-w-xs rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+        />
+      </div>
+
       <div>
         <label htmlFor="companyId" className="block text-sm font-medium text-foreground">
           {t("company")}

@@ -22,8 +22,8 @@ export default function NewAdministrationPage() {
   useEffect(() => subscribeToStaff(setStaff), []);
 
   async function handleSubmit(values: AdministrationInput) {
-    const id = await createAdministration(values);
-    router.push(`/administrations/${id}`);
+    await createAdministration(values);
+    router.back();
   }
 
   if (loading || !profile || !hasPermission(profile, "administrations", "create")) {

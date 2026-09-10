@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "Samnan",
+    "appName": "Samnan Service Management",
     "appSubtitle": "Complaint Tracking",
     "loading": "Loading...",
     "save": "Save",
@@ -12,6 +12,7 @@
     "filter": "Filter",
     "all": "All",
     "actions": "Actions",
+    "view": "View",
     "unassigned": "Unassigned",
     "createdAt": "Created",
     "updatedAt": "Updated",
@@ -26,6 +27,12 @@
     "tasks": "Tasks",
     "newComplaint": "New Complaint",
     "marketing": "Marketing",
+    "services": "Services",
+    "complaintInquiry": "Complaint Inquiry",
+    "receivables": "Receivables",
+    "payables": "Payables",
+    "salesOpportunities": "Sales Opportunities",
+    "tickets": "Tickets",
     "settings": "Settings",
     "companies": "Companies",
     "administrations": "Administrations",
@@ -82,6 +89,52 @@
     "Cancel": "Cancel",
     "Closed": "Closed"
   },
+  "home": {
+    "welcome": "Welcome back, {name}",
+    "subtitleAdmin": "Here's how things are looking across the organization.",
+    "subtitleEmployee": "Here's what's on your plate.",
+    "totalTickets": "Total Tickets",
+    "statusBreakdown": "Status Breakdown",
+    "categoryBreakdown": "By Category",
+    "sourceBreakdown": "By Source",
+    "trend": "New Tickets (Last 14 Days)",
+    "topAssignees": "Top Assignees",
+    "noData": "No data yet."
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "account": {
+    "title": "Account Settings",
+    "subtitle": "Manage your profile, password, and permissions.",
+    "sections": {
+      "profile": "Profile",
+      "password": "Password",
+      "permissions": "Permissions"
+    },
+    "changePhoto": "Change Photo",
+    "uploading": "Uploading...",
+    "avatarUploadFailed": "Could not upload that photo. Please try again.",
+    "saved": "Saved.",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "changePassword": "Change Password",
+    "passwordChanged": "Your password has been changed.",
+    "passwordTooShort": "New password must be at least 6 characters.",
+    "passwordMismatch": "New password and confirmation don't match.",
+    "currentPasswordIncorrect": "Current password is incorrect.",
+    "myRoles": "My Roles",
+    "myPermissions": "My Permissions"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "You're all caught up.",
+    "accountRequestTitle": "New account request: {name}",
+    "reassignmentRequestTitle": "Reassignment requested: {subject}"
+  },
   "dashboard": {
     "title": "Complaints",
     "subtitle": "All customer complaints logged by staff",
@@ -111,8 +164,12 @@
       "customerPhone": "Customer Phone",
       "customerOrderNumber": "Customer Order Number",
       "source": "Source",
+      "company": "Company",
+      "selectCompany": "Select a company",
       "assignedTo": "Assigned To",
-      "status": "Status"
+      "status": "Status",
+      "arabic": "Arabic",
+      "english": "English"
     },
     "categories": {
       "ProductQuality": "Product / Service Quality",
@@ -143,6 +200,9 @@
       "deleted": "Complaint deleted.",
       "notFound": "Complaint not found.",
       "assignHint": "Assigning this complaint to a staff member? Consider moving the status to \"Assigned\".",
+      "statusNoteLabel": "What did you do?",
+      "statusNotePlaceholder": "Describe what changed or what you did before updating the status...",
+      "statusNoteRequired": "Please describe what you did before changing the status.",
       "submittedByCustomer": "Submitted directly by the customer",
       "viewAttachment": "View attachment",
       "readOnlyNotice": "You have view-only access to this complaint.",
@@ -151,6 +211,7 @@
       "history": "History",
       "historyCreated": "Opened with status \"{status}\"",
       "historyStatus": "Status changed from \"{previousStatus}\" to \"{status}\"",
+      "historyStatusNote": "What was done: {note}",
       "historyReassigned": "Reassigned from {from} to {to}",
       "historyReassignedReason": "Reason: {reason}",
       "historyReassignRequested": "Requested reassignment from {from} to {to}",
@@ -207,6 +268,38 @@
     "subtitle": "Marketing tools and campaigns",
     "comingSoon": "Coming soon. This section is a placeholder for future marketing features."
   },
+  "complaintInquiry": {
+    "title": "Complaint Inquiry",
+    "subtitle": "Search a customer's phone number or name to see every complaint they've filed.",
+    "searchPlaceholder": "Search by customer phone number or name...",
+    "prompt": "Start typing a customer's phone number or name to search.",
+    "noResults": "No complaints found for that search.",
+    "table": {
+      "issueId": "Issue ID",
+      "subject": "Subject",
+      "customerName": "Customer Name",
+      "customerPhone": "Customer Phone",
+      "assignedTo": "Assigned To",
+      "status": "Status",
+      "createdAt": "Created"
+    }
+  },
+  "salesOpportunities": {
+    "title": "Sales Opportunities",
+    "comingSoon": "Coming soon. This section is a placeholder for tracking sales opportunities."
+  },
+  "receivables": {
+    "title": "Receivables",
+    "comingSoon": "Coming soon. This section is a placeholder for tracking money owed to the company."
+  },
+  "payables": {
+    "title": "Payables",
+    "comingSoon": "Coming soon. This section is a placeholder for tracking money the company owes."
+  },
+  "tickets": {
+    "title": "Tickets",
+    "comingSoon": "Coming soon. This section is a placeholder for a dedicated tickets view."
+  },
   "requests": {
     "title": "Requests",
     "subtitle": "Review pending requests that need your action.",
@@ -242,6 +335,7 @@
     "filterAllDepartments": "All departments",
     "table": {
       "name": "Name",
+      "number": "Staff #",
       "username": "Username",
       "company": "Company",
       "administration": "Administration",
@@ -309,6 +403,7 @@
     "notFound": "Company not found.",
     "deleteConfirm": "Are you sure you want to delete this company?",
     "deleteBlocked": "Reassign or remove the administrations in this company before deleting it.",
+    "noAdministrations": "No administrations under this company yet.",
     "managerNotAssigned": "No general manager assigned",
     "table": {
       "number": "#",
@@ -342,14 +437,17 @@
     "filterAllCompanies": "All companies",
     "deleteConfirm": "Are you sure you want to delete this administration?",
     "deleteBlocked": "Reassign or remove the departments in this administration before deleting it.",
+    "noDepartments": "No departments under this administration yet.",
     "managerNotAssigned": "No general manager assigned",
     "table": {
+      "number": "#",
       "nameAr": "Name (Arabic)",
       "nameEn": "Name (English)",
       "company": "Company",
       "manager": "General Manager"
     },
     "fields": {
+      "number": "Number",
       "company": "Company",
       "selectCompany": "Select a company",
       "nameAr": "Name (Arabic)",
@@ -376,14 +474,17 @@
     "filterAllAdministrations": "All administrations",
     "deleteConfirm": "Are you sure you want to delete this department?",
     "deleteBlocked": "Reassign or remove the employees in this department before deleting it.",
+    "noEmployees": "No employees in this department yet.",
     "managerNotAssigned": "No general manager assigned",
     "table": {
+      "number": "#",
       "nameAr": "Name (Arabic)",
       "nameEn": "Name (English)",
       "administration": "Administration",
       "manager": "General Manager"
     },
     "fields": {
+      "number": "Number",
       "administration": "Administration",
       "selectAdministration": "Select an administration",
       "nameAr": "Name (Arabic)",

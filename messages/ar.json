@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "سمنان",
+    "appName": "سمنان لإدارة الخدمات",
     "appSubtitle": "متابعة الشكاوى",
     "loading": "جارٍ التحميل...",
     "save": "حفظ",
@@ -12,6 +12,7 @@
     "filter": "تصفية",
     "all": "الكل",
     "actions": "إجراءات",
+    "view": "عرض",
     "unassigned": "غير مسندة",
     "createdAt": "تاريخ الإنشاء",
     "updatedAt": "آخر تحديث",
@@ -26,6 +27,12 @@
     "tasks": "المهام",
     "newComplaint": "شكوى جديدة",
     "marketing": "التسويق",
+    "services": "الخدمات",
+    "complaintInquiry": "استعلام عن شكوى",
+    "receivables": "حساب المقبوضات",
+    "payables": "حساب المدفوعات",
+    "salesOpportunities": "الفرص البيعية",
+    "tickets": "التذاكر",
     "settings": "الإعدادات",
     "companies": "الشركات",
     "administrations": "الإدارات",
@@ -82,6 +89,52 @@
     "Cancel": "ملغاة",
     "Closed": "مغلقة"
   },
+  "home": {
+    "welcome": "مرحباً بعودتك، {name}",
+    "subtitleAdmin": "هذه نظرة عامة على وضع المؤسسة.",
+    "subtitleEmployee": "هذه المهام الموكلة إليك.",
+    "totalTickets": "إجمالي الشكاوى",
+    "statusBreakdown": "التوزيع حسب الحالة",
+    "categoryBreakdown": "حسب الفئة",
+    "sourceBreakdown": "حسب المصدر",
+    "trend": "الشكاوى الجديدة (آخر 14 يوماً)",
+    "topAssignees": "الأكثر تكليفاً",
+    "noData": "لا توجد بيانات بعد."
+  },
+  "theme": {
+    "light": "فاتح",
+    "dark": "داكن",
+    "system": "النظام"
+  },
+  "account": {
+    "title": "إعدادات الحساب",
+    "subtitle": "إدارة ملفك الشخصي وكلمة المرور والصلاحيات.",
+    "sections": {
+      "profile": "الملف الشخصي",
+      "password": "كلمة المرور",
+      "permissions": "الصلاحيات"
+    },
+    "changePhoto": "تغيير الصورة",
+    "uploading": "جارٍ الرفع...",
+    "avatarUploadFailed": "تعذر رفع هذه الصورة. حاول مرة أخرى.",
+    "saved": "تم الحفظ.",
+    "currentPassword": "كلمة المرور الحالية",
+    "newPassword": "كلمة المرور الجديدة",
+    "confirmPassword": "تأكيد كلمة المرور الجديدة",
+    "changePassword": "تغيير كلمة المرور",
+    "passwordChanged": "تم تغيير كلمة المرور الخاصة بك.",
+    "passwordTooShort": "يجب أن تكون كلمة المرور الجديدة 6 أحرف على الأقل.",
+    "passwordMismatch": "كلمة المرور الجديدة وتأكيدها غير متطابقين.",
+    "currentPasswordIncorrect": "كلمة المرور الحالية غير صحيحة.",
+    "myRoles": "أدواري",
+    "myPermissions": "صلاحياتي"
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "empty": "لا توجد إشعارات جديدة.",
+    "accountRequestTitle": "طلب حساب جديد: {name}",
+    "reassignmentRequestTitle": "طلب إعادة إسناد: {subject}"
+  },
   "dashboard": {
     "title": "الشكاوى",
     "subtitle": "جميع شكاوى العملاء المسجلة من قبل الموظفين",
@@ -111,8 +164,12 @@
       "customerPhone": "رقم هاتف العميل",
       "customerOrderNumber": "رقم طلب العميل",
       "source": "المصدر",
+      "company": "الشركة",
+      "selectCompany": "اختر شركة",
       "assignedTo": "مسندة إلى",
-      "status": "الحالة"
+      "status": "الحالة",
+      "arabic": "عربي",
+      "english": "إنجليزي"
     },
     "categories": {
       "ProductQuality": "جودة المنتج / الخدمة",
@@ -143,6 +200,9 @@
       "deleted": "تم حذف الشكوى.",
       "notFound": "الشكوى غير موجودة.",
       "assignHint": "هل تريد إسناد هذه الشكوى لموظف؟ يمكنك تغيير الحالة إلى \"مسندة\".",
+      "statusNoteLabel": "ماذا فعلت؟",
+      "statusNotePlaceholder": "صف ما تغيّر أو ما قمت به قبل تحديث الحالة...",
+      "statusNoteRequired": "يرجى وصف ما قمت به قبل تغيير الحالة.",
       "submittedByCustomer": "مقدَّمة مباشرة من العميل",
       "viewAttachment": "عرض المرفق",
       "readOnlyNotice": "لديك صلاحية العرض فقط لهذه الشكوى.",
@@ -151,6 +211,7 @@
       "history": "السجل",
       "historyCreated": "تم فتحها بالحالة \"{status}\"",
       "historyStatus": "تم تغيير الحالة من \"{previousStatus}\" إلى \"{status}\"",
+      "historyStatusNote": "ما تم عمله: {note}",
       "historyReassigned": "تمت إعادة الإسناد من {from} إلى {to}",
       "historyReassignedReason": "السبب: {reason}",
       "historyReassignRequested": "تم طلب إعادة الإسناد من {from} إلى {to}",
@@ -207,6 +268,38 @@
     "subtitle": "أدوات وحملات التسويق",
     "comingSoon": "قريباً. هذا القسم مخصص لميزات التسويق المستقبلية."
   },
+  "complaintInquiry": {
+    "title": "استعلام عن شكوى",
+    "subtitle": "ابحث برقم هاتف العميل أو اسمه لعرض كل الشكاوى التي قدّمها.",
+    "searchPlaceholder": "ابحث برقم هاتف العميل أو اسمه...",
+    "prompt": "ابدأ بكتابة رقم هاتف العميل أو اسمه للبحث.",
+    "noResults": "لم يتم العثور على شكاوى لهذا البحث.",
+    "table": {
+      "issueId": "رقم الشكوى",
+      "subject": "الموضوع",
+      "customerName": "اسم العميل",
+      "customerPhone": "هاتف العميل",
+      "assignedTo": "مسندة إلى",
+      "status": "الحالة",
+      "createdAt": "تاريخ الإنشاء"
+    }
+  },
+  "salesOpportunities": {
+    "title": "الفرص البيعية",
+    "comingSoon": "قريباً. هذا القسم مخصص لمتابعة الفرص البيعية."
+  },
+  "receivables": {
+    "title": "حساب المقبوضات",
+    "comingSoon": "قريباً. هذا القسم مخصص لمتابعة المبالغ المستحقة للشركة."
+  },
+  "payables": {
+    "title": "حساب المدفوعات",
+    "comingSoon": "قريباً. هذا القسم مخصص لمتابعة المبالغ المستحقة على الشركة."
+  },
+  "tickets": {
+    "title": "التذاكر",
+    "comingSoon": "قريباً. هذا القسم مخصص لعرض مخصص للتذاكر."
+  },
   "requests": {
     "title": "الطلبات",
     "subtitle": "راجع الطلبات المعلّقة التي تحتاج إلى إجرائك.",
@@ -242,6 +335,7 @@
     "filterAllDepartments": "جميع الأقسام",
     "table": {
       "name": "الاسم",
+      "number": "الرقم الوظيفي",
       "username": "اسم المستخدم",
       "company": "الشركة",
       "administration": "الإدارة",
@@ -309,6 +403,7 @@
     "notFound": "الشركة غير موجودة.",
     "deleteConfirm": "هل أنت متأكد من حذف هذه الشركة؟",
     "deleteBlocked": "أعد تعيين إدارات هذه الشركة أو أزلها قبل حذفها.",
+    "noAdministrations": "لا توجد إدارات تحت هذه الشركة بعد.",
     "managerNotAssigned": "لا يوجد مدير عام معيّن",
     "table": {
       "number": "#",
@@ -342,14 +437,17 @@
     "filterAllCompanies": "جميع الشركات",
     "deleteConfirm": "هل أنت متأكد من حذف هذه الإدارة؟",
     "deleteBlocked": "أعد تعيين أقسام هذه الإدارة أو أزلها قبل حذفها.",
+    "noDepartments": "لا توجد أقسام تحت هذه الإدارة بعد.",
     "managerNotAssigned": "لا يوجد مدير عام معيّن",
     "table": {
+      "number": "#",
       "nameAr": "الاسم (عربي)",
       "nameEn": "الاسم (إنجليزي)",
       "company": "الشركة",
       "manager": "المدير العام"
     },
     "fields": {
+      "number": "الرقم",
       "company": "الشركة",
       "selectCompany": "اختر شركة",
       "nameAr": "الاسم (عربي)",
@@ -376,14 +474,17 @@
     "filterAllAdministrations": "جميع الإدارات",
     "deleteConfirm": "هل أنت متأكد من حذف هذا القسم؟",
     "deleteBlocked": "أعد تعيين موظفي هذا القسم أو أزلهم قبل حذفه.",
+    "noEmployees": "لا يوجد موظفون في هذا القسم بعد.",
     "managerNotAssigned": "لا يوجد مدير عام معيّن",
     "table": {
+      "number": "#",
       "nameAr": "الاسم (عربي)",
       "nameEn": "الاسم (إنجليزي)",
       "administration": "الإدارة",
       "manager": "المدير العام"
     },
     "fields": {
+      "number": "الرقم",
       "administration": "الإدارة",
       "selectAdministration": "اختر إدارة",
       "nameAr": "الاسم (عربي)",

@@ -17,7 +17,10 @@ export default function CompaniesPage() {
   const canCreate = hasPermission(profile, "companies", "create");
   const canUpdate = hasPermission(profile, "companies", "update");
   const canDelete = hasPermission(profile, "companies", "delete");
-  const showActions = canUpdate || canDelete;
+  // The View action is always available to anyone who can reach this list,
+  // so the Actions column itself is always shown now (not just when the
+  // viewer also holds update/delete).
+  const showActions = true;
 
   const [companies, setCompanies] = useState<Company[] | null>(null);
   const [administrations, setAdministrations] = useState<Administration[]>([]);
@@ -102,9 +105,15 @@ export default function CompaniesPage() {
                   {showActions && (
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
+                        <Link
+                          href={`/companies/${company.id}`}
+                          className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground/70 hover:bg-black/5"
+                        >
+                          {tCommon("view")}
+                        </Link>
                         {canUpdate && (
                           <Link
-                            href={`/companies/${company.id}`}
+                            href={`/companies/${company.id}/edit`}
                             className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground/70 hover:bg-black/5"
                           >
                             {tCommon("edit")}

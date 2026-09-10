@@ -34,6 +34,15 @@ service cloud.firestore {
       return d.channel == "staff" && d.createdBy == request.auth.uid;
     }
 
+    // A staff member updating their own Account Settings — phone number and
+    // profile picture only. Deliberately excludes name/number/jobTitle/org
+    // placement/roleIds/permissions, which stay admin-managed via
+    // /api/employees.
+    function isSelfProfileWrite(userId) {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return request.auth.uid == userId && affected.hasOnly(["phone", "avatarUrl"]);
+    }
+
     // Employee accounts (Firebase Auth UID-keyed). Any signed-in staff
     // member can read the directory (needed for "assigned to"/"boss"
     // dropdowns everywhere). Mutations normally go through /api/employees
@@ -42,7 +51,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if hasPermission("employees", "create");
-      allow update: if hasPermission("employees", "update");
+      allow update: if hasPermission("employees", "update") || isSelfProfileWrite(userId);
       allow delete: if hasPermission("employees", "delete");
     }
 

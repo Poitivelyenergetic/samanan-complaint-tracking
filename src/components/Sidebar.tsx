@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
@@ -8,28 +8,126 @@ import { useAuth } from "@/lib/auth-context";
 import { subscribeToPendingSignupRequests } from "@/lib/signupRequests";
 import { subscribeToPendingReassignments } from "@/lib/complaints";
 import { hasPermission, localizedName, type PermissionResource } from "@/lib/types";
+import {
+  IconArrowDownCircle,
+  IconArrowUpCircle,
+  IconBriefcase,
+  IconBuilding,
+  IconChevronDown,
+  IconClipboardList,
+  IconFolder,
+  IconGear,
+  IconInbox,
+  IconLayoutGrid,
+  IconMegaphone,
+  IconPlusCircle,
+  IconSearch,
+  IconShieldCheck,
+  IconTicket,
+  IconTrendingUp,
+  IconUsers,
+} from "@/components/icons";
 
-const SETTINGS_ITEMS: { href: string; key: string; resource: PermissionResource }[] = [
-  { href: "/companies", key: "companies", resource: "companies" },
-  { href: "/administrations", key: "administrations", resource: "administrations" },
-  { href: "/departments", key: "departments", resource: "departments" },
-  { href: "/employees", key: "employees", resource: "employees" },
-  { href: "/roles", key: "roles", resource: "roles" },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  badge?: number;
+}
+
+const SETTINGS_RESOURCE_ITEMS: { href: string; key: string; resource: PermissionResource; icon: ReactNode }[] = [
+  { href: "/companies", key: "companies", resource: "companies", icon: <IconBuilding /> },
+  { href: "/administrations", key: "administrations", resource: "administrations", icon: <IconBriefcase /> },
+  { href: "/departments", key: "departments", resource: "departments", icon: <IconFolder /> },
+  { href: "/employees", key: "employees", resource: "employees", icon: <IconUsers /> },
+  { href: "/roles", key: "roles", resource: "roles", icon: <IconShieldCheck /> },
 ];
 
 const LOCALE_LABELS: Record<string, string> = { ar: "العربية", en: "English" };
 
-function SidebarLink({ href, label, active, onNavigate }: { href: string; label: string; active: boolean; onNavigate?: () => void }) {
+function SidebarLink({
+  href,
+  label,
+  icon,
+  active,
+  onNavigate,
+  badge,
+}: {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  active: boolean;
+  onNavigate?: () => void;
+  badge?: number;
+}) {
   return (
     <Link
       href={href}
       onClick={onNavigate}
-      className={`block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+      className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-[15px] font-medium transition-colors ${
         active ? "bg-brand text-brand-foreground" : "text-[#aab2c5] hover:bg-white/5 hover:text-white"
       }`}
     >
-      {label}
+      <span className="shrink-0">{icon}</span>
+      <span className="flex-1">{label}</span>
+      {!!badge && (
+        <span className="ms-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/20 px-1 text-xs font-semibold text-white">
+          {badge}
+        </span>
+      )}
     </Link>
+  );
+}
+
+function NavGroup({
+  label,
+  icon,
+  items,
+  open,
+  onToggle,
+  isActive,
+  onNavigate,
+}: {
+  label: string;
+  icon: ReactNode;
+  items: NavItem[];
+  open: boolean;
+  onToggle: () => void;
+  isActive: (href: string) => boolean;
+  onNavigate?: () => void;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <div className="pt-2">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-sm font-bold text-brand transition-colors hover:bg-white/5"
+      >
+        <span className="flex items-center gap-3">
+          {icon}
+          {label}
+        </span>
+        <IconChevronDown className={`shrink-0 transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
+      </button>
+      {open && (
+        <div className="mt-1 space-y-1">
+          {items.map((item) => (
+            <SidebarLink
+              key={item.href}
+              href={item.href}
+              label={item.label}
+              icon={item.icon}
+              active={isActive(item.href)}
+              onNavigate={onNavigate}
+              badge={item.badge}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -41,14 +139,18 @@ function SidebarContents({ onNavigate }: { onNavigate?: () => void }) {
   const locale = useLocale();
   const { profile, signOut } = useAuth();
 
+  const [servicesOpen, setServicesOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(true);
+
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + "/");
   }
 
-  const visibleSettingsItems = SETTINGS_ITEMS.filter((item) => hasPermission(profile, item.resource, "view"));
+  const visibleSettingsItems = SETTINGS_RESOURCE_ITEMS.filter((item) => hasPermission(profile, item.resource, "view"));
   const canViewComplaints = hasPermission(profile, "complaints", "view");
   const canViewAllComplaints = hasPermission(profile, "complaints", "viewAll");
   const canCreateComplaints = hasPermission(profile, "complaints", "create");
+  const canUseComplaintInquiry = hasPermission(profile, "complaints", "viewAll");
   const canAccessMarketing = hasPermission(profile, "marketing", "view");
   const canReviewAccountRequests = hasPermission(profile, "employees", "update");
   const canReviewReassignmentRequests = hasPermission(profile, "complaints", "acceptReassignment");
@@ -67,61 +169,56 @@ function SidebarContents({ onNavigate }: { onNavigate?: () => void }) {
     return subscribeToPendingReassignments((complaints) => setPendingReassignmentRequests(complaints.length));
   }, [canReviewReassignmentRequests]);
 
+  const serviceItems: NavItem[] = [
+    ...(canViewComplaints
+      ? [{ href: "/dashboard", label: canViewAllComplaints ? t("dashboard") : t("tasks"), icon: <IconClipboardList /> }]
+      : []),
+    ...(canCreateComplaints ? [{ href: "/complaints/new", label: t("newComplaint"), icon: <IconPlusCircle /> }] : []),
+    ...(canUseComplaintInquiry
+      ? [{ href: "/complaints/inquiry", label: t("complaintInquiry"), icon: <IconSearch /> }]
+      : []),
+    { href: "/receivables", label: t("receivables"), icon: <IconArrowDownCircle /> },
+    { href: "/payables", label: t("payables"), icon: <IconArrowUpCircle /> },
+    { href: "/sales-opportunities", label: t("salesOpportunities"), icon: <IconTrendingUp /> },
+    ...(canAccessMarketing ? [{ href: "/marketing", label: t("marketing"), icon: <IconMegaphone /> }] : []),
+    { href: "/tickets", label: t("tickets"), icon: <IconTicket /> },
+  ];
+
+  const settingsItems: NavItem[] = [
+    ...visibleSettingsItems.map((item) => ({ href: item.href, label: t(item.key), icon: item.icon })),
+    ...(canViewRequests
+      ? [{ href: "/requests", label: t("requests"), icon: <IconInbox />, badge: pendingRequestsCount }]
+      : []),
+  ];
+
   return (
     <div className="flex h-full flex-col bg-[#1f2430] text-[#aab2c5]">
-      <div className="flex items-center gap-2 px-4 py-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/samnan-logo.svg" alt={tCommon("appName")} className="h-8 w-auto brightness-0 invert" />
+      <div className="px-4 py-4">
+        <Link href="/home" onClick={onNavigate} className="inline-block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/samnan-logo.svg" alt={tCommon("appName")} className="h-8 w-auto brightness-0 invert" />
+        </Link>
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-2">
-        {canViewComplaints && (
-          <SidebarLink
-            href="/dashboard"
-            label={canViewAllComplaints ? t("dashboard") : t("tasks")}
-            active={isActive("/dashboard")}
-            onNavigate={onNavigate}
-          />
-        )}
-        {canCreateComplaints && (
-          <SidebarLink href="/complaints/new" label={t("newComplaint")} active={isActive("/complaints/new")} onNavigate={onNavigate} />
-        )}
-        {canAccessMarketing && (
-          <SidebarLink href="/marketing" label={t("marketing")} active={isActive("/marketing")} onNavigate={onNavigate} />
-        )}
-
-        {(visibleSettingsItems.length > 0 || canViewRequests) && (
-          <div className="pt-3">
-            <p className="px-3 text-xs font-bold text-brand">{t("settings")}</p>
-            <div className="mt-1 space-y-1">
-              {visibleSettingsItems.map((item) => (
-                <SidebarLink
-                  key={item.href}
-                  href={item.href}
-                  label={t(item.key)}
-                  active={isActive(item.href)}
-                  onNavigate={onNavigate}
-                />
-              ))}
-              {canViewRequests && (
-                <Link
-                  href="/requests"
-                  onClick={onNavigate}
-                  className={`flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive("/requests") ? "bg-brand text-brand-foreground" : "text-[#aab2c5] hover:bg-white/5 hover:text-white"
-                  }`}
-                >
-                  {t("requests")}
-                  {pendingRequestsCount > 0 && (
-                    <span className="ms-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/20 px-1 text-xs font-semibold text-white">
-                      {pendingRequestsCount}
-                    </span>
-                  )}
-                </Link>
-              )}
-            </div>
-          </div>
-        )}
+        <NavGroup
+          label={t("services")}
+          icon={<IconLayoutGrid />}
+          items={serviceItems}
+          open={servicesOpen}
+          onToggle={() => setServicesOpen((v) => !v)}
+          isActive={isActive}
+          onNavigate={onNavigate}
+        />
+        <NavGroup
+          label={t("settings")}
+          icon={<IconGear />}
+          items={settingsItems}
+          open={settingsOpen}
+          onToggle={() => setSettingsOpen((v) => !v)}
+          isActive={isActive}
+          onNavigate={onNavigate}
+        />
       </nav>
 
       <div className="border-t border-white/10 px-4 py-3">
@@ -141,14 +238,14 @@ function SidebarContents({ onNavigate }: { onNavigate?: () => void }) {
           ))}
         </div>
         {profile && (
-          <p className="mt-2.5 truncate text-xs text-[#aab2c5]">
+          <p className="mt-2.5 truncate text-sm text-[#aab2c5]">
             {t("signedInAs")} <span className="font-medium text-white">{localizedName(profile, locale)}</span>
           </p>
         )}
         <button
           type="button"
           onClick={() => signOut()}
-          className="mt-2 w-full rounded-md border border-white/10 px-3 py-1.5 text-sm font-medium text-[#aab2c5] transition-colors hover:bg-white/5 hover:text-white"
+          className="mt-2 w-full rounded-md border border-white/10 px-3 py-2 text-sm font-medium text-[#aab2c5] transition-colors hover:bg-white/5 hover:text-white"
         >
           {t("logout")}
         </button>
@@ -163,13 +260,15 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className="hidden w-60 shrink-0 md:block">
+      <aside className="hidden w-64 shrink-0 md:block">
         <SidebarContents />
       </aside>
 
       <div className="flex items-center justify-between border-b border-border bg-[#1f2430] px-4 py-3 md:hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/samnan-logo.svg" alt={t("dashboard")} className="h-7 w-auto brightness-0 invert" />
+        <Link href="/home">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/samnan-logo.svg" alt={t("dashboard")} className="h-7 w-auto brightness-0 invert" />
+        </Link>
         <button
           type="button"
           onClick={() => setMobileOpen(true)}

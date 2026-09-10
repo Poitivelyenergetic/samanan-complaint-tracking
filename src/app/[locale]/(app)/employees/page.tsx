@@ -29,7 +29,7 @@ export default function EmployeesPage() {
   const canCreate = hasPermission(profile, "employees", "create");
   const canUpdate = hasPermission(profile, "employees", "update");
   const canDelete = hasPermission(profile, "employees", "delete");
-  const showActions = canUpdate || canDelete;
+  const showActions = true;
 
   const [staff, setStaff] = useState<StaffUser[] | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -174,6 +174,7 @@ export default function EmployeesPage() {
           <thead>
             <tr className="border-b border-border bg-black/[0.02] text-start text-xs font-semibold uppercase tracking-wide text-foreground/50">
               <th className="px-4 py-3 text-start">{t("table.name")}</th>
+              <th className="px-4 py-3 text-start">{t("table.number")}</th>
               <th className="px-4 py-3 text-start">{t("table.username")}</th>
               <th className="px-4 py-3 text-start">{t("table.company")}</th>
               <th className="px-4 py-3 text-start">{t("table.administration")}</th>
@@ -184,13 +185,13 @@ export default function EmployeesPage() {
           <tbody>
             {staff === null ? (
               <tr>
-                <td colSpan={showActions ? 6 : 5} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={7} className="px-4 py-8 text-center text-foreground/50">
                   {tCommon("loading")}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={showActions ? 6 : 5} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={7} className="px-4 py-8 text-center text-foreground/50">
                   {t("noResults")}
                 </td>
               </tr>
@@ -198,14 +199,11 @@ export default function EmployeesPage() {
               filtered.map((member) => (
                 <tr key={member.id} className="border-b border-border last:border-0 hover:bg-black/[0.02]">
                   <td className="px-4 py-3">
-                    {canUpdate ? (
-                      <Link href={`/employees/${member.id}`} className="font-medium text-foreground hover:text-brand">
-                        {localizedName(member, locale)}
-                      </Link>
-                    ) : (
-                      <span className="font-medium text-foreground">{localizedName(member, locale)}</span>
-                    )}
+                    <Link href={`/employees/${member.id}`} className="font-medium text-foreground hover:text-brand">
+                      {localizedName(member, locale)}
+                    </Link>
                   </td>
+                  <td className="px-4 py-3 font-mono text-foreground/70">{member.number}</td>
                   <td className="px-4 py-3 text-foreground/70">{member.username}</td>
                   <td className="px-4 py-3 text-foreground/70">
                     {localizedName(companiesById.get(member.companyId), locale) || "—"}
@@ -219,9 +217,15 @@ export default function EmployeesPage() {
                   {showActions && (
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
+                        <Link
+                          href={`/employees/${member.id}`}
+                          className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground/70 hover:bg-black/5"
+                        >
+                          {tCommon("view")}
+                        </Link>
                         {canUpdate && (
                           <Link
-                            href={`/employees/${member.id}`}
+                            href={`/employees/${member.id}/edit`}
                             className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground/70 hover:bg-black/5"
                           >
                             {tCommon("edit")}

@@ -6,6 +6,22 @@ export function phoneDigitsOnly(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+// Arabic-Indic (٠-٩) and Eastern Arabic-Indic (۰-۹) digits map to their
+// Latin equivalents — used on every phone number input site-wide so a
+// number typed on an Arabic keyboard is still stored/displayed as 0-9,
+// never as non-Latin digit glyphs.
+const ARABIC_INDIC_DIGITS = "٠١٢٣٤٥٦٧٨٩";
+const EASTERN_ARABIC_INDIC_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
+
+export function toLatinDigits(value: string): string {
+  return value.replace(/[٠-٩۰-۹]/g, (char) => {
+    const arabicIndex = ARABIC_INDIC_DIGITS.indexOf(char);
+    if (arabicIndex !== -1) return String(arabicIndex);
+    const easternIndex = EASTERN_ARABIC_INDIC_DIGITS.indexOf(char);
+    return easternIndex !== -1 ? String(easternIndex) : char;
+  });
+}
+
 // Loose comparison rather than exact-string: staff phone numbers are stored
 // as free text (e.g. local "05XXXXXXXX"), while a verified Firebase phone
 // sign-in always comes back in E.164 ("+9665XXXXXXXX"). Comparing just the

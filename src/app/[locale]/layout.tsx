@@ -6,7 +6,13 @@ import { hasLocale } from "next-intl";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { AuthProvider } from "@/lib/auth-context";
+import { ThemeProvider } from "@/lib/theme-context";
 import "../globals.css";
+
+// Runs before React hydrates so a stored dark/light preference applies
+// immediately — without this, the page would flash the default (system)
+// theme for a moment on every load.
+const THEME_INIT_SCRIPT = `try{var t=localStorage.getItem('samnan-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}`;
 
 const cairo = Cairo({
   variable: "--font-cairo",
@@ -47,11 +53,16 @@ export default async function LocaleLayout({
   const dir = locale === "ar" ? "rtl" : "ltr";
 
   return (
-    <html lang={locale} dir={dir} className={`${cairo.variable} h-full antialiased`}>
+    <html lang={locale} dir={dir} className={`${cairo.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <NextIntlClientProvider messages={messages}>
-          <AuthProvider>{children}</AuthProvider>
-        </NextIntlClientProvider>
+        <ThemeProvider>
+          <NextIntlClientProvider messages={messages}>
+            <AuthProvider>{children}</AuthProvider>
+          </NextIntlClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

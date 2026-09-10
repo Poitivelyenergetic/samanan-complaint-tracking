@@ -14,8 +14,8 @@ export default function NewRolePage() {
   const { profile, loading } = useAuth();
 
   async function handleSubmit(values: RoleInput) {
-    const { id } = await createRole(values);
-    router.push(`/roles/${id}`);
+    await createRole(values);
+    router.back();
   }
 
   if (loading || !profile || !hasPermission(profile, "roles", "create")) {
