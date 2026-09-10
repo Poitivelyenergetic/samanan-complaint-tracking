@@ -45,7 +45,8 @@
     "complaintSources": "Complaint Sources",
     "requests": "Requests",
     "logout": "Log out",
-    "signedInAs": "Signed in as"
+    "signedInAs": "Signed in as",
+    "hideSidebar": "Hide"
   },
   "login": {
     "title": "Staff Login",
@@ -156,6 +157,12 @@
     "statusFilter": "Status",
     "assigneeFilter": "Assigned to",
     "noResults": "No complaints found.",
+    "stats": {
+      "total": "Total Complaints",
+      "open": "Open",
+      "processing": "Processing",
+      "closed": "Closed"
+    },
     "table": {
       "issueId": "Issue ID",
       "subject": "Subject",

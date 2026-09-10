@@ -18,6 +18,27 @@ import {
 import { COMPLAINT_STATUSES } from "@/lib/types";
 import StatusBadge from "@/components/StatusBadge";
 import Select from "@/components/Select";
+import { IconClipboardList, IconGear, IconInbox, IconShieldCheck } from "@/components/icons";
+
+function StatCard({
+  icon,
+  iconClassName,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  iconClassName: string;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md">
+      <div className={`inline-flex rounded-lg p-2 ${iconClassName}`}>{icon}</div>
+      <p className="mt-4 text-sm font-medium text-foreground/60">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const t = useTranslations("dashboard");
@@ -52,6 +73,14 @@ export default function DashboardPage() {
   const sourcesById = useMemo(() => new Map(complaintSources.map((s) => [s.id, s])), [complaintSources]);
 
   const visibleComplaints = useMemo(() => (canView ? complaints : []), [canView, complaints]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<ComplaintStatus, number> = { Open: 0, Assigned: 0, Processing: 0, Cancel: 0, Closed: 0 };
+    (visibleComplaints ?? []).forEach((c) => {
+      counts[c.status] += 1;
+    });
+    return counts;
+  }, [visibleComplaints]);
 
   const filtered = useMemo(() => {
     if (!visibleComplaints) return [];
@@ -88,6 +117,35 @@ export default function DashboardPage() {
           </Link>
         )}
       </div>
+
+      {visibleComplaints !== null && (
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <StatCard
+            icon={<IconClipboardList />}
+            iconClassName="bg-blue-50 text-blue-600"
+            label={t("stats.total")}
+            value={visibleComplaints.length}
+          />
+          <StatCard
+            icon={<IconInbox />}
+            iconClassName="bg-indigo-50 text-indigo-600"
+            label={t("stats.open")}
+            value={statusCounts.Open}
+          />
+          <StatCard
+            icon={<IconGear />}
+            iconClassName="bg-amber-50 text-amber-600"
+            label={t("stats.processing")}
+            value={statusCounts.Processing}
+          />
+          <StatCard
+            icon={<IconShieldCheck />}
+            iconClassName="bg-green-50 text-green-600"
+            label={t("stats.closed")}
+            value={statusCounts.Closed}
+          />
+        </div>
+      )}
 
       <div className="mt-6 flex flex-wrap gap-3">
         <input
@@ -127,7 +185,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-surface">
+      <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
         <table className="w-full min-w-[940px] text-start text-sm">
           <thead>
             <tr className="border-b border-border bg-black/[0.02] text-start text-xs font-semibold uppercase tracking-wide text-foreground/50">

@@ -45,7 +45,8 @@
     "complaintSources": "مصادر الشكاوى",
     "requests": "الطلبات",
     "logout": "تسجيل الخروج",
-    "signedInAs": "مسجل الدخول باسم"
+    "signedInAs": "مسجل الدخول باسم",
+    "hideSidebar": "إخفاء"
   },
   "login": {
     "title": "تسجيل دخول الموظفين",
@@ -156,6 +157,12 @@
     "statusFilter": "الحالة",
     "assigneeFilter": "المسندة إلى",
     "noResults": "لا توجد شكاوى.",
+    "stats": {
+      "total": "إجمالي الشكاوى",
+      "open": "مفتوحة",
+      "processing": "قيد المعالجة",
+      "closed": "مغلقة"
+    },
     "table": {
       "issueId": "رقم الشكوى",
       "subject": "الموضوع",

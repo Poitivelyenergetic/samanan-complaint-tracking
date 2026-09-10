@@ -33,6 +33,14 @@ import {
   type StaffUser,
 } from "@/lib/types";
 import Select from "@/components/Select";
+import {
+  IconClipboardList,
+  IconGear,
+  IconInbox,
+  IconShieldCheck,
+  IconUsers,
+  IconXCircle,
+} from "@/components/icons";
 
 const STATUS_COLORS: Record<ComplaintStatus, string> = {
   Open: "#3b82f6",
@@ -42,32 +50,33 @@ const STATUS_COLORS: Record<ComplaintStatus, string> = {
   Closed: "#22c55e",
 };
 
+const STATUS_ICONS: Record<ComplaintStatus, React.ReactNode> = {
+  Open: <IconInbox />,
+  Assigned: <IconUsers />,
+  Processing: <IconGear />,
+  Cancel: <IconXCircle />,
+  Closed: <IconShieldCheck />,
+};
+
 type DateFilter = "all" | "today" | "7d" | "30d" | "month";
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-5 shadow-sm">
+    <div className="rounded-xl border border-border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md">
       <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       <div className="mt-4 h-64">{children}</div>
     </div>
   );
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
   return (
-    <div
-      className="rounded-xl border p-4 shadow-sm"
-      style={{
-        backgroundColor: `${color}1f`,
-        borderColor: `${color}40`,
-        borderInlineStartWidth: 4,
-        borderInlineStartColor: color,
-      }}
-    >
-      <p className="text-xs font-semibold uppercase tracking-wide text-foreground/70">{label}</p>
-      <p className="mt-1.5 text-3xl font-bold" style={{ color }}>
-        {value}
-      </p>
+    <div className="rounded-xl border border-border bg-surface p-4 shadow-sm transition-shadow hover:shadow-md">
+      <div className="inline-flex rounded-lg p-2" style={{ backgroundColor: `${color}1f`, color }}>
+        {icon}
+      </div>
+      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-foreground/60">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
     </div>
   );
 }
@@ -258,9 +267,15 @@ export default function HomePage() {
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <StatCard label={t("totalTickets")} value={list.length} color="#385bc1" />
+            <StatCard icon={<IconClipboardList />} label={t("totalTickets")} value={list.length} color="#385bc1" />
             {statusData.map((row) => (
-              <StatCard key={row.status} label={row.label} value={row.count} color={STATUS_COLORS[row.status]} />
+              <StatCard
+                key={row.status}
+                icon={STATUS_ICONS[row.status]}
+                label={row.label}
+                value={row.count}
+                color={STATUS_COLORS[row.status]}
+              />
             ))}
           </div>
 

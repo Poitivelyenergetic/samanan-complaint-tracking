@@ -219,6 +219,33 @@ export function IconGear(props: IconProps) {
   );
 }
 
+export function IconXCircle(props: IconProps) {
+  return (
+    <Base {...props}>
+      <circle cx="10" cy="10" r="7.25" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M7.5 7.5 12.5 12.5M12.5 7.5 7.5 12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </Base>
+  );
+}
+
+export function IconChevronsRight(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M6 4.5 11.5 10 6 15.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M11 4.5 16.5 10 11 15.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </Base>
+  );
+}
+
+export function IconLogout(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M8.5 3H5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M13.5 6.5 17 10l-3.5 3.5M17 10H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </Base>
+  );
+}
+
 export function IconLayoutGrid(props: IconProps) {
   return (
     <Base {...props}>

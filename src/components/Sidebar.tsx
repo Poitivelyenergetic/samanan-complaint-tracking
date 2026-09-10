@@ -14,11 +14,13 @@ import {
   IconBroadcast,
   IconBuilding,
   IconChevronDown,
+  IconChevronsRight,
   IconClipboardList,
   IconFolder,
   IconGear,
   IconInbox,
   IconLayoutGrid,
+  IconLogout,
   IconMegaphone,
   IconPlusCircle,
   IconSearch,
@@ -82,6 +84,40 @@ function SidebarLink({
   );
 }
 
+// Collapsed-sidebar equivalent of SidebarLink — icon only, centered, with the
+// label as a title tooltip since there's no room to render it. A pending
+// count shows as a small dot rather than a number badge for the same reason.
+function SidebarIconLink({
+  href,
+  label,
+  icon,
+  active,
+  onNavigate,
+  badge,
+}: {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  active: boolean;
+  onNavigate?: () => void;
+  badge?: number;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      title={label}
+      aria-label={label}
+      className={`relative flex h-11 w-11 items-center justify-center rounded-md transition-colors ${
+        active ? "bg-brand text-brand-foreground" : "text-[#aab2c5] hover:bg-white/5 hover:text-white"
+      }`}
+    >
+      {icon}
+      {!!badge && <span className="absolute end-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />}
+    </Link>
+  );
+}
+
 function NavGroup({
   label,
   icon,
@@ -134,7 +170,20 @@ function NavGroup({
   );
 }
 
-function SidebarContents({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContents({
+  collapsible = false,
+  open = true,
+  onToggleOpen,
+  onNavigate,
+}: {
+  // Only the desktop rail supports collapsing to icons-only — the mobile
+  // drawer is always shown at full width, so it renders with collapsible
+  // left at its default (false) and open forced true.
+  collapsible?: boolean;
+  open?: boolean;
+  onToggleOpen?: () => void;
+  onNavigate?: () => void;
+}) {
   const t = useTranslations("nav");
   const tCommon = useTranslations("common");
   const pathname = usePathname();
@@ -186,53 +235,80 @@ function SidebarContents({ onNavigate }: { onNavigate?: () => void }) {
       : []),
   ];
 
+  const collapsed = collapsible && !open;
+
   return (
     <div className="flex h-full flex-col bg-[#1f2430] text-[#aab2c5]">
-      <div className="px-4 py-4">
+      <div className={`flex items-center py-4 ${collapsed ? "justify-center px-0" : "px-4"}`}>
         <Link href="/home" onClick={onNavigate} className="inline-block">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/samnan-logo.svg" alt={tCommon("appName")} className="h-8 w-auto brightness-0 invert" />
+          {collapsed ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/samnan-icon.svg" alt={tCommon("appName")} className="h-8 w-8 brightness-0 invert" />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/samnan-logo.svg" alt={tCommon("appName")} className="h-8 w-auto brightness-0 invert" />
+          )}
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-2">
-        <NavGroup
-          label={t("services")}
-          icon={<IconLayoutGrid />}
-          items={serviceItems}
-          open={servicesOpen}
-          onToggle={() => setServicesOpen((v) => !v)}
-          isActive={isActive}
-          onNavigate={onNavigate}
-        />
-        <NavGroup
-          label={t("settings")}
-          icon={<IconGear />}
-          items={settingsItems}
-          open={settingsOpen}
-          onToggle={() => setSettingsOpen((v) => !v)}
-          isActive={isActive}
-          onNavigate={onNavigate}
-        />
+      <nav className="flex-1 space-y-1 overflow-x-hidden overflow-y-auto px-2">
+        {collapsed ? (
+          <div className="flex flex-col items-center space-y-1 pt-2">
+            {[...serviceItems, ...settingsItems].map((item) => (
+              <SidebarIconLink
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                icon={item.icon}
+                active={isActive(item.href)}
+                onNavigate={onNavigate}
+                badge={item.badge}
+              />
+            ))}
+          </div>
+        ) : (
+          <>
+            <NavGroup
+              label={t("services")}
+              icon={<IconLayoutGrid />}
+              items={serviceItems}
+              open={servicesOpen}
+              onToggle={() => setServicesOpen((v) => !v)}
+              isActive={isActive}
+              onNavigate={onNavigate}
+            />
+            <NavGroup
+              label={t("settings")}
+              icon={<IconGear />}
+              items={settingsItems}
+              open={settingsOpen}
+              onToggle={() => setSettingsOpen((v) => !v)}
+              isActive={isActive}
+              onNavigate={onNavigate}
+            />
+          </>
+        )}
       </nav>
 
-      <div className="border-t border-white/10 px-4 py-3">
-        <div className="flex items-center gap-1">
-          {routing.locales.map((loc) => (
-            <button
-              key={loc}
-              type="button"
-              onClick={() => router.replace(pathname, { locale: loc })}
-              className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
-                loc === locale ? "bg-brand text-brand-foreground" : "text-[#aab2c5] hover:bg-white/5 hover:text-white"
-              }`}
-              aria-current={loc === locale}
-            >
-              {LOCALE_LABELS[loc]}
-            </button>
-          ))}
-        </div>
-        {profile && (
+      <div className={`border-t border-white/10 py-3 ${collapsed ? "px-2" : "px-4"}`}>
+        {!collapsed && (
+          <div className="flex items-center gap-1">
+            {routing.locales.map((loc) => (
+              <button
+                key={loc}
+                type="button"
+                onClick={() => router.replace(pathname, { locale: loc })}
+                className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
+                  loc === locale ? "bg-brand text-brand-foreground" : "text-[#aab2c5] hover:bg-white/5 hover:text-white"
+                }`}
+                aria-current={loc === locale}
+              >
+                {LOCALE_LABELS[loc]}
+              </button>
+            ))}
+          </div>
+        )}
+        {!collapsed && profile && (
           <p className="mt-2.5 truncate text-sm text-[#aab2c5]">
             {t("signedInAs")} <span className="font-medium text-white">{localizedName(profile, locale)}</span>
           </p>
@@ -240,11 +316,30 @@ function SidebarContents({ onNavigate }: { onNavigate?: () => void }) {
         <button
           type="button"
           onClick={() => signOut()}
-          className="mt-2 w-full rounded-md border border-white/10 px-3 py-2 text-sm font-medium text-[#aab2c5] transition-colors hover:bg-white/5 hover:text-white"
+          title={collapsed ? t("logout") : undefined}
+          aria-label={collapsed ? t("logout") : undefined}
+          className={
+            collapsed
+              ? "mx-auto mt-2 flex h-9 w-9 items-center justify-center rounded-md border border-white/10 text-[#aab2c5] transition-colors hover:bg-white/5 hover:text-white"
+              : "mt-2 w-full rounded-md border border-white/10 px-3 py-2 text-sm font-medium text-[#aab2c5] transition-colors hover:bg-white/5 hover:text-white"
+          }
         >
-          {t("logout")}
+          {collapsed ? <IconLogout /> : t("logout")}
         </button>
       </div>
+
+      {collapsible && (
+        <button
+          type="button"
+          onClick={onToggleOpen}
+          className="flex items-center gap-2 border-t border-white/10 px-4 py-3 text-sm font-medium text-[#aab2c5] transition-colors hover:bg-white/5 hover:text-white"
+        >
+          <span className={`flex shrink-0 transition-transform duration-300 ${open ? "" : "rotate-180"}`}>
+            <IconChevronsRight />
+          </span>
+          {open && t("hideSidebar")}
+        </button>
+      )}
     </div>
   );
 }
@@ -252,11 +347,14 @@ function SidebarContents({ onNavigate }: { onNavigate?: () => void }) {
 export default function Sidebar() {
   const t = useTranslations("nav");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopOpen, setDesktopOpen] = useState(true);
 
   return (
     <>
-      <aside className="hidden w-64 shrink-0 md:block">
-        <SidebarContents />
+      <aside
+        className={`sticky top-0 hidden h-screen shrink-0 transition-all duration-300 ease-in-out md:block ${desktopOpen ? "w-64" : "w-16"}`}
+      >
+        <SidebarContents collapsible open={desktopOpen} onToggleOpen={() => setDesktopOpen((v) => !v)} />
       </aside>
 
       <div className="flex items-center justify-between border-b border-border bg-[#1f2430] px-4 py-3 md:hidden">
