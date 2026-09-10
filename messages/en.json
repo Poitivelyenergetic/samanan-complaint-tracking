@@ -152,22 +152,32 @@
       "historyStatus": "Status changed from \"{previousStatus}\" to \"{status}\"",
       "historyReassigned": "Reassigned from {from} to {to}",
       "historyReassignedReason": "Reason: {reason}",
+      "historyReassignRequested": "Requested reassignment from {from} to {to}",
+      "historyReassignAccepted": "Reassignment accepted: {from} to {to}",
+      "historyReassignRejected": "Reassignment rejected: {from} to {to} was not made",
       "historyActorPublic": "Public",
       "notes": "Notes",
       "notesPlaceholder": "Jot down anything worth remembering about this complaint...",
       "saveNote": "Save Note",
       "savingNote": "Saving...",
-      "noteSaved": "Saved."
+      "noteSaved": "Saved.",
+      "pendingReassignment": "Pending Reassignment",
+      "pendingReassignmentTo": "Proposed assignee: {to}",
+      "pendingReassignmentBy": "Requested by {by}",
+      "accept": "Accept",
+      "reject": "Reject",
+      "accepting": "Accepting...",
+      "rejecting": "Rejecting..."
     },
     "reassign": {
       "title": "Reassign Complaint",
-      "subtitle": "Choose who this should go to and explain why.",
+      "subtitle": "Choose who this should go to and explain why. The complaint won't move until the request is accepted.",
       "assignToLabel": "Reassign To",
       "reasonLabel": "Reason for reassignment",
       "reasonPlaceholder": "Why should this complaint be reassigned?",
       "reasonRequired": "Please explain why this complaint is being reassigned.",
-      "submit": "Reassign",
-      "submitting": "Reassigning..."
+      "submit": "Submit Request",
+      "submitting": "Submitting..."
     }
   },
   "staffSignup": {
@@ -399,7 +409,8 @@
       "update": "Update",
       "delete": "Delete",
       "viewAll": "View All",
-      "reassign": "Reassign"
+      "reassign": "Reassign",
+      "acceptReassignment": "Accept Reassignment"
     },
     "errors": {
       "missing_fields": "Please enter a role name.",

@@ -9,7 +9,7 @@ interface RolePermissionsEditorProps {
 }
 
 const ALL_RESOURCES = [...PERMISSION_RESOURCES, "marketing" as const];
-const COMPLAINTS_EXTRA_ACTIONS = ["viewAll", "reassign"] as const;
+const COMPLAINTS_EXTRA_ACTIONS = ["viewAll", "reassign", "acceptReassignment"] as const;
 
 export default function RolePermissionsEditor({ value, onChange }: RolePermissionsEditorProps) {
   const t = useTranslations("roles.resources");
@@ -21,7 +21,8 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
       : resource === "complaints"
         ? CRUD_ACTIONS.every((action) => value.complaints[action]) &&
           value.complaints.viewAll &&
-          value.complaints.reassign
+          value.complaints.reassign &&
+          value.complaints.acceptReassignment
         : CRUD_ACTIONS.every((action) => value[resource][action])
   );
 
@@ -31,7 +32,15 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
       administrations: { view: next, create: next, update: next, delete: next },
       departments: { view: next, create: next, update: next, delete: next },
       employees: { view: next, create: next, update: next, delete: next },
-      complaints: { view: next, create: next, update: next, delete: next, viewAll: next, reassign: next },
+      complaints: {
+        view: next,
+        create: next,
+        update: next,
+        delete: next,
+        viewAll: next,
+        reassign: next,
+        acceptReassignment: next,
+      },
       roles: { view: next, create: next, update: next, delete: next },
       marketing: { view: next },
     };
@@ -44,7 +53,18 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
       return;
     }
     if (resource === "complaints") {
-      onChange({ ...value, complaints: { view: next, create: next, update: next, delete: next, viewAll: next, reassign: next } });
+      onChange({
+        ...value,
+        complaints: {
+          view: next,
+          create: next,
+          update: next,
+          delete: next,
+          viewAll: next,
+          reassign: next,
+          acceptReassignment: next,
+        },
+      });
       return;
     }
     onChange({ ...value, [resource]: { view: next, create: next, update: next, delete: next } });
@@ -68,7 +88,8 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
       return (
         CRUD_ACTIONS.every((action) => value.complaints[action]) &&
         value.complaints.viewAll &&
-        value.complaints.reassign
+        value.complaints.reassign &&
+        value.complaints.acceptReassignment
       );
     }
     return CRUD_ACTIONS.every((action) => value[resource][action]);

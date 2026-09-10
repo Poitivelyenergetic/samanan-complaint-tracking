@@ -87,6 +87,7 @@ async function upsertRoles() {
     delete: false,
     viewAll: false,
     reassign: false,
+    acceptReassignment: false,
   };
   await db
     .collection("roles")
@@ -141,7 +142,15 @@ async function upsertStaff(staff: SeedStaff) {
   const department = DEPARTMENTS.find((d) => d.id === staff.departmentId)!;
   const permissions = staff.roleId === SUPER_ADMIN_ROLE_ID ? fullRolePermissions() : (() => {
     const p = emptyRolePermissions();
-    p.complaints = { view: true, create: true, update: false, delete: false, viewAll: false, reassign: false };
+    p.complaints = {
+      view: true,
+      create: true,
+      update: false,
+      delete: false,
+      viewAll: false,
+      reassign: false,
+      acceptReassignment: false,
+    };
     return p;
   })();
 

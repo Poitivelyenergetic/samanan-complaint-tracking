@@ -3,7 +3,14 @@
 import { use, useEffect, useState } from "react";
 import { useLocale, useTranslations, useFormatter } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { deleteComplaint, subscribeToComplaint, updateComplaint, updateComplaintNotes } from "@/lib/complaints";
+import {
+  acceptReassignment,
+  deleteComplaint,
+  rejectReassignment,
+  subscribeToComplaint,
+  updateComplaint,
+  updateComplaintNotes,
+} from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, localizedName, type Complaint, type ComplaintInput, type StaffUser } from "@/lib/types";
@@ -29,6 +36,7 @@ export default function ComplaintDetailPage({
   const [notes, setNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
+  const [resolvingReassignment, setResolvingReassignment] = useState(false);
 
   // Without complaints.update, an account gets a read-only view. Default to
   // read-only (rather than editable) if the profile hasn't loaded yet,
@@ -36,6 +44,7 @@ export default function ComplaintDetailPage({
   const canEdit = hasPermission(profile, "complaints", "update");
   const canDelete = hasPermission(profile, "complaints", "delete");
   const canReassign = hasPermission(profile, "complaints", "reassign");
+  const canAcceptReassignment = hasPermission(profile, "complaints", "acceptReassignment");
 
   useEffect(
     () =>
@@ -66,6 +75,26 @@ export default function ComplaintDetailPage({
     }
   }
 
+  async function handleAcceptReassignment() {
+    if (!complaint?.pendingReassignment) return;
+    setResolvingReassignment(true);
+    try {
+      await acceptReassignment(id, complaint.pendingReassignment, complaint.assignedTo, user?.uid ?? null);
+    } finally {
+      setResolvingReassignment(false);
+    }
+  }
+
+  async function handleRejectReassignment() {
+    if (!complaint?.pendingReassignment) return;
+    setResolvingReassignment(true);
+    try {
+      await rejectReassignment(id, complaint.pendingReassignment, complaint.assignedTo, user?.uid ?? null);
+    } finally {
+      setResolvingReassignment(false);
+    }
+  }
+
   async function handleDelete() {
     if (!window.confirm(tCommon("confirmDelete"))) return;
     setDeleting(true);
@@ -89,6 +118,8 @@ export default function ComplaintDetailPage({
   }
 
   const staffById = new Map(staff.map((s) => [s.id, s]));
+  const assigneeName = (uid: string | null | undefined) =>
+    uid ? localizedName(staffById.get(uid), locale) || uid : tCommon("unassigned");
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -138,6 +169,41 @@ export default function ComplaintDetailPage({
             </Link>
           )}
         </div>
+
+        {complaint.pendingReassignment && (
+          <div className="mb-5 rounded-md border border-brand/30 bg-brand/5 px-3 py-2.5">
+            <p className="text-sm font-semibold text-foreground">{t("pendingReassignment")}</p>
+            <p className="mt-1 text-sm text-foreground/80">
+              {t("pendingReassignmentTo", { to: assigneeName(complaint.pendingReassignment.assignedTo) })}
+            </p>
+            <p className="text-sm text-foreground/60">
+              {t("historyReassignedReason", { reason: complaint.pendingReassignment.reason })}
+            </p>
+            <p className="mt-1 text-xs text-foreground/50">
+              {t("pendingReassignmentBy", { by: assigneeName(complaint.pendingReassignment.requestedBy) })}
+            </p>
+            {canAcceptReassignment && (
+              <div className="mt-2.5 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleAcceptReassignment}
+                  disabled={resolvingReassignment}
+                  className="rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground hover:opacity-90 disabled:opacity-60"
+                >
+                  {resolvingReassignment ? t("accepting") : t("accept")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRejectReassignment}
+                  disabled={resolvingReassignment}
+                  className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
+                >
+                  {resolvingReassignment ? t("rejecting") : t("reject")}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <ComplaintForm
           key={complaint.id + complaint.updatedAt}
@@ -199,8 +265,11 @@ export default function ComplaintDetailPage({
               const actorName = entry.byUid
                 ? localizedName(staffById.get(entry.byUid), locale) || entry.byUid
                 : t("historyActorPublic");
-              const assigneeName = (uid: string | null | undefined) =>
-                uid ? localizedName(staffById.get(uid), locale) || uid : tCommon("unassigned");
+              const isReassignEntry =
+                entry.type === "reassigned" ||
+                entry.type === "reassignRequested" ||
+                entry.type === "reassignAccepted" ||
+                entry.type === "reassignRejected";
 
               return (
                 <li key={i} className="flex items-start gap-3 text-sm">
@@ -219,8 +288,23 @@ export default function ComplaintDetailPage({
                           from: assigneeName(entry.previousAssignedTo),
                           to: assigneeName(entry.assignedTo),
                         })}
+                      {entry.type === "reassignRequested" &&
+                        t("historyReassignRequested", {
+                          from: assigneeName(entry.previousAssignedTo),
+                          to: assigneeName(entry.assignedTo),
+                        })}
+                      {entry.type === "reassignAccepted" &&
+                        t("historyReassignAccepted", {
+                          from: assigneeName(entry.previousAssignedTo),
+                          to: assigneeName(entry.assignedTo),
+                        })}
+                      {entry.type === "reassignRejected" &&
+                        t("historyReassignRejected", {
+                          from: assigneeName(entry.previousAssignedTo),
+                          to: assigneeName(entry.assignedTo),
+                        })}
                     </p>
-                    {entry.type === "reassigned" && entry.reason && (
+                    {isReassignEntry && entry.reason && (
                       <p className="text-foreground/60">{t("historyReassignedReason", { reason: entry.reason })}</p>
                     )}
                     <p className="text-xs text-foreground/50">

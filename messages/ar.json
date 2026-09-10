@@ -152,22 +152,32 @@
       "historyStatus": "تم تغيير الحالة من \"{previousStatus}\" إلى \"{status}\"",
       "historyReassigned": "تمت إعادة الإسناد من {from} إلى {to}",
       "historyReassignedReason": "السبب: {reason}",
+      "historyReassignRequested": "تم طلب إعادة الإسناد من {from} إلى {to}",
+      "historyReassignAccepted": "تم قبول إعادة الإسناد: من {from} إلى {to}",
+      "historyReassignRejected": "تم رفض إعادة الإسناد: لم يتم النقل من {from} إلى {to}",
       "historyActorPublic": "عام",
       "notes": "ملاحظات",
       "notesPlaceholder": "دوّن أي شيء يستحق التذكر بخصوص هذه الشكوى...",
       "saveNote": "حفظ الملاحظة",
       "savingNote": "جارٍ الحفظ...",
-      "noteSaved": "تم الحفظ."
+      "noteSaved": "تم الحفظ.",
+      "pendingReassignment": "إعادة إسناد معلّقة",
+      "pendingReassignmentTo": "المُقترح إسنادها إليه: {to}",
+      "pendingReassignmentBy": "طلبها {by}",
+      "accept": "قبول",
+      "reject": "رفض",
+      "accepting": "جارٍ القبول...",
+      "rejecting": "جارٍ الرفض..."
     },
     "reassign": {
       "title": "إعادة إسناد الشكوى",
-      "subtitle": "اختر الجهة التي ستُسند إليها هذه الشكوى واذكر السبب.",
+      "subtitle": "اختر الجهة التي ستُسند إليها هذه الشكوى واذكر السبب. لن تنتقل الشكوى حتى تتم الموافقة على الطلب.",
       "assignToLabel": "إعادة الإسناد إلى",
       "reasonLabel": "سبب إعادة الإسناد",
       "reasonPlaceholder": "لماذا يجب إعادة إسناد هذه الشكوى؟",
       "reasonRequired": "يرجى توضيح سبب إعادة إسناد هذه الشكوى.",
-      "submit": "إعادة الإسناد",
-      "submitting": "جارٍ إعادة الإسناد..."
+      "submit": "إرسال الطلب",
+      "submitting": "جارٍ الإرسال..."
     }
   },
   "staffSignup": {
@@ -399,7 +409,8 @@
       "update": "تعديل",
       "delete": "حذف",
       "viewAll": "عرض الكل",
-      "reassign": "إعادة الإسناد"
+      "reassign": "إعادة الإسناد",
+      "acceptReassignment": "قبول إعادة الإسناد"
     },
     "errors": {
       "missing_fields": "يرجى إدخال اسم الدور.",

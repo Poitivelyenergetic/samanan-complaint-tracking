@@ -70,12 +70,28 @@ service cloud.firestore {
       allow delete: if hasPermission("departments", "delete");
     }
 
-    // A reassign-only write (see complaints.reassign below) must touch
-    // nothing but assignedTo/updatedAt/history — anyone who also holds
-    // complaints.update can write any field regardless.
-    function isReassignOnlyWrite() {
+    // Reassignment is a propose/approve flow split across two permissions:
+    // complaints.reassign can only *propose* a new assignee (touches
+    // pendingReassignment/updatedAt/history, never assignedTo itself), and
+    // complaints.acceptReassignment resolves that proposal — accepting
+    // (which also touches assignedTo) or rejecting (which doesn't). Anyone
+    // who also holds complaints.update can write any field regardless.
+    function isReassignRequestWrite() {
       let affected = request.resource.data.diff(resource.data).affectedKeys();
-      return affected.hasOnly(["assignedTo", "updatedAt", "history"]);
+      return affected.hasOnly(["pendingReassignment", "updatedAt", "history"])
+        && request.resource.data.pendingReassignment != null;
+    }
+
+    function isReassignRejectWrite() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return affected.hasOnly(["pendingReassignment", "updatedAt", "history"])
+        && request.resource.data.pendingReassignment == null;
+    }
+
+    function isReassignAcceptWrite() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return affected.hasOnly(["assignedTo", "pendingReassignment", "updatedAt", "history"])
+        && request.resource.data.pendingReassignment == null;
     }
 
     // The Notes scratchpad is deliberately available to anyone who can see
@@ -101,7 +117,8 @@ service cloud.firestore {
       allow get: if canReadComplaint();
       allow list: if canReadComplaint();
       allow update: if hasPermission("complaints", "update")
-        || (hasPermission("complaints", "reassign") && isReassignOnlyWrite())
+        || (hasPermission("complaints", "reassign") && isReassignRequestWrite())
+        || (hasPermission("complaints", "acceptReassignment") && (isReassignAcceptWrite() || isReassignRejectWrite()))
         || (canReadComplaint() && isNotesOnlyWrite());
       allow delete: if hasPermission("complaints", "delete");
       allow create: if isSignedIn() && hasPermission("complaints", "create") && isSelfCreatedComplaint();

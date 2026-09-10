@@ -15,7 +15,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Complaint, ComplaintHistoryEntry, ComplaintInput } from "./types";
+import type { Complaint, ComplaintHistoryEntry, ComplaintInput, PendingReassignment } from "./types";
 
 const COLLECTION = "complaints";
 
@@ -50,6 +50,7 @@ function fromDoc(id: string, data: DocumentData): Complaint {
     // rather than throwing.
     history: Array.isArray(data.history) ? (data.history as ComplaintHistoryEntry[]) : [],
     notes: data.notes ?? "",
+    pendingReassignment: (data.pendingReassignment as PendingReassignment | undefined) ?? null,
     createdAt: toIso(data.createdAt),
     updatedAt: toIso(data.updatedAt),
     createdBy: data.createdBy ?? null,
@@ -101,6 +102,7 @@ export async function createComplaint(input: ComplaintInput): Promise<string> {
     ...input,
     history: initialHistory,
     notes: "",
+    pendingReassignment: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -137,27 +139,76 @@ export async function updateComplaint(
   });
 }
 
-// The dedicated Reassign action — separate from updateComplaint so that
-// reassigning always logs a "reassigned" history entry (recording both who
-// it came from and who it went to, plus the required reason), and so the
-// complaints.reassign permission gate has one clear call site.
-// `previousAssignedTo` is whatever the caller already has loaded (the
-// complaint being reassigned).
-export async function reassignComplaint(
+// Reassignment is a two-step, permission-separated flow:
+//  1. requestReassignment() (complaints.reassign) proposes a new assignee —
+//     it only sets `pendingReassignment`, `assignedTo` is untouched.
+//  2. acceptReassignment() or rejectReassignment() (complaints.acceptReassignment)
+//     resolves it — accepting is the point `assignedTo` actually changes.
+// Each step logs its own history entry so the full trail (who proposed it,
+// why, and who approved/rejected it) is visible on the complaint.
+
+export async function requestReassignment(
   id: string,
   assignedTo: string | null,
   previousAssignedTo: string | null,
   byUid: string | null,
   reason: string
 ): Promise<void> {
-  await updateDoc(doc(db, COLLECTION, id), {
+  const pending: PendingReassignment = {
     assignedTo,
+    reason,
+    requestedBy: byUid,
+    requestedAt: new Date().toISOString(),
+  };
+  await updateDoc(doc(db, COLLECTION, id), {
+    pendingReassignment: pending,
     updatedAt: serverTimestamp(),
     history: arrayUnion({
-      type: "reassigned",
+      type: "reassignRequested",
       assignedTo,
       previousAssignedTo,
       reason,
+      at: new Date().toISOString(),
+      byUid,
+    }),
+  });
+}
+
+export async function acceptReassignment(
+  id: string,
+  pending: PendingReassignment,
+  currentAssignedTo: string | null,
+  byUid: string | null
+): Promise<void> {
+  await updateDoc(doc(db, COLLECTION, id), {
+    assignedTo: pending.assignedTo,
+    pendingReassignment: null,
+    updatedAt: serverTimestamp(),
+    history: arrayUnion({
+      type: "reassignAccepted",
+      assignedTo: pending.assignedTo,
+      previousAssignedTo: currentAssignedTo,
+      reason: pending.reason,
+      at: new Date().toISOString(),
+      byUid,
+    }),
+  });
+}
+
+export async function rejectReassignment(
+  id: string,
+  pending: PendingReassignment,
+  currentAssignedTo: string | null,
+  byUid: string | null
+): Promise<void> {
+  await updateDoc(doc(db, COLLECTION, id), {
+    pendingReassignment: null,
+    updatedAt: serverTimestamp(),
+    history: arrayUnion({
+      type: "reassignRejected",
+      assignedTo: pending.assignedTo,
+      previousAssignedTo: currentAssignedTo,
+      reason: pending.reason,
       at: new Date().toISOString(),
       byUid,
     }),
