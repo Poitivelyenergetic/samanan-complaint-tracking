@@ -100,7 +100,8 @@ export default function ReassignmentRequestsPage() {
                     <button
                       type="button"
                       onClick={() => handleAccept(complaint)}
-                      disabled={resolvingId === complaint.id}
+                      disabled={resolvingId === complaint.id || pending.assignedTo === user?.uid}
+                      title={pending.assignedTo === user?.uid ? t("cannotResolveOwnTarget") : undefined}
                       className="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-brand-foreground hover:opacity-90 disabled:opacity-60"
                     >
                       {resolvingId === complaint.id ? t("accepting") : t("accept")}
@@ -108,7 +109,8 @@ export default function ReassignmentRequestsPage() {
                     <button
                       type="button"
                       onClick={() => handleReject(complaint)}
-                      disabled={resolvingId === complaint.id}
+                      disabled={resolvingId === complaint.id || pending.assignedTo === user?.uid}
+                      title={pending.assignedTo === user?.uid ? t("cannotResolveOwnTarget") : undefined}
                       className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
                     >
                       {resolvingId === complaint.id ? t("rejecting") : t("reject")}

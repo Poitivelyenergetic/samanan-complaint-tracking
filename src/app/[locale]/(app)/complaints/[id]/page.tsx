@@ -138,6 +138,8 @@ export default function ComplaintDetailPage({
   const staffById = new Map(staff.map((s) => [s.id, s]));
   const assigneeName = (uid: string | null | undefined) =>
     uid ? localizedName(staffById.get(uid), locale) || uid : tCommon("unassigned");
+  const isOwnReassignmentRequest = complaint.pendingReassignment?.requestedBy === user?.uid;
+  const isOwnReassignmentTarget = complaint.pendingReassignment?.assignedTo === user?.uid;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -188,7 +190,7 @@ export default function ComplaintDetailPage({
           )}
         </div>
 
-        {complaint.pendingReassignment && (
+        {complaint.pendingReassignment && !isOwnReassignmentRequest && (
           <div className="mb-5 rounded-md border border-brand/30 bg-brand/5 px-3 py-2.5">
             <p className="text-sm font-semibold text-foreground">{t("pendingReassignment")}</p>
             <p className="mt-1 text-sm text-foreground/80">
@@ -205,7 +207,8 @@ export default function ComplaintDetailPage({
                 <button
                   type="button"
                   onClick={handleAcceptReassignment}
-                  disabled={resolvingReassignment}
+                  disabled={resolvingReassignment || isOwnReassignmentTarget}
+                  title={isOwnReassignmentTarget ? t("cannotResolveOwnTarget") : undefined}
                   className="rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground hover:opacity-90 disabled:opacity-60"
                 >
                   {resolvingReassignment ? t("accepting") : t("accept")}
@@ -213,7 +216,8 @@ export default function ComplaintDetailPage({
                 <button
                   type="button"
                   onClick={handleRejectReassignment}
-                  disabled={resolvingReassignment}
+                  disabled={resolvingReassignment || isOwnReassignmentTarget}
+                  title={isOwnReassignmentTarget ? t("cannotResolveOwnTarget") : undefined}
                   className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
                 >
                   {resolvingReassignment ? t("rejecting") : t("reject")}

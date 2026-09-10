@@ -91,16 +91,34 @@ service cloud.firestore {
         && request.resource.data.pendingReassignment != null;
     }
 
+    // The proposed new assignee is who benefits from a reassignment being
+    // approved — they never get to be the one who approves or rejects it,
+    // even if they separately hold acceptReassignment. Unlike the proposer
+    // (who may resolve their own request, just steered through the Requests
+    // hub client-side — see complaints/[id]/page.tsx), there's no path for
+    // the target of a reassignment to resolve it themselves.
+    function isReassignTarget() {
+      return resource.data.pendingReassignment.assignedTo == request.auth.uid;
+    }
+
     function isReassignRejectWrite() {
       let affected = request.resource.data.diff(resource.data).affectedKeys();
       return affected.hasOnly(["pendingReassignment", "updatedAt", "history"])
-        && request.resource.data.pendingReassignment == null;
+        && request.resource.data.pendingReassignment == null
+        && !isReassignTarget();
     }
 
+    // Someone who holds acceptReassignment may accept a request they
+    // proposed themselves (e.g. a Super Admin) — that's a permission-level
+    // decision, not something these rules restrict. The UI instead steers
+    // self-accepts through the Requests hub / notifications rather than the
+    // complaint page's own inline button — see the client-side check in
+    // complaints/[id]/page.tsx.
     function isReassignAcceptWrite() {
       let affected = request.resource.data.diff(resource.data).affectedKeys();
       return affected.hasOnly(["assignedTo", "pendingReassignment", "updatedAt", "history"])
-        && request.resource.data.pendingReassignment == null;
+        && request.resource.data.pendingReassignment == null
+        && !isReassignTarget();
     }
 
     // The Notes scratchpad is deliberately available to anyone who can see

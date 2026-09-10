@@ -71,7 +71,9 @@ export default function SearchableSelect<T>({
           placeholder={placeholder}
           value={open ? query : selectedItem ? getLabel(selectedItem) : query}
           onFocus={() => {
-            setQuery(selectedItem ? getLabel(selectedItem) : "");
+            // Clear rather than pre-fill with the current selection's label —
+            // otherwise typing appends after it instead of searching fresh.
+            setQuery("");
             setOpen(true);
           }}
           onChange={(e) => setQuery(e.target.value)}

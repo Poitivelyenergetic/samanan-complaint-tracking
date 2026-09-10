@@ -7,7 +7,7 @@ import { requestReassignment, subscribeToComplaint } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, localizedName, type Complaint, type StaffUser } from "@/lib/types";
-import Select from "@/components/Select";
+import SearchableSelect from "@/components/SearchableSelect";
 
 export default function ReassignComplaintPage({
   params,
@@ -92,19 +92,17 @@ export default function ReassignComplaintPage({
           <label htmlFor="assignTo" className="block text-sm font-medium text-foreground">
             {t("assignToLabel")}
           </label>
-          <Select
-            id="assignTo"
-            value={assignTo}
-            onChange={(e) => setAssignTo(e.target.value)}
-            className="mt-1 w-full max-w-xs rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-          >
-            <option value="">{tCommon("unassigned")}</option>
-            {staff.map((member) => (
-              <option key={member.id} value={member.id}>
-                {localizedName(member, locale)}
-              </option>
-            ))}
-          </Select>
+          <div className="mt-1 max-w-xs">
+            <SearchableSelect
+              id="assignTo"
+              items={staff}
+              value={assignTo}
+              onChange={setAssignTo}
+              getId={(member) => member.id}
+              getLabel={(member) => localizedName(member, locale)}
+              placeholder={tCommon("unassigned")}
+            />
+          </div>
         </div>
 
         <div>
