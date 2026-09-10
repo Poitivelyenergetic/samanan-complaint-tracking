@@ -6,7 +6,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { subscribeToComplaints } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
-import { bilingualValue, hasPermission, localizedName, type Complaint, type StaffUser } from "@/lib/types";
+import { hasPermission, localizedName, type Complaint, type StaffUser } from "@/lib/types";
 import { phoneDigitsOnly, toLatinDigits } from "@/lib/phone";
 import StatusBadge from "@/components/StatusBadge";
 
@@ -44,8 +44,7 @@ export default function ComplaintInquiryPage() {
     const lowerTerm = term.toLowerCase();
     return complaints.filter((c) => {
       const matchesPhone = digitsTerm && phoneDigitsOnly(c.customerPhone).includes(digitsTerm);
-      const matchesName =
-        c.customerNameAr.toLowerCase().includes(lowerTerm) || c.customerNameEn.toLowerCase().includes(lowerTerm);
+      const matchesName = c.customerName.toLowerCase().includes(lowerTerm);
       return matchesPhone || matchesName;
     });
   }, [complaints, term, digitsTerm]);
@@ -114,7 +113,7 @@ export default function ComplaintInquiryPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-foreground/70">
-                    {bilingualValue(c.customerNameAr, c.customerNameEn, locale) || "—"}
+                    {c.customerName || "—"}
                   </td>
                   <td className="px-4 py-3 text-foreground/70" dir="ltr">
                     {c.customerPhone || "—"}

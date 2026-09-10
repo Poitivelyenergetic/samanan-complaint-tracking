@@ -12,6 +12,7 @@ import {
   IconArrowDownCircle,
   IconArrowUpCircle,
   IconBriefcase,
+  IconBroadcast,
   IconBuilding,
   IconChevronDown,
   IconClipboardList,
@@ -23,6 +24,7 @@ import {
   IconPlusCircle,
   IconSearch,
   IconShieldCheck,
+  IconTag,
   IconTicket,
   IconTrendingUp,
   IconUsers,
@@ -41,6 +43,8 @@ const SETTINGS_RESOURCE_ITEMS: { href: string; key: string; resource: Permission
   { href: "/departments", key: "departments", resource: "departments", icon: <IconFolder /> },
   { href: "/employees", key: "employees", resource: "employees", icon: <IconUsers /> },
   { href: "/roles", key: "roles", resource: "roles", icon: <IconShieldCheck /> },
+  { href: "/complaint-types", key: "complaintTypes", resource: "complaintTypes", icon: <IconTag /> },
+  { href: "/complaint-sources", key: "complaintSources", resource: "complaintSources", icon: <IconBroadcast /> },
 ];
 
 const LOCALE_LABELS: Record<string, string> = { ar: "العربية", en: "English" };

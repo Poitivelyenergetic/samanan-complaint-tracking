@@ -18,6 +18,7 @@ import {
   type Department,
   type StaffUser,
 } from "@/lib/types";
+import Select from "@/components/Select";
 
 export default function EmployeesPage() {
   const t = useTranslations("employees");
@@ -119,7 +120,7 @@ export default function EmployeesPage() {
           type="search"
           className="min-w-[220px] flex-1 rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
         />
-        <select
+        <Select
           value={companyFilter}
           onChange={(e) => {
             setCompanyFilter(e.target.value);
@@ -134,8 +135,8 @@ export default function EmployeesPage() {
               {localizedName(c, locale)}
             </option>
           ))}
-        </select>
-        <select
+        </Select>
+        <Select
           value={administrationFilter}
           onChange={(e) => {
             setAdministrationFilter(e.target.value);
@@ -151,8 +152,8 @@ export default function EmployeesPage() {
               </option>
             )
           )}
-        </select>
-        <select
+        </Select>
+        <Select
           value={departmentFilter}
           onChange={(e) => setDepartmentFilter(e.target.value)}
           className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
@@ -166,7 +167,7 @@ export default function EmployeesPage() {
               {localizedName(d, locale)}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-surface">

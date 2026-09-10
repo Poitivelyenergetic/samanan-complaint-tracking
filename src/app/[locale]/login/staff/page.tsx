@@ -21,7 +21,7 @@ export default function StaffLoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace("/dashboard");
+      router.replace("/home");
     }
   }, [loading, user, router]);
 
@@ -31,7 +31,7 @@ export default function StaffLoginPage() {
     setSubmitting(true);
     try {
       await signIn(username, password);
-      router.replace("/dashboard");
+      router.replace("/home");
     } catch {
       setError(t("error"));
     } finally {

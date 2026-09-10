@@ -16,6 +16,7 @@ import {
   type Department,
   type StaffUser,
 } from "@/lib/types";
+import Select from "@/components/Select";
 
 export default function AdministrationsPage() {
   const t = useTranslations("administrations");
@@ -74,7 +75,7 @@ export default function AdministrationsPage() {
       </div>
 
       <div className="mt-4">
-        <select
+        <Select
           value={companyFilter}
           onChange={(e) => setCompanyFilter(e.target.value)}
           className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
@@ -85,7 +86,7 @@ export default function AdministrationsPage() {
               {localizedName(c, locale)}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-surface">

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { localizedName, type Administration, type Company, type Department, type Role } from "@/lib/types";
+import Select from "./Select";
 
 export interface EmployeeFieldsValues {
   nameAr: string;
@@ -196,7 +197,7 @@ export default function EmployeeFieldsSection({
           <label htmlFor="companyId" className="block text-sm font-medium text-foreground">
             {t("company")}
           </label>
-          <select
+          <Select
             id="companyId"
             required={required}
             value={values.companyId}
@@ -211,14 +212,14 @@ export default function EmployeeFieldsSection({
                 {localizedName(c, locale)}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div>
           <label htmlFor="administrationId" className="block text-sm font-medium text-foreground">
             {t("administration")}
           </label>
-          <select
+          <Select
             id="administrationId"
             required={required}
             disabled={!values.companyId}
@@ -234,14 +235,14 @@ export default function EmployeeFieldsSection({
                 {localizedName(a, locale)}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div>
           <label htmlFor="departmentId" className="block text-sm font-medium text-foreground">
             {t("department")}
           </label>
-          <select
+          <Select
             id="departmentId"
             required={required}
             disabled={!values.administrationId}
@@ -257,7 +258,7 @@ export default function EmployeeFieldsSection({
                 {localizedName(d, locale)}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 

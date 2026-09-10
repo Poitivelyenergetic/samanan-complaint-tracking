@@ -13,8 +13,19 @@ import {
 } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { subscribeToCompanies } from "@/lib/companies";
+import { subscribeToComplaintTypes } from "@/lib/complaintTypes";
+import { subscribeToComplaintSources } from "@/lib/complaintSources";
 import { useAuth } from "@/lib/auth-context";
-import { hasPermission, localizedName, type Company, type Complaint, type ComplaintInput, type StaffUser } from "@/lib/types";
+import {
+  hasPermission,
+  localizedName,
+  type Company,
+  type Complaint,
+  type ComplaintInput,
+  type ComplaintSource,
+  type ComplaintType,
+  type StaffUser,
+} from "@/lib/types";
 import ComplaintForm from "@/components/ComplaintForm";
 
 export default function ComplaintDetailPage({
@@ -34,6 +45,8 @@ export default function ComplaintDetailPage({
   const [complaint, setComplaint] = useState<Complaint | null | undefined>(undefined);
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [complaintTypes, setComplaintTypes] = useState<ComplaintType[]>([]);
+  const [complaintSources, setComplaintSources] = useState<ComplaintSource[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [notes, setNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
@@ -59,6 +72,8 @@ export default function ComplaintDetailPage({
   );
   useEffect(() => subscribeToStaff(setStaff), []);
   useEffect(() => subscribeToCompanies(setCompanies), []);
+  useEffect(() => subscribeToComplaintTypes(setComplaintTypes), []);
+  useEffect(() => subscribeToComplaintSources(setComplaintSources), []);
   useEffect(() => {
     if (complaint) Promise.resolve().then(() => setNotes(complaint.notes));
   }, [complaint]);
@@ -155,8 +170,8 @@ export default function ComplaintDetailPage({
         </span>
       </div>
 
-      <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-6 dark:border-amber-900/50 dark:bg-amber-950/20">
-        <div className="mb-5 flex items-end justify-between gap-3 border-b border-amber-200 pb-5 dark:border-amber-900/50">
+      <div className="mt-6 rounded-lg border border-tint-assign-border bg-tint-assign-bg p-6">
+        <div className="mb-5 flex items-end justify-between gap-3 border-b border-tint-assign-border pb-5">
           <div>
             <p className="text-xs font-medium text-foreground/50">{t("assignedTo")}</p>
             <p className="mt-0.5 text-sm font-medium text-foreground">
@@ -214,16 +229,15 @@ export default function ComplaintDetailPage({
           key={complaint.id + complaint.updatedAt}
           staff={staff}
           companies={companies}
+          complaintTypes={complaintTypes}
+          complaintSources={complaintSources}
           initialValues={{
             subject: complaint.subject,
             description: complaint.description,
-            categoryAr: complaint.categoryAr,
-            categoryEn: complaint.categoryEn,
-            sourceAr: complaint.sourceAr,
-            sourceEn: complaint.sourceEn,
+            complaintTypeId: complaint.complaintTypeId,
+            complaintSourceId: complaint.complaintSourceId,
             companyId: complaint.companyId ?? "",
-            customerNameAr: complaint.customerNameAr,
-            customerNameEn: complaint.customerNameEn,
+            customerName: complaint.customerName,
             customerPhone: complaint.customerPhone,
             customerOrderNumber: complaint.customerOrderNumber,
             assignedTo: complaint.assignedTo ?? "",
@@ -268,7 +282,7 @@ export default function ComplaintDetailPage({
       </div>
 
       {complaint.history.length > 0 && (
-        <div className="mt-6 rounded-lg border border-teal-200 bg-teal-50 p-6 dark:border-teal-900/50 dark:bg-teal-950/20">
+        <div className="mt-6 rounded-lg border border-tint-history-border bg-tint-history-bg p-6">
           <h2 className="text-sm font-semibold text-foreground">{t("history")}</h2>
           <ol className="mt-3 space-y-3">
             {[...complaint.history].reverse().map((entry, i) => {

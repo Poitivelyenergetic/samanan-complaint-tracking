@@ -30,18 +30,11 @@ function fromDoc(id: string, data: DocumentData): Complaint {
     id,
     subject: data.subject ?? "",
     description: data.description ?? "",
-    // Category/source/customer name used to be single free-text fields —
-    // older documents only have `category`/`source`/`customerName`. Read
-    // those into the English slot so nothing is lost; the Arabic slot is
-    // left blank until someone edits the complaint.
-    categoryAr: data.categoryAr ?? "",
-    categoryEn: data.categoryEn ?? data.category ?? "",
+    complaintTypeId: data.complaintTypeId ?? "",
     channel: data.channel ?? "staff",
-    sourceAr: data.sourceAr ?? "",
-    sourceEn: data.sourceEn ?? data.source ?? "",
+    complaintSourceId: data.complaintSourceId ?? "",
     companyId: data.companyId ?? null,
-    customerNameAr: data.customerNameAr ?? "",
-    customerNameEn: data.customerNameEn ?? data.customerName ?? "",
+    customerName: data.customerName ?? "",
     customerPhone: data.customerPhone ?? "",
     customerOrderNumber: data.customerOrderNumber ?? "",
     complainantName: data.complainantName ?? null,

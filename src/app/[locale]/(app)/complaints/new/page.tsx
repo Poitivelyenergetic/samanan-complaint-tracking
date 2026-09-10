@@ -8,12 +8,16 @@ import { subscribeToStaff } from "@/lib/users";
 import { subscribeToCompanies } from "@/lib/companies";
 import { subscribeToAdministrations } from "@/lib/administrations";
 import { subscribeToDepartments } from "@/lib/departments";
+import { subscribeToComplaintTypes } from "@/lib/complaintTypes";
+import { subscribeToComplaintSources } from "@/lib/complaintSources";
 import { useAuth } from "@/lib/auth-context";
 import {
   hasPermission,
   type Administration,
   type Company,
   type ComplaintInput,
+  type ComplaintSource,
+  type ComplaintType,
   type Department,
   type StaffUser,
 } from "@/lib/types";
@@ -29,11 +33,15 @@ export default function NewComplaintPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [administrations, setAdministrations] = useState<Administration[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [complaintTypes, setComplaintTypes] = useState<ComplaintType[]>([]);
+  const [complaintSources, setComplaintSources] = useState<ComplaintSource[]>([]);
 
   useEffect(() => subscribeToStaff(setStaff), []);
   useEffect(() => subscribeToCompanies(setCompanies), []);
   useEffect(() => subscribeToAdministrations(setAdministrations), []);
   useEffect(() => subscribeToDepartments(setDepartments), []);
+  useEffect(() => subscribeToComplaintTypes(setComplaintTypes), []);
+  useEffect(() => subscribeToComplaintSources(setComplaintSources), []);
 
   useEffect(() => {
     if (!loading && profile && !hasPermission(profile, "complaints", "create")) {
@@ -60,6 +68,8 @@ export default function NewComplaintPage() {
           companies={companies}
           administrations={administrations}
           departments={departments}
+          complaintTypes={complaintTypes}
+          complaintSources={complaintSources}
           submitLabel={t("submit")}
           submittingLabel={tCommon("saving")}
           onSubmit={handleSubmit}

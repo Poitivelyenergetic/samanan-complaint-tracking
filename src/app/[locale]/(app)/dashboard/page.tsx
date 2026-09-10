@@ -5,17 +5,19 @@ import { useLocale, useTranslations, useFormatter } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { subscribeToComplaints } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
+import { subscribeToComplaintSources } from "@/lib/complaintSources";
 import { useAuth } from "@/lib/auth-context";
 import {
-  bilingualValue,
   hasPermission,
   localizedName,
   type Complaint,
+  type ComplaintSource,
   type ComplaintStatus,
   type StaffUser,
 } from "@/lib/types";
 import { COMPLAINT_STATUSES } from "@/lib/types";
 import StatusBadge from "@/components/StatusBadge";
+import Select from "@/components/Select";
 
 export default function DashboardPage() {
   const t = useTranslations("dashboard");
@@ -30,6 +32,7 @@ export default function DashboardPage() {
 
   const [complaints, setComplaints] = useState<Complaint[] | null>(null);
   const [staff, setStaff] = useState<StaffUser[]>([]);
+  const [complaintSources, setComplaintSources] = useState<ComplaintSource[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ComplaintStatus | "">("");
   const [assigneeFilter, setAssigneeFilter] = useState("");
@@ -39,12 +42,14 @@ export default function DashboardPage() {
     return subscribeToComplaints(setComplaints, undefined, canViewAll ? undefined : profile.id);
   }, [profile, canView, canViewAll]);
   useEffect(() => subscribeToStaff(setStaff), []);
+  useEffect(() => subscribeToComplaintSources(setComplaintSources), []);
 
   const staffById = useMemo(() => {
     const map = new Map<string, StaffUser>();
     staff.forEach((s) => map.set(s.id, s));
     return map;
   }, [staff]);
+  const sourcesById = useMemo(() => new Map(complaintSources.map((s) => [s.id, s])), [complaintSources]);
 
   const visibleComplaints = useMemo(() => (canView ? complaints : []), [canView, complaints]);
 
@@ -57,8 +62,7 @@ export default function DashboardPage() {
       if (
         term &&
         !c.subject.toLowerCase().includes(term) &&
-        !c.customerNameAr.toLowerCase().includes(term) &&
-        !c.customerNameEn.toLowerCase().includes(term) &&
+        !c.customerName.toLowerCase().includes(term) &&
         !c.customerPhone.toLowerCase().includes(term) &&
         !c.id.toLowerCase().includes(term)
       ) {
@@ -93,7 +97,7 @@ export default function DashboardPage() {
           placeholder={t("searchPlaceholder")}
           className="min-w-[220px] flex-1 rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
         />
-        <select
+        <Select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as ComplaintStatus | "")}
           className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
@@ -105,9 +109,9 @@ export default function DashboardPage() {
               {tStatus(status)}
             </option>
           ))}
-        </select>
+        </Select>
         {canViewAll && (
-          <select
+          <Select
             value={assigneeFilter}
             onChange={(e) => setAssigneeFilter(e.target.value)}
             className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
@@ -119,7 +123,7 @@ export default function DashboardPage() {
                 {localizedName(member, locale)}
               </option>
             ))}
-          </select>
+          </Select>
         )}
       </div>
 
@@ -166,10 +170,10 @@ export default function DashboardPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-foreground/70">
-                    {bilingualValue(c.customerNameAr, c.customerNameEn, locale) || c.customerPhone || "—"}
+                    {c.customerName || c.customerPhone || "—"}
                   </td>
                   <td className="px-4 py-3 text-foreground/70">
-                    {bilingualValue(c.sourceAr, c.sourceEn, locale) || "—"}
+                    {sourcesById.get(c.complaintSourceId)?.name || "—"}
                   </td>
                   <td className="px-4 py-3 text-foreground/70">
                     {c.assignedTo ? localizedName(staffById.get(c.assignedTo), locale) || c.assignedTo : tCommon("unassigned")}

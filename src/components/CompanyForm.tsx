@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { localizedName, type CompanyInput, type StaffUser } from "@/lib/types";
+import Select from "./Select";
 
 interface CompanyFormProps {
   staff: StaffUser[];
@@ -87,7 +88,7 @@ export default function CompanyForm({ staff, initialValues, submitLabel, submitt
         <label htmlFor="managerId" className="block text-sm font-medium text-foreground">
           {t("manager")}
         </label>
-        <select
+        <Select
           id="managerId"
           value={values.managerId ?? ""}
           onChange={(e) => update("managerId", e.target.value || null)}
@@ -99,7 +100,7 @@ export default function CompanyForm({ staff, initialValues, submitLabel, submitt
               {localizedName(member, locale)}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {error && (

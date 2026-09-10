@@ -20,6 +20,8 @@ export const PERMISSION_RESOURCES = [
   "employees",
   "complaints",
   "roles",
+  "complaintTypes",
+  "complaintSources",
 ] as const;
 
 export type PermissionResource = (typeof PERMISSION_RESOURCES)[number];
@@ -65,6 +67,8 @@ export interface RolePermissions {
   complaints: ComplaintsPermission;
   roles: CrudPermission;
   marketing: MarketingPermission;
+  complaintTypes: CrudPermission;
+  complaintSources: CrudPermission;
 }
 
 export function emptyCrud(): CrudPermission {
@@ -92,6 +96,8 @@ export function emptyRolePermissions(): RolePermissions {
     complaints: emptyComplaintsPermission(),
     roles: emptyCrud(),
     marketing: { view: false },
+    complaintTypes: emptyCrud(),
+    complaintSources: emptyCrud(),
   };
 }
 
@@ -104,6 +110,8 @@ export function fullRolePermissions(): RolePermissions {
     complaints: fullComplaintsPermission(),
     roles: fullCrud(),
     marketing: { view: true },
+    complaintTypes: fullCrud(),
+    complaintSources: fullCrud(),
   };
 }
 
@@ -289,15 +297,6 @@ export function localizedName(
   return preferred || fallback || "";
 }
 
-// Same fallback logic as localizedName, for the handwritten Arabic/English
-// pairs that live directly on a Complaint (category, source, customer name)
-// rather than on a named entity.
-export function bilingualValue(ar: string, en: string, locale: string): string {
-  const preferred = locale === "ar" ? ar : en;
-  const fallback = locale === "ar" ? en : ar;
-  return preferred || fallback || "";
-}
-
 // --- Complaints --------------------------------------------------------
 
 export const COMPLAINT_STATUSES = [
@@ -310,9 +309,26 @@ export const COMPLAINT_STATUSES = [
 
 export type ComplaintStatus = (typeof COMPLAINT_STATUSES)[number];
 
-// Category and source are handwritten free text in both Arabic and
-// English — there is no fixed preset list. See bilingualValue() for reading
-// them back in whichever language the current locale prefers.
+// Admin-managed picklists (Settings > Complaint Types / Complaint Sources) —
+// staff pick one of each when logging a complaint rather than typing free
+// text. Single "name" field, no Arabic/English split.
+export interface ComplaintType {
+  id: string;
+  name: string;
+}
+
+export interface ComplaintTypeInput {
+  name: string;
+}
+
+export interface ComplaintSource {
+  id: string;
+  name: string;
+}
+
+export interface ComplaintSourceInput {
+  name: string;
+}
 
 // "staff" = logged via the internal New Complaint form by a staff member.
 // "public" = submitted directly by a customer through the public intake form.
@@ -365,14 +381,11 @@ export interface Complaint {
   id: string; // Firestore document ID (issue_id) — also used as the public tracking/reference number
   subject: string;
   description: string;
-  categoryAr: string; // handwritten, no fixed preset list
-  categoryEn: string;
+  complaintTypeId: string; // references complaintTypes — the admin-managed picklist
   channel: ComplaintChannel;
-  sourceAr: string; // handwritten, no fixed preset list
-  sourceEn: string;
+  complaintSourceId: string; // references complaintSources — the admin-managed picklist
   companyId: string | null; // which Company (org entity) this complaint concerns
-  customerNameAr: string; // free text — there is no customer account/record, just what staff typed in
-  customerNameEn: string;
+  customerName: string; // free text — there is no customer account/record, just what staff typed in
   customerPhone: string; // always Latin digits — see toLatinDigits()
   customerOrderNumber: string;
   complainantName: string | null; // set when channel is "public"

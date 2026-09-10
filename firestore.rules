@@ -166,6 +166,24 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Complaint Types / Sources — admin-managed picklists offered on the New
+    // Complaint form. Any signed-in staff member can read the list (needed
+    // to fill out a complaint); only complaintTypes/complaintSources
+    // permissions gate adding, renaming, or removing entries.
+    match /complaintTypes/{typeId} {
+      allow read: if isSignedIn();
+      allow create: if hasPermission("complaintTypes", "create");
+      allow update: if hasPermission("complaintTypes", "update");
+      allow delete: if hasPermission("complaintTypes", "delete");
+    }
+
+    match /complaintSources/{sourceId} {
+      allow read: if isSignedIn();
+      allow create: if hasPermission("complaintSources", "create");
+      allow update: if hasPermission("complaintSources", "update");
+      allow delete: if hasPermission("complaintSources", "delete");
+    }
+
     // Forgot-password rate-limit counters, written only by the Admin SDK
     // from /api/auth/reset-password (an unauthenticated route, by design —
     // no client, signed in or not, should ever touch this directly).

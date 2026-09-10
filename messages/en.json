@@ -39,6 +39,8 @@
     "departments": "Departments",
     "employees": "Employees",
     "roles": "Roles & Permissions",
+    "complaintTypes": "Complaint Types",
+    "complaintSources": "Complaint Sources",
     "requests": "Requests",
     "logout": "Log out",
     "signedInAs": "Signed in as"
@@ -99,7 +101,15 @@
     "sourceBreakdown": "By Source",
     "trend": "New Tickets (Last 14 Days)",
     "topAssignees": "Top Assignees",
-    "noData": "No data yet."
+    "noData": "No data yet.",
+    "dateFilter": "Date range",
+    "dateFilterAll": "All time",
+    "dateFilterToday": "Today",
+    "dateFilterLast7": "Last 7 days",
+    "dateFilterLast30": "Last 30 days",
+    "dateFilterThisMonth": "This month",
+    "employeeFilter": "Employee",
+    "employeeFilterAll": "All employees"
   },
   "theme": {
     "light": "Light",
@@ -159,33 +169,17 @@
     "fields": {
       "subject": "Subject",
       "description": "Description",
-      "category": "Category",
+      "complaintType": "Complaint Type",
+      "selectComplaintType": "Select a complaint type",
       "customerName": "Customer Name",
       "customerPhone": "Customer Phone",
       "customerOrderNumber": "Customer Order Number",
-      "source": "Source",
+      "source": "Complaint Source",
+      "selectComplaintSource": "Select a complaint source",
       "company": "Company",
       "selectCompany": "Select a company",
       "assignedTo": "Assigned To",
-      "status": "Status",
-      "arabic": "Arabic",
-      "english": "English"
-    },
-    "categories": {
-      "ProductQuality": "Product / Service Quality",
-      "DeliveryDelay": "Delivery / Shipping Delay",
-      "BillingIssue": "Billing / Payment Issue",
-      "OrderDiscrepancy": "Order Discrepancy",
-      "CustomerService": "Customer Service",
-      "Other": "Other"
-    },
-    "sources": {
-      "Twitter": "Twitter",
-      "Facebook": "Facebook",
-      "Phone": "Phone",
-      "Website": "Website",
-      "WalkIn": "Walk-in",
-      "Other": "Other"
+      "status": "Status"
     },
     "new": {
       "title": "New Complaint",
@@ -267,6 +261,54 @@
     "title": "Marketing",
     "subtitle": "Marketing tools and campaigns",
     "comingSoon": "Coming soon. This section is a placeholder for future marketing features."
+  },
+  "complaintTypes": {
+    "title": "Complaint Types",
+    "subtitle": "Manage the list of complaint types staff can choose from",
+    "newButton": "+ New complaint type",
+    "noResults": "No complaint types found.",
+    "notFound": "Complaint type not found.",
+    "deleteConfirm": "Are you sure you want to delete this complaint type?",
+    "table": {
+      "name": "Name"
+    },
+    "fields": {
+      "name": "Name"
+    },
+    "new": {
+      "title": "New Complaint Type",
+      "submit": "Create"
+    },
+    "edit": {
+      "title": "Edit Complaint Type",
+      "submit": "Save Changes",
+      "notFound": "Complaint type not found.",
+      "deleteConfirm": "Are you sure you want to delete this complaint type?"
+    }
+  },
+  "complaintSources": {
+    "title": "Complaint Sources",
+    "subtitle": "Manage the list of complaint sources staff can choose from",
+    "newButton": "+ New complaint source",
+    "noResults": "No complaint sources found.",
+    "notFound": "Complaint source not found.",
+    "deleteConfirm": "Are you sure you want to delete this complaint source?",
+    "table": {
+      "name": "Name"
+    },
+    "fields": {
+      "name": "Name"
+    },
+    "new": {
+      "title": "New Complaint Source",
+      "submit": "Create"
+    },
+    "edit": {
+      "title": "Edit Complaint Source",
+      "submit": "Save Changes",
+      "notFound": "Complaint source not found.",
+      "deleteConfirm": "Are you sure you want to delete this complaint source?"
+    }
   },
   "complaintInquiry": {
     "title": "Complaint Inquiry",
@@ -526,6 +568,8 @@
       "complaints": "Complaints",
       "roles": "Roles",
       "marketing": "Marketing",
+      "complaintTypes": "Complaint Types",
+      "complaintSources": "Complaint Sources",
       "selectAllShort": "Select all",
       "clearAll": "Clear all"
     },

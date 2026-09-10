@@ -8,24 +8,24 @@ import {
   type Administration,
   type ComplaintChannel,
   type ComplaintInput,
+  type ComplaintSource,
   type ComplaintStatus,
+  type ComplaintType,
   type Company,
   type Department,
   type StaffUser,
 } from "@/lib/types";
 import { toLatinDigits } from "@/lib/phone";
 import SearchableSelect from "./SearchableSelect";
+import Select from "./Select";
 
 export interface ComplaintFormValues {
   subject: string;
   description: string;
-  categoryAr: string;
-  categoryEn: string;
-  sourceAr: string;
-  sourceEn: string;
+  complaintTypeId: string;
+  complaintSourceId: string;
   companyId: string; // "" means none chosen yet
-  customerNameAr: string;
-  customerNameEn: string;
+  customerName: string;
   customerPhone: string;
   customerOrderNumber: string;
   assignedTo: string; // "" means unassigned
@@ -41,6 +41,8 @@ export interface ComplaintFormValues {
 
 interface ComplaintFormProps {
   staff: StaffUser[];
+  complaintTypes?: ComplaintType[];
+  complaintSources?: ComplaintSource[];
   // Only needed for the Company/Administration/Department/Employee pickers
   // below — irrelevant (and fine to omit) wherever hideAssignedTo is set.
   companies?: Company[];
@@ -67,13 +69,10 @@ interface ComplaintFormProps {
 const DEFAULT_VALUES: ComplaintFormValues = {
   subject: "",
   description: "",
-  categoryAr: "",
-  categoryEn: "",
-  sourceAr: "",
-  sourceEn: "",
+  complaintTypeId: "",
+  complaintSourceId: "",
   companyId: "",
-  customerNameAr: "",
-  customerNameEn: "",
+  customerName: "",
   customerPhone: "",
   customerOrderNumber: "",
   assignedTo: "",
@@ -90,6 +89,8 @@ const textInputClass =
 
 export default function ComplaintForm({
   staff,
+  complaintTypes = [],
+  complaintSources = [],
   companies = [],
   administrations = [],
   departments = [],
@@ -213,13 +214,10 @@ export default function ComplaintForm({
         {
           subject: values.subject.trim(),
           description: values.description.trim(),
-          categoryAr: values.categoryAr.trim(),
-          categoryEn: values.categoryEn.trim(),
-          sourceAr: values.sourceAr.trim(),
-          sourceEn: values.sourceEn.trim(),
+          complaintTypeId: values.complaintTypeId,
+          complaintSourceId: values.complaintSourceId,
           companyId: values.companyId || null,
-          customerNameAr: values.customerNameAr.trim(),
-          customerNameEn: values.customerNameEn.trim(),
+          customerName: values.customerName.trim(),
           customerPhone: values.customerPhone.trim(),
           customerOrderNumber: values.customerOrderNumber.trim(),
           assignedTo: values.assignedTo || null,
@@ -269,74 +267,70 @@ export default function ComplaintForm({
       )}
 
       {/* Complaint info — its own tinted card, distinct from the assignment box below. */}
-      <div className="space-y-5 rounded-lg border border-indigo-200 bg-indigo-50 p-5 dark:border-indigo-900/50 dark:bg-indigo-950/20">
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+      <div className="space-y-5 rounded-lg border border-tint-info-border bg-tint-info-bg p-5">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div>
-            <label htmlFor="categoryAr" className="block text-sm font-medium text-foreground">
-              {t("category")} ({t("arabic")})
+            <label htmlFor="complaintTypeId" className="block text-sm font-medium text-foreground">
+              {t("complaintType")}
             </label>
-            <input
-              id="categoryAr"
-              dir="rtl"
+            <Select
+              id="complaintTypeId"
               required
               disabled={readOnly}
-              value={values.categoryAr}
-              onChange={(e) => update("categoryAr", e.target.value)}
+              value={values.complaintTypeId}
+              onChange={(e) => update("complaintTypeId", e.target.value)}
               className={textInputClass}
-            />
-            <label htmlFor="categoryEn" className="mt-2 block text-sm font-medium text-foreground">
-              {t("category")} ({t("english")})
-            </label>
-            <input
-              id="categoryEn"
-              dir="ltr"
-              required
-              disabled={readOnly}
-              value={values.categoryEn}
-              onChange={(e) => update("categoryEn", e.target.value)}
-              className={textInputClass}
-            />
+            >
+              <option value="" disabled>
+                {t("selectComplaintType")}
+              </option>
+              {complaintTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                </option>
+              ))}
+            </Select>
           </div>
 
           <div>
-            <label htmlFor="sourceAr" className="block text-sm font-medium text-foreground">
-              {t("source")} ({t("arabic")})
+            <label htmlFor="complaintSourceId" className="block text-sm font-medium text-foreground">
+              {t("source")}
             </label>
-            <input
-              id="sourceAr"
-              dir="rtl"
+            <Select
+              id="complaintSourceId"
               required
               disabled={readOnly}
-              value={values.sourceAr}
-              onChange={(e) => update("sourceAr", e.target.value)}
+              value={values.complaintSourceId}
+              onChange={(e) => update("complaintSourceId", e.target.value)}
               className={textInputClass}
-            />
-            <label htmlFor="sourceEn" className="mt-2 block text-sm font-medium text-foreground">
-              {t("source")} ({t("english")})
-            </label>
-            <input
-              id="sourceEn"
-              dir="ltr"
-              required
-              disabled={readOnly}
-              value={values.sourceEn}
-              onChange={(e) => update("sourceEn", e.target.value)}
-              className={textInputClass}
-            />
+            >
+              <option value="" disabled>
+                {t("selectComplaintSource")}
+              </option>
+              {complaintSources.map((source) => (
+                <option key={source.id} value={source.id}>
+                  {source.name}
+                </option>
+              ))}
+            </Select>
+          </div>
 
-            <label htmlFor="companyId" className="mt-2 block text-sm font-medium text-foreground">
+          <div>
+            <label htmlFor="companyId" className="block text-sm font-medium text-foreground">
               {t("company")}
             </label>
-            <SearchableSelect
-              id="companyId"
-              items={companies}
-              value={values.companyId}
-              onChange={handleCompanyChange}
-              getId={(c) => c.id}
-              getLabel={(c) => localizedName(c, locale)}
-              placeholder={t("selectCompany")}
-              disabled={readOnly}
-            />
+            <div className="mt-1">
+              <SearchableSelect
+                id="companyId"
+                items={companies}
+                value={values.companyId}
+                onChange={handleCompanyChange}
+                getId={(c) => c.id}
+                getLabel={(c) => localizedName(c, locale)}
+                placeholder={t("selectCompany")}
+                disabled={readOnly}
+              />
+            </div>
           </div>
         </div>
 
@@ -354,35 +348,18 @@ export default function ComplaintForm({
               className={textInputClass}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="customerNameAr" className="block text-sm font-medium text-foreground">
-                {t("customerName")} ({t("arabic")})
-              </label>
-              <input
-                id="customerNameAr"
-                dir="rtl"
-                required
-                disabled={readOnly}
-                value={values.customerNameAr}
-                onChange={(e) => update("customerNameAr", e.target.value)}
-                className={textInputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="customerNameEn" className="block text-sm font-medium text-foreground">
-                {t("customerName")} ({t("english")})
-              </label>
-              <input
-                id="customerNameEn"
-                dir="ltr"
-                required
-                disabled={readOnly}
-                value={values.customerNameEn}
-                onChange={(e) => update("customerNameEn", e.target.value)}
-                className={textInputClass}
-              />
-            </div>
+          <div>
+            <label htmlFor="customerName" className="block text-sm font-medium text-foreground">
+              {t("customerName")}
+            </label>
+            <input
+              id="customerName"
+              required
+              disabled={readOnly}
+              value={values.customerName}
+              onChange={(e) => update("customerName", e.target.value)}
+              className={textInputClass}
+            />
           </div>
         </div>
 
@@ -401,17 +378,16 @@ export default function ComplaintForm({
         </div>
 
         <div>
-          <label htmlFor="subject" className="block text-xs font-medium text-foreground/60">
+          <label htmlFor="subject" className="block text-sm font-medium text-foreground">
             {t("subject")}
           </label>
           <input
             id="subject"
             required
             disabled={readOnly}
-            placeholder={t("subject")}
             value={values.subject}
             onChange={(e) => update("subject", e.target.value)}
-            className="mt-1 w-full border-0 border-b border-border bg-transparent px-1 py-1.5 text-sm outline-none focus:border-brand disabled:opacity-60"
+            className="mt-1 w-full border-0 border-b border-border bg-transparent px-1 py-2 text-sm text-foreground outline-none focus:border-brand disabled:opacity-60"
           />
         </div>
 
@@ -432,7 +408,7 @@ export default function ComplaintForm({
       </div>
 
       {!hideAssignedTo && (
-        <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-5 dark:border-amber-900/50 dark:bg-amber-950/20">
+        <div className="space-y-3 rounded-lg border border-tint-assign-border bg-tint-assign-bg p-5">
           <span className="block text-sm font-medium text-foreground">{t("assignedTo")}</span>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <SearchableSelect
@@ -494,7 +470,7 @@ export default function ComplaintForm({
         <label htmlFor="status" className="block text-sm font-medium text-foreground">
           {t("status")}
         </label>
-        <select
+        <Select
           id="status"
           disabled={readOnly}
           value={values.status}
@@ -506,7 +482,7 @@ export default function ComplaintForm({
               {tStatus(status)}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {statusChanged && !readOnly && (

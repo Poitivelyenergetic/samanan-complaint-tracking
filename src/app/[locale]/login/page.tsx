@@ -15,7 +15,7 @@ export default function LandingRedirectPage() {
 
   useEffect(() => {
     if (loading) return;
-    router.replace(user ? "/dashboard" : "/login/staff");
+    router.replace(user ? "/home" : "/login/staff");
   }, [loading, user, router]);
 
   return null;

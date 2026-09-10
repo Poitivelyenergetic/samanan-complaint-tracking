@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { localizedName, type AdministrationInput, type Company, type StaffUser } from "@/lib/types";
+import Select from "./Select";
 
 interface AdministrationFormProps {
   companies: Company[];
@@ -66,7 +67,7 @@ export default function AdministrationForm({
         <label htmlFor="companyId" className="block text-sm font-medium text-foreground">
           {t("company")}
         </label>
-        <select
+        <Select
           id="companyId"
           required
           value={values.companyId}
@@ -81,7 +82,7 @@ export default function AdministrationForm({
               {localizedName(c, locale)}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -117,7 +118,7 @@ export default function AdministrationForm({
         <label htmlFor="managerId" className="block text-sm font-medium text-foreground">
           {t("manager")}
         </label>
-        <select
+        <Select
           id="managerId"
           value={values.managerId ?? ""}
           onChange={(e) => update("managerId", e.target.value || null)}
@@ -129,7 +130,7 @@ export default function AdministrationForm({
               {localizedName(member, locale)}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {error && (

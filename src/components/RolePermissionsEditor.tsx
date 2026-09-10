@@ -43,6 +43,8 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
       },
       roles: { view: next, create: next, update: next, delete: next },
       marketing: { view: next },
+      complaintTypes: { view: next, create: next, update: next, delete: next },
+      complaintSources: { view: next, create: next, update: next, delete: next },
     };
     onChange(updated);
   }

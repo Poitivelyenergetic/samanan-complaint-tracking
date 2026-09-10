@@ -182,6 +182,30 @@ export function IconTrendingUp(props: IconProps) {
   );
 }
 
+export function IconTag(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path
+        d="M10.5 3H16a1 1 0 0 1 1 1v5.5a1 1 0 0 1-.3.7l-7 7a1 1 0 0 1-1.4 0l-6.2-6.2a1 1 0 0 1 0-1.4l7-7a1 1 0 0 1 .4-.6Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <circle cx="13.2" cy="6.8" r="1.1" fill="currentColor" />
+    </Base>
+  );
+}
+
+export function IconBroadcast(props: IconProps) {
+  return (
+    <Base {...props}>
+      <circle cx="10" cy="10" r="1.8" fill="currentColor" />
+      <path d="M7 7a4.2 4.2 0 0 0 0 6M13 7a4.2 4.2 0 0 1 0 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M4.3 4.3a8.4 8.4 0 0 0 0 11.4M15.7 4.3a8.4 8.4 0 0 1 0 11.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </Base>
+  );
+}
+
 export function IconGear(props: IconProps) {
   const teeth = [0, 45, 90, 135, 180, 225, 270, 315];
   return (

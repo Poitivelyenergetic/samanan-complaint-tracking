@@ -7,6 +7,16 @@
   --border: #e2e5eb;
   --brand: #385bc1;
   --brand-foreground: #ffffff;
+  /* Tinted section backgrounds (complaint info / assignment / history) —
+     theme-aware tokens rather than Tailwind's dark: classes, since dark:
+     here would follow the OS's prefers-color-scheme directly and ignore an
+     explicit in-app theme choice, going out of sync with data-theme. */
+  --tint-info-bg: #eef2ff;
+  --tint-info-border: #c7d2fe;
+  --tint-assign-bg: #fffbeb;
+  --tint-assign-border: #fde68a;
+  --tint-history-bg: #f0fdfa;
+  --tint-history-border: #99f6e4;
 }
 
 /* Dark palette: applied when the system prefers dark and the user hasn't
@@ -19,6 +29,12 @@
     --foreground: #eceef2;
     --surface: #1c1f27;
     --border: #2c303b;
+    --tint-info-bg: #1e2233;
+    --tint-info-border: #333a5c;
+    --tint-assign-bg: #2a2416;
+    --tint-assign-border: #4d4222;
+    --tint-history-bg: #16302c;
+    --tint-history-border: #235852;
   }
 }
 
@@ -27,6 +43,12 @@
   --foreground: #eceef2;
   --surface: #1c1f27;
   --border: #2c303b;
+  --tint-info-bg: #1e2233;
+  --tint-info-border: #333a5c;
+  --tint-assign-bg: #2a2416;
+  --tint-assign-border: #4d4222;
+  --tint-history-bg: #16302c;
+  --tint-history-border: #235852;
 }
 
 @theme inline {
@@ -36,6 +58,12 @@
   --color-border: var(--border);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-tint-info-bg: var(--tint-info-bg);
+  --color-tint-info-border: var(--tint-info-border);
+  --color-tint-assign-bg: var(--tint-assign-bg);
+  --color-tint-assign-border: var(--tint-assign-border);
+  --color-tint-history-bg: var(--tint-history-bg);
+  --color-tint-history-border: var(--tint-history-border);
   --font-sans: var(--font-cairo);
 }
 

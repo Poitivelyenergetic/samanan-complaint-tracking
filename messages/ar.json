@@ -39,6 +39,8 @@
     "departments": "الأقسام",
     "employees": "الموظفون",
     "roles": "الأدوار والصلاحيات",
+    "complaintTypes": "أنواع الشكاوى",
+    "complaintSources": "مصادر الشكاوى",
     "requests": "الطلبات",
     "logout": "تسجيل الخروج",
     "signedInAs": "مسجل الدخول باسم"
@@ -99,7 +101,15 @@
     "sourceBreakdown": "حسب المصدر",
     "trend": "الشكاوى الجديدة (آخر 14 يوماً)",
     "topAssignees": "الأكثر تكليفاً",
-    "noData": "لا توجد بيانات بعد."
+    "noData": "لا توجد بيانات بعد.",
+    "dateFilter": "النطاق الزمني",
+    "dateFilterAll": "كل الأوقات",
+    "dateFilterToday": "اليوم",
+    "dateFilterLast7": "آخر 7 أيام",
+    "dateFilterLast30": "آخر 30 يوماً",
+    "dateFilterThisMonth": "هذا الشهر",
+    "employeeFilter": "الموظف",
+    "employeeFilterAll": "كل الموظفين"
   },
   "theme": {
     "light": "فاتح",
@@ -159,33 +169,17 @@
     "fields": {
       "subject": "الموضوع",
       "description": "الوصف",
-      "category": "التصنيف",
+      "complaintType": "نوع الشكوى",
+      "selectComplaintType": "اختر نوع الشكوى",
       "customerName": "اسم العميل",
       "customerPhone": "رقم هاتف العميل",
       "customerOrderNumber": "رقم طلب العميل",
-      "source": "المصدر",
+      "source": "مصدر الشكوى",
+      "selectComplaintSource": "اختر مصدر الشكوى",
       "company": "الشركة",
       "selectCompany": "اختر شركة",
       "assignedTo": "مسندة إلى",
-      "status": "الحالة",
-      "arabic": "عربي",
-      "english": "إنجليزي"
-    },
-    "categories": {
-      "ProductQuality": "جودة المنتج / الخدمة",
-      "DeliveryDelay": "تأخير التوصيل / الشحن",
-      "BillingIssue": "مشكلة في الفواتير / الدفع",
-      "OrderDiscrepancy": "خطأ في الطلب",
-      "CustomerService": "خدمة العملاء",
-      "Other": "أخرى"
-    },
-    "sources": {
-      "Twitter": "تويتر",
-      "Facebook": "فيسبوك",
-      "Phone": "هاتف",
-      "Website": "الموقع الإلكتروني",
-      "WalkIn": "زيارة شخصية",
-      "Other": "أخرى"
+      "status": "الحالة"
     },
     "new": {
       "title": "شكوى جديدة",
@@ -267,6 +261,54 @@
     "title": "التسويق",
     "subtitle": "أدوات وحملات التسويق",
     "comingSoon": "قريباً. هذا القسم مخصص لميزات التسويق المستقبلية."
+  },
+  "complaintTypes": {
+    "title": "أنواع الشكاوى",
+    "subtitle": "إدارة قائمة أنواع الشكاوى التي يختار منها الموظفون",
+    "newButton": "+ نوع شكوى جديد",
+    "noResults": "لا توجد أنواع شكاوى.",
+    "notFound": "نوع الشكوى غير موجود.",
+    "deleteConfirm": "هل أنت متأكد من حذف نوع الشكوى هذا؟",
+    "table": {
+      "name": "الاسم"
+    },
+    "fields": {
+      "name": "الاسم"
+    },
+    "new": {
+      "title": "نوع شكوى جديد",
+      "submit": "إنشاء"
+    },
+    "edit": {
+      "title": "تعديل نوع الشكوى",
+      "submit": "حفظ التغييرات",
+      "notFound": "نوع الشكوى غير موجود.",
+      "deleteConfirm": "هل أنت متأكد من حذف نوع الشكوى هذا؟"
+    }
+  },
+  "complaintSources": {
+    "title": "مصادر الشكاوى",
+    "subtitle": "إدارة قائمة مصادر الشكاوى التي يختار منها الموظفون",
+    "newButton": "+ مصدر شكوى جديد",
+    "noResults": "لا توجد مصادر شكاوى.",
+    "notFound": "مصدر الشكوى غير موجود.",
+    "deleteConfirm": "هل أنت متأكد من حذف مصدر الشكوى هذا؟",
+    "table": {
+      "name": "الاسم"
+    },
+    "fields": {
+      "name": "الاسم"
+    },
+    "new": {
+      "title": "مصدر شكوى جديد",
+      "submit": "إنشاء"
+    },
+    "edit": {
+      "title": "تعديل مصدر الشكوى",
+      "submit": "حفظ التغييرات",
+      "notFound": "مصدر الشكوى غير موجود.",
+      "deleteConfirm": "هل أنت متأكد من حذف مصدر الشكوى هذا؟"
+    }
   },
   "complaintInquiry": {
     "title": "استعلام عن شكوى",
@@ -526,6 +568,8 @@
       "complaints": "الشكاوى",
       "roles": "الأدوار",
       "marketing": "التسويق",
+      "complaintTypes": "أنواع الشكاوى",
+      "complaintSources": "مصادر الشكاوى",
       "selectAllShort": "تحديد الكل",
       "clearAll": "إلغاء الكل"
     },

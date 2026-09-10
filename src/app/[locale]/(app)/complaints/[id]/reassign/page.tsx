@@ -7,6 +7,7 @@ import { requestReassignment, subscribeToComplaint } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, localizedName, type Complaint, type StaffUser } from "@/lib/types";
+import Select from "@/components/Select";
 
 export default function ReassignComplaintPage({
   params,
@@ -91,7 +92,7 @@ export default function ReassignComplaintPage({
           <label htmlFor="assignTo" className="block text-sm font-medium text-foreground">
             {t("assignToLabel")}
           </label>
-          <select
+          <Select
             id="assignTo"
             value={assignTo}
             onChange={(e) => setAssignTo(e.target.value)}
@@ -103,7 +104,7 @@ export default function ReassignComplaintPage({
                 {localizedName(member, locale)}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div>

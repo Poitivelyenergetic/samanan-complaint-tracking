@@ -19,43 +19,78 @@ import {
 } from "recharts";
 import { subscribeToComplaints } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
+import { subscribeToComplaintTypes } from "@/lib/complaintTypes";
+import { subscribeToComplaintSources } from "@/lib/complaintSources";
 import { useAuth } from "@/lib/auth-context";
 import {
-  bilingualValue,
   COMPLAINT_STATUSES,
   hasPermission,
   localizedName,
   type Complaint,
+  type ComplaintSource,
   type ComplaintStatus,
+  type ComplaintType,
   type StaffUser,
 } from "@/lib/types";
+import Select from "@/components/Select";
 
 const STATUS_COLORS: Record<ComplaintStatus, string> = {
   Open: "#3b82f6",
-  Assigned: "#6366f1",
+  Assigned: "#06b6d4",
   Processing: "#f59e0b",
-  Cancel: "#9ca3af",
+  Cancel: "#64748b",
   Closed: "#22c55e",
 };
 
+type DateFilter = "all" | "today" | "7d" | "30d" | "month";
+
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-5">
+    <div className="rounded-xl border border-border bg-surface p-5 shadow-sm">
       <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       <div className="mt-4 h-64">{children}</div>
     </div>
   );
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color?: string }) {
+function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <p className="text-xs font-medium text-foreground/50">{label}</p>
-      <p className="mt-1 text-2xl font-bold" style={color ? { color } : undefined}>
+    <div
+      className="rounded-xl border border-border bg-surface p-4 shadow-sm"
+      style={{ borderInlineStartWidth: 4, borderInlineStartColor: color }}
+    >
+      <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">{label}</p>
+      <p className="mt-1.5 text-3xl font-bold" style={{ color }}>
         {value}
       </p>
     </div>
   );
+}
+
+function cutoffFor(filter: DateFilter): Date | null {
+  const now = new Date();
+  switch (filter) {
+    case "today": {
+      const d = new Date(now);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    case "7d": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 7);
+      return d;
+    }
+    case "30d": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 30);
+      return d;
+    }
+    case "month":
+      return new Date(now.getFullYear(), now.getMonth(), 1);
+    case "all":
+    default:
+      return null;
+  }
 }
 
 export default function HomePage() {
@@ -71,15 +106,32 @@ export default function HomePage() {
 
   const [complaints, setComplaints] = useState<Complaint[] | null>(null);
   const [staff, setStaff] = useState<StaffUser[]>([]);
+  const [complaintTypes, setComplaintTypes] = useState<ComplaintType[]>([]);
+  const [complaintSources, setComplaintSources] = useState<ComplaintSource[]>([]);
+  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+  const [employeeFilter, setEmployeeFilter] = useState("");
 
   useEffect(() => {
     if (!profile || !canView) return;
     return subscribeToComplaints(setComplaints, undefined, canViewAll ? undefined : profile.id);
   }, [profile, canView, canViewAll]);
   useEffect(() => subscribeToStaff(setStaff), []);
+  useEffect(() => subscribeToComplaintTypes(setComplaintTypes), []);
+  useEffect(() => subscribeToComplaintSources(setComplaintSources), []);
 
   const staffById = useMemo(() => new Map(staff.map((s) => [s.id, s])), [staff]);
-  const list = useMemo(() => complaints ?? [], [complaints]);
+  const typesById = useMemo(() => new Map(complaintTypes.map((ct) => [ct.id, ct])), [complaintTypes]);
+  const sourcesById = useMemo(() => new Map(complaintSources.map((cs) => [cs.id, cs])), [complaintSources]);
+
+  const list = useMemo(() => {
+    const base = complaints ?? [];
+    const cutoff = cutoffFor(dateFilter);
+    return base.filter((c) => {
+      if (cutoff && new Date(c.createdAt) < cutoff) return false;
+      if (employeeFilter && c.assignedTo !== employeeFilter) return false;
+      return true;
+    });
+  }, [complaints, dateFilter, employeeFilter]);
 
   const statusData = useMemo(
     () =>
@@ -94,12 +146,10 @@ export default function HomePage() {
   // slice has no visual width but still confuses the legend/tooltip.
   const statusPieData = useMemo(() => statusData.filter((row) => row.count > 0), [statusData]);
 
-  // Category/source are handwritten free text (Arabic + English) — group by
-  // whichever language the current locale prefers.
   const categoryData = useMemo(() => {
     const counts = new Map<string, number>();
     list.forEach((c) => {
-      const label = bilingualValue(c.categoryAr, c.categoryEn, locale);
+      const label = typesById.get(c.complaintTypeId)?.name;
       if (!label) return;
       counts.set(label, (counts.get(label) ?? 0) + 1);
     });
@@ -107,12 +157,12 @@ export default function HomePage() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
       .map(([label, count]) => ({ label, count }));
-  }, [list, locale]);
+  }, [list, typesById]);
 
   const sourceData = useMemo(() => {
     const counts = new Map<string, number>();
     list.forEach((c) => {
-      const label = bilingualValue(c.sourceAr, c.sourceEn, locale);
+      const label = sourcesById.get(c.complaintSourceId)?.name;
       if (!label) return;
       counts.set(label, (counts.get(label) ?? 0) + 1);
     });
@@ -120,7 +170,7 @@ export default function HomePage() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
       .map(([label, count]) => ({ label, count }));
-  }, [list, locale]);
+  }, [list, sourcesById]);
 
   const trendData = useMemo(() => {
     const days: { date: string; label: string; count: number }[] = [];
@@ -169,8 +219,39 @@ export default function HomePage() {
         <p className="mt-6 text-sm text-foreground/50">{tCommon("loading")}</p>
       ) : (
         <>
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <StatCard label={t("totalTickets")} value={list.length} />
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <Select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value as DateFilter)}
+              className="w-auto rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+              aria-label={t("dateFilter")}
+            >
+              <option value="all">{t("dateFilterAll")}</option>
+              <option value="today">{t("dateFilterToday")}</option>
+              <option value="7d">{t("dateFilterLast7")}</option>
+              <option value="30d">{t("dateFilterLast30")}</option>
+              <option value="month">{t("dateFilterThisMonth")}</option>
+            </Select>
+
+            {canViewAll && (
+              <Select
+                value={employeeFilter}
+                onChange={(e) => setEmployeeFilter(e.target.value)}
+                className="w-auto rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                aria-label={t("employeeFilter")}
+              >
+                <option value="">{t("employeeFilterAll")}</option>
+                {staff.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {localizedName(member, locale)}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <StatCard label={t("totalTickets")} value={list.length} color="#385bc1" />
             {statusData.map((row) => (
               <StatCard key={row.status} label={row.label} value={row.count} color={STATUS_COLORS[row.status]} />
             ))}
@@ -191,13 +272,12 @@ export default function HomePage() {
                       cy="50%"
                       innerRadius={50}
                       outerRadius={80}
-                      paddingAngle={2}
                       isAnimationActive={false}
                       label={({ name, percent }) => `${name} ${Math.round((percent ?? 0) * 100)}%`}
                       labelLine={false}
                     >
                       {statusPieData.map((row) => (
-                        <Cell key={row.status} fill={STATUS_COLORS[row.status]} />
+                        <Cell key={row.status} fill={STATUS_COLORS[row.status]} stroke="none" />
                       ))}
                     </Pie>
                     <Tooltip />
@@ -217,7 +297,7 @@ export default function HomePage() {
                     <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
                     <YAxis type="category" dataKey="label" width={110} stroke="var(--foreground)" opacity={0.7} fontSize={12} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="#385bc1" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="count" fill="#385bc1" radius={[0, 4, 4, 0]} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -233,7 +313,7 @@ export default function HomePage() {
                     <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
                     <YAxis type="category" dataKey="label" width={110} stroke="var(--foreground)" opacity={0.7} fontSize={12} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="#22c55e" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="count" fill="#22c55e" radius={[0, 4, 4, 0]} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -246,7 +326,7 @@ export default function HomePage() {
                   <XAxis dataKey="label" stroke="var(--foreground)" opacity={0.5} fontSize={11} />
                   <YAxis allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
                   <Tooltip />
-                  <Line type="monotone" dataKey="count" stroke="#385bc1" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="count" stroke="#385bc1" strokeWidth={2} dot={false} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             </ChartCard>
@@ -262,7 +342,7 @@ export default function HomePage() {
                       <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
                       <YAxis type="category" dataKey="name" width={110} stroke="var(--foreground)" opacity={0.7} fontSize={12} />
                       <Tooltip />
-                      <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} isAnimationActive={false} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
