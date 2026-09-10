@@ -20,7 +20,8 @@ export default function ComplaintSourceForm({
   const t = useTranslations("complaintSources.fields");
   const tCommon = useTranslations("common");
 
-  const [name, setName] = useState(initialValues?.name ?? "");
+  const [nameAr, setNameAr] = useState(initialValues?.nameAr ?? "");
+  const [nameEn, setNameEn] = useState(initialValues?.nameEn ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +30,7 @@ export default function ComplaintSourceForm({
     setError(null);
     setSubmitting(true);
     try {
-      await onSubmit({ name: name.trim() });
+      await onSubmit({ nameAr: nameAr.trim(), nameEn: nameEn.trim() });
     } catch {
       setError(tCommon("somethingWentWrong"));
       setSubmitting(false);
@@ -39,14 +40,29 @@ export default function ComplaintSourceForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-foreground">
-          {t("name")}
+        <label htmlFor="nameAr" className="block text-sm font-medium text-foreground">
+          {t("nameAr")}
         </label>
         <input
-          id="name"
+          id="nameAr"
+          dir="rtl"
           required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={nameAr}
+          onChange={(e) => setNameAr(e.target.value)}
+          className="mt-1 w-full max-w-sm rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="nameEn" className="block text-sm font-medium text-foreground">
+          {t("nameEn")}
+        </label>
+        <input
+          id="nameEn"
+          dir="ltr"
+          required
+          value={nameEn}
+          onChange={(e) => setNameEn(e.target.value)}
           className="mt-1 w-full max-w-sm rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
         />
       </div>

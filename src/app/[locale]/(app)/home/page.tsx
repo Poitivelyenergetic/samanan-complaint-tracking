@@ -154,7 +154,8 @@ export default function HomePage() {
   const categoryData = useMemo(() => {
     const counts = new Map<string, number>();
     list.forEach((c) => {
-      const label = typesById.get(c.complaintTypeId)?.name;
+      const type = typesById.get(c.complaintTypeId);
+      const label = type ? localizedName(type, locale) : undefined;
       if (!label) return;
       counts.set(label, (counts.get(label) ?? 0) + 1);
     });
@@ -162,12 +163,13 @@ export default function HomePage() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
       .map(([label, count]) => ({ label, count }));
-  }, [list, typesById]);
+  }, [list, typesById, locale]);
 
   const sourceData = useMemo(() => {
     const counts = new Map<string, number>();
     list.forEach((c) => {
-      const label = sourcesById.get(c.complaintSourceId)?.name;
+      const source = sourcesById.get(c.complaintSourceId);
+      const label = source ? localizedName(source, locale) : undefined;
       if (!label) return;
       counts.set(label, (counts.get(label) ?? 0) + 1);
     });
@@ -175,7 +177,7 @@ export default function HomePage() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
       .map(([label, count]) => ({ label, count }));
-  }, [list, sourcesById]);
+  }, [list, sourcesById, locale]);
 
   const trendData = useMemo(() => {
     const days: { date: string; label: string; count: number }[] = [];

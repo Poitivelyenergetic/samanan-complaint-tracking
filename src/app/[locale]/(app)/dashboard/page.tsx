@@ -128,12 +128,13 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-surface">
-        <table className="w-full min-w-[820px] text-start text-sm">
+        <table className="w-full min-w-[940px] text-start text-sm">
           <thead>
             <tr className="border-b border-border bg-black/[0.02] text-start text-xs font-semibold uppercase tracking-wide text-foreground/50">
               <th className="px-4 py-3 text-start">{t("table.issueId")}</th>
               <th className="px-4 py-3 text-start">{t("table.subject")}</th>
               <th className="px-4 py-3 text-start">{t("table.customer")}</th>
+              <th className="px-4 py-3 text-start">{t("table.customerPhone")}</th>
               <th className="px-4 py-3 text-start">{t("table.source")}</th>
               <th className="px-4 py-3 text-start">{t("table.assignedTo")}</th>
               <th className="px-4 py-3 text-start">{t("table.status")}</th>
@@ -143,13 +144,13 @@ export default function DashboardPage() {
           <tbody>
             {visibleComplaints === null ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={8} className="px-4 py-8 text-center text-foreground/50">
                   {tCommon("loading")}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={8} className="px-4 py-8 text-center text-foreground/50">
                   {t("noResults")}
                 </td>
               </tr>
@@ -170,10 +171,16 @@ export default function DashboardPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-foreground/70">
-                    {c.customerName || c.customerPhone || "—"}
+                    {c.customerName || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-foreground/70" dir="ltr">
+                    {c.customerPhone || "—"}
                   </td>
                   <td className="px-4 py-3 text-foreground/70">
-                    {sourcesById.get(c.complaintSourceId)?.name || "—"}
+                    {(() => {
+                      const source = sourcesById.get(c.complaintSourceId);
+                      return source ? localizedName(source, locale) : "—";
+                    })()}
                   </td>
                   <td className="px-4 py-3 text-foreground/70">
                     {c.assignedTo ? localizedName(staffById.get(c.assignedTo), locale) || c.assignedTo : tCommon("unassigned")}

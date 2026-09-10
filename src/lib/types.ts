@@ -314,20 +314,24 @@ export type ComplaintStatus = (typeof COMPLAINT_STATUSES)[number];
 // text. Single "name" field, no Arabic/English split.
 export interface ComplaintType {
   id: string;
-  name: string;
+  nameAr: string;
+  nameEn: string;
 }
 
 export interface ComplaintTypeInput {
-  name: string;
+  nameAr: string;
+  nameEn: string;
 }
 
 export interface ComplaintSource {
   id: string;
-  name: string;
+  nameAr: string;
+  nameEn: string;
 }
 
 export interface ComplaintSourceInput {
-  name: string;
+  nameAr: string;
+  nameEn: string;
 }
 
 // "staff" = logged via the internal New Complaint form by a staff member.

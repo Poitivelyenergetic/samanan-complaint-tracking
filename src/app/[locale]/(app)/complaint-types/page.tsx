@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { subscribeToComplaintTypes, deleteComplaintType } from "@/lib/complaintTypes";
 import { useAuth } from "@/lib/auth-context";
-import { hasPermission, type ComplaintType } from "@/lib/types";
+import { hasPermission, localizedName, type ComplaintType } from "@/lib/types";
 
 export default function ComplaintTypesPage() {
   const t = useTranslations("complaintTypes");
   const tCommon = useTranslations("common");
+  const locale = useLocale();
   const { profile } = useAuth();
   const canCreate = hasPermission(profile, "complaintTypes", "create");
   const canUpdate = hasPermission(profile, "complaintTypes", "update");
@@ -69,10 +70,10 @@ export default function ComplaintTypesPage() {
                   <td className="px-4 py-3">
                     {canUpdate ? (
                       <Link href={`/complaint-types/${type.id}`} className="font-medium text-foreground hover:text-brand">
-                        {type.name}
+                        {localizedName(type, locale)}
                       </Link>
                     ) : (
-                      <span className="font-medium text-foreground">{type.name}</span>
+                      <span className="font-medium text-foreground">{localizedName(type, locale)}</span>
                     )}
                   </td>
                   {showActions && (

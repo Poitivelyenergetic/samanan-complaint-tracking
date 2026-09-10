@@ -159,6 +159,7 @@
       "issueId": "Issue ID",
       "subject": "Subject",
       "customer": "Customer",
+      "customerPhone": "Customer Phone",
       "source": "Source",
       "assignedTo": "Assigned To",
       "status": "Status",
@@ -273,7 +274,8 @@
       "name": "Name"
     },
     "fields": {
-      "name": "Name"
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)"
     },
     "new": {
       "title": "New Complaint Type",
@@ -297,7 +299,8 @@
       "name": "Name"
     },
     "fields": {
-      "name": "Name"
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)"
     },
     "new": {
       "title": "New Complaint Source",

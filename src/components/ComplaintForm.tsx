@@ -286,7 +286,7 @@ export default function ComplaintForm({
               </option>
               {complaintTypes.map((type) => (
                 <option key={type.id} value={type.id}>
-                  {type.name}
+                  {localizedName(type, locale)}
                 </option>
               ))}
             </Select>
@@ -309,7 +309,7 @@ export default function ComplaintForm({
               </option>
               {complaintSources.map((source) => (
                 <option key={source.id} value={source.id}>
-                  {source.name}
+                  {localizedName(source, locale)}
                 </option>
               ))}
             </Select>
