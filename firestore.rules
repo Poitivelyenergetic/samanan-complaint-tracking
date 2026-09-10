@@ -79,46 +79,12 @@ service cloud.firestore {
       allow delete: if hasPermission("departments", "delete");
     }
 
-    // Reassignment is a propose/approve flow split across two permissions:
-    // complaints.reassign can only *propose* a new assignee (touches
-    // pendingReassignment/updatedAt/history, never assignedTo itself), and
-    // complaints.acceptReassignment resolves that proposal — accepting
-    // (which also touches assignedTo) or rejecting (which doesn't). Anyone
-    // who also holds complaints.update can write any field regardless.
-    function isReassignRequestWrite() {
+    // complaints.reassign moves a complaint directly — no separate
+    // approval step. Anyone who also holds complaints.update can write any
+    // field regardless.
+    function isReassignWrite() {
       let affected = request.resource.data.diff(resource.data).affectedKeys();
-      return affected.hasOnly(["pendingReassignment", "updatedAt", "history"])
-        && request.resource.data.pendingReassignment != null;
-    }
-
-    // The proposed new assignee is who benefits from a reassignment being
-    // approved — they never get to be the one who approves or rejects it,
-    // even if they separately hold acceptReassignment. Unlike the proposer
-    // (who may resolve their own request, just steered through the Requests
-    // hub client-side — see complaints/[id]/page.tsx), there's no path for
-    // the target of a reassignment to resolve it themselves.
-    function isReassignTarget() {
-      return resource.data.pendingReassignment.assignedTo == request.auth.uid;
-    }
-
-    function isReassignRejectWrite() {
-      let affected = request.resource.data.diff(resource.data).affectedKeys();
-      return affected.hasOnly(["pendingReassignment", "updatedAt", "history"])
-        && request.resource.data.pendingReassignment == null
-        && !isReassignTarget();
-    }
-
-    // Someone who holds acceptReassignment may accept a request they
-    // proposed themselves (e.g. a Super Admin) — that's a permission-level
-    // decision, not something these rules restrict. The UI instead steers
-    // self-accepts through the Requests hub / notifications rather than the
-    // complaint page's own inline button — see the client-side check in
-    // complaints/[id]/page.tsx.
-    function isReassignAcceptWrite() {
-      let affected = request.resource.data.diff(resource.data).affectedKeys();
-      return affected.hasOnly(["assignedTo", "pendingReassignment", "updatedAt", "history"])
-        && request.resource.data.pendingReassignment == null
-        && !isReassignTarget();
+      return affected.hasOnly(["assignedTo", "updatedAt", "history"]);
     }
 
     // The Notes scratchpad is deliberately available to anyone who can see
@@ -134,13 +100,9 @@ service cloud.firestore {
     // currently assigned to them. `list` queries are validated against the
     // query shape, not fetched-then-filtered — the client must query with a
     // matching where("assignedTo","==",uid) clause, or Firestore denies the
-    // whole request rather than silently returning a subset. Someone who
-    // can approve reassignments also gets viewAll-equivalent read access —
-    // reviewing a request (and the Requests hub's reassignment list) needs
-    // to see complaints regardless of who they're currently assigned to.
+    // whole request rather than silently returning a subset.
     function canReadComplaint() {
       return hasPermission("complaints", "viewAll")
-        || hasPermission("complaints", "acceptReassignment")
         || (hasPermission("complaints", "view") && resource.data.assignedTo == request.auth.uid);
     }
 
@@ -148,11 +110,26 @@ service cloud.firestore {
       allow get: if canReadComplaint();
       allow list: if canReadComplaint();
       allow update: if hasPermission("complaints", "update")
-        || (hasPermission("complaints", "reassign") && isReassignRequestWrite())
-        || (hasPermission("complaints", "acceptReassignment") && (isReassignAcceptWrite() || isReassignRejectWrite()))
+        || (hasPermission("complaints", "reassign") && isReassignWrite())
         || (canReadComplaint() && isNotesOnlyWrite());
       allow delete: if hasPermission("complaints", "delete");
       allow create: if isSignedIn() && hasPermission("complaints", "create") && isSelfCreatedComplaint();
+    }
+
+    // Sequential complaint IDs ("1", "2", "3", ...) — counters/complaints
+    // holds the last-issued number, incremented in the same client
+    // transaction that creates the complaint doc (see createComplaint() in
+    // src/lib/complaints.ts). Scoped to complaints.create, and validated so
+    // a write can only ever bump the value by exactly 1 (or set it to 1 on
+    // first use) — never set it to an arbitrary number.
+    match /counters/{counterId} {
+      allow read: if isSignedIn();
+      allow create: if hasPermission("complaints", "create")
+        && counterId == "complaints"
+        && request.resource.data.value == 1;
+      allow update: if hasPermission("complaints", "create")
+        && counterId == "complaints"
+        && request.resource.data.value == resource.data.value + 1;
     }
 
     // Public staff-account requests. Deliberately holds no password — an

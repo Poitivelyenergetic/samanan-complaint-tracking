@@ -9,7 +9,7 @@ interface RolePermissionsEditorProps {
 }
 
 const ALL_RESOURCES = [...PERMISSION_RESOURCES, "marketing" as const];
-const COMPLAINTS_EXTRA_ACTIONS = ["viewAll", "reassign", "acceptReassignment"] as const;
+const COMPLAINTS_EXTRA_ACTIONS = ["viewAll", "reassign"] as const;
 
 export default function RolePermissionsEditor({ value, onChange }: RolePermissionsEditorProps) {
   const t = useTranslations("roles.resources");
@@ -19,10 +19,7 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
     resource === "marketing"
       ? value.marketing.view
       : resource === "complaints"
-        ? CRUD_ACTIONS.every((action) => value.complaints[action]) &&
-          value.complaints.viewAll &&
-          value.complaints.reassign &&
-          value.complaints.acceptReassignment
+        ? CRUD_ACTIONS.every((action) => value.complaints[action]) && value.complaints.viewAll && value.complaints.reassign
         : CRUD_ACTIONS.every((action) => value[resource][action])
   );
 
@@ -39,7 +36,6 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
         delete: next,
         viewAll: next,
         reassign: next,
-        acceptReassignment: next,
       },
       roles: { view: next, create: next, update: next, delete: next },
       marketing: { view: next },
@@ -64,7 +60,6 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
           delete: next,
           viewAll: next,
           reassign: next,
-          acceptReassignment: next,
         },
       });
       return;
@@ -87,12 +82,7 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
   function isResourceAllGranted(resource: (typeof ALL_RESOURCES)[number]) {
     if (resource === "marketing") return value.marketing.view;
     if (resource === "complaints") {
-      return (
-        CRUD_ACTIONS.every((action) => value.complaints[action]) &&
-        value.complaints.viewAll &&
-        value.complaints.reassign &&
-        value.complaints.acceptReassignment
-      );
+      return CRUD_ACTIONS.every((action) => value.complaints[action]) && value.complaints.viewAll && value.complaints.reassign;
     }
     return CRUD_ACTIONS.every((action) => value[resource][action]);
   }

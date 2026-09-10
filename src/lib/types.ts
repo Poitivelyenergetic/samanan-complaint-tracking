@@ -42,21 +42,15 @@ export interface MarketingPermission {
   view: boolean;
 }
 
-// Complaints carries three extra flags beyond the standard CRUD set:
+// Complaints carries two extra flags beyond the standard CRUD set:
 //  - viewAll: see every complaint, not just ones assigned to you (default
 //    scoping — see hasPermission's callers in the dashboard/detail pages —
 //    is "only your own assigned complaints").
-//  - reassign: propose a new assignee for a complaint. This only creates a
-//    pending reassignment — it doesn't move the complaint by itself.
-//  - acceptReassignment: approve or reject a pending reassignment someone
-//    else proposed, which is the step that actually changes `assignedTo`.
-//    Deliberately separate from `reassign` (and from `update`) so a role
-//    can request reassignments without being able to approve its own, or
-//    can approve without being able to propose one.
+//  - reassign: change a complaint's assignee directly. Takes effect
+//    immediately — there is no separate approval step.
 export interface ComplaintsPermission extends CrudPermission {
   viewAll: boolean;
   reassign: boolean;
-  acceptReassignment: boolean;
 }
 
 export interface RolePermissions {
@@ -80,11 +74,11 @@ export function fullCrud(): CrudPermission {
 }
 
 function emptyComplaintsPermission(): ComplaintsPermission {
-  return { ...emptyCrud(), viewAll: false, reassign: false, acceptReassignment: false };
+  return { ...emptyCrud(), viewAll: false, reassign: false };
 }
 
 function fullComplaintsPermission(): ComplaintsPermission {
-  return { ...fullCrud(), viewAll: true, reassign: true, acceptReassignment: true };
+  return { ...fullCrud(), viewAll: true, reassign: true };
 }
 
 export function emptyRolePermissions(): RolePermissions {
@@ -132,7 +126,6 @@ export function unionRolePermissions(rolePermissions: Partial<RolePermissions>[]
         const complaintsGrant = grant as Partial<ComplaintsPermission>;
         if (complaintsGrant.viewAll) result.complaints.viewAll = true;
         if (complaintsGrant.reassign) result.complaints.reassign = true;
-        if (complaintsGrant.acceptReassignment) result.complaints.acceptReassignment = true;
       }
     }
     if (perms.marketing?.view) result.marketing.view = true;
@@ -146,7 +139,7 @@ export function unionRolePermissions(rolePermissions: Partial<RolePermissions>[]
 export function hasPermission(
   profile: { permissions?: RolePermissions } | null | undefined,
   resource: PermissionResource | "marketing",
-  action: CrudAction | "viewAll" | "reassign" | "acceptReassignment"
+  action: CrudAction | "viewAll" | "reassign"
 ): boolean {
   const resourcePerms = profile?.permissions?.[resource as keyof RolePermissions];
   if (!resourcePerms) return false;
@@ -172,7 +165,6 @@ export function normalizeRolePermissionsInput(input: unknown): RolePermissions {
     if (resource === "complaints") {
       if (grantRecord.viewAll === true) result.complaints.viewAll = true;
       if (grantRecord.reassign === true) result.complaints.reassign = true;
-      if (grantRecord.acceptReassignment === true) result.complaints.acceptReassignment = true;
     }
   }
 
@@ -341,12 +333,12 @@ export type ComplaintChannel = "staff" | "public";
 // A single entry in a complaint's process/status trail: "created" is always
 // the first entry (logged once, at creation); "status" records every later
 // status change (Closed included — it's just another status value, never
-// special-cased out of the log). Reassignment is a request/approval flow —
-// "reassignRequested" logs a proposed new assignee, and is followed by
-// either "reassignAccepted" (the point `assignedTo` actually changes) or
-// "reassignRejected" (assignedTo is left untouched). "reassigned" is a
-// legacy type from before that workflow existed — it only appears on
-// history entries logged prior to this change. Rendered together as the
+// special-cased out of the log). "reassigned" logs a direct reassignment —
+// `assignedTo` changes immediately, there's no approval step. The
+// "reassignRequested"/"reassignAccepted"/"reassignRejected" types are
+// legacy, from a request/approval workflow that has since been removed —
+// they only appear on history entries logged while that workflow existed,
+// kept here so that old history still renders. Rendered together as the
 // complaint's history timeline.
 export type ComplaintHistoryEntryType =
   | "created"
@@ -371,16 +363,6 @@ export interface ComplaintHistoryEntry {
   byUid: string | null;
 }
 
-// A reassignment someone has proposed but that hasn't been approved yet.
-// While this is set, `Complaint.assignedTo` is unchanged — only accepting
-// the request (complaints.acceptReassignment) moves it.
-export interface PendingReassignment {
-  assignedTo: string | null; // the proposed new assignee, or null to propose unassigning
-  reason: string;
-  requestedBy: string | null;
-  requestedAt: string; // ISO string
-}
-
 export interface Complaint {
   id: string; // Firestore document ID (issue_id) — also used as the public tracking/reference number
   subject: string;
@@ -400,16 +382,12 @@ export interface Complaint {
   status: ComplaintStatus;
   history: ComplaintHistoryEntry[];
   notes: string; // free-text scratchpad for staff working the complaint — not part of the formal history log
-  pendingReassignment: PendingReassignment | null;
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
   createdBy: string | null; // UID of staff who created it, null for public submissions
 }
 
-export type ComplaintInput = Omit<
-  Complaint,
-  "id" | "createdAt" | "updatedAt" | "history" | "notes" | "pendingReassignment"
->;
+export type ComplaintInput = Omit<Complaint, "id" | "createdAt" | "updatedAt" | "history" | "notes">;
 
 export type SignupRequestStatus = "pending" | "approved" | "rejected";
 

@@ -6,7 +6,6 @@ import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { useAuth } from "@/lib/auth-context";
 import { subscribeToPendingSignupRequests } from "@/lib/signupRequests";
-import { subscribeToPendingReassignments } from "@/lib/complaints";
 import { hasPermission, localizedName, type PermissionResource } from "@/lib/types";
 import {
   IconArrowDownCircle,
@@ -157,21 +156,13 @@ function SidebarContents({ onNavigate }: { onNavigate?: () => void }) {
   const canUseComplaintInquiry = hasPermission(profile, "complaints", "viewAll");
   const canAccessMarketing = hasPermission(profile, "marketing", "view");
   const canReviewAccountRequests = hasPermission(profile, "employees", "update");
-  const canReviewReassignmentRequests = hasPermission(profile, "complaints", "acceptReassignment");
-  const canViewRequests = canReviewAccountRequests || canReviewReassignmentRequests;
 
   const [pendingAccountRequests, setPendingAccountRequests] = useState(0);
-  const [pendingReassignmentRequests, setPendingReassignmentRequests] = useState(0);
-  const pendingRequestsCount = pendingAccountRequests + pendingReassignmentRequests;
 
   useEffect(() => {
     if (!canReviewAccountRequests) return;
     return subscribeToPendingSignupRequests((requests) => setPendingAccountRequests(requests.length));
   }, [canReviewAccountRequests]);
-  useEffect(() => {
-    if (!canReviewReassignmentRequests) return;
-    return subscribeToPendingReassignments((complaints) => setPendingReassignmentRequests(complaints.length));
-  }, [canReviewReassignmentRequests]);
 
   const serviceItems: NavItem[] = [
     ...(canViewComplaints
@@ -190,8 +181,8 @@ function SidebarContents({ onNavigate }: { onNavigate?: () => void }) {
 
   const settingsItems: NavItem[] = [
     ...visibleSettingsItems.map((item) => ({ href: item.href, label: t(item.key), icon: item.icon })),
-    ...(canViewRequests
-      ? [{ href: "/requests", label: t("requests"), icon: <IconInbox />, badge: pendingRequestsCount }]
+    ...(canReviewAccountRequests
+      ? [{ href: "/requests", label: t("requests"), icon: <IconInbox />, badge: pendingAccountRequests }]
       : []),
   ];
 

@@ -3,7 +3,7 @@
 import { use, useEffect, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { requestReassignment, subscribeToComplaint } from "@/lib/complaints";
+import { reassignComplaint, subscribeToComplaint } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, localizedName, type Complaint, type StaffUser } from "@/lib/types";
@@ -56,7 +56,7 @@ export default function ReassignComplaintPage({
     setError(null);
     setSubmitting(true);
     try {
-      await requestReassignment(id, assignTo || null, complaint?.assignedTo ?? null, user?.uid ?? null, reason.trim());
+      await reassignComplaint(id, assignTo || null, complaint?.assignedTo ?? null, user?.uid ?? null, reason.trim());
       router.push(`/complaints/${id}`);
     } catch {
       setError(tCommon("somethingWentWrong"));

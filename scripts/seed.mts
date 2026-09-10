@@ -87,7 +87,6 @@ async function upsertRoles() {
     delete: false,
     viewAll: false,
     reassign: false,
-    acceptReassignment: false,
   };
   await db
     .collection("roles")
@@ -149,7 +148,6 @@ async function upsertStaff(staff: SeedStaff) {
       delete: false,
       viewAll: false,
       reassign: false,
-      acceptReassignment: false,
     };
     return p;
   })();

@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { subscribeToPendingReassignments } from "@/lib/complaints";
 import { subscribeToPendingSignupRequests } from "@/lib/signupRequests";
 import { useAuth } from "@/lib/auth-context";
-import { hasPermission, type Complaint, type SignupRequest } from "@/lib/types";
+import { hasPermission, type SignupRequest } from "@/lib/types";
 
 interface NotificationItem {
   id: string;
@@ -41,10 +40,8 @@ export default function NotificationBell() {
   const t = useTranslations("notifications");
   const { user, profile } = useAuth();
   const canReviewAccountRequests = hasPermission(profile, "employees", "update");
-  const canReviewReassignmentRequests = hasPermission(profile, "complaints", "acceptReassignment");
 
   const [signupRequests, setSignupRequests] = useState<SignupRequest[]>([]);
-  const [reassignments, setReassignments] = useState<Complaint[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
 
@@ -56,10 +53,6 @@ export default function NotificationBell() {
     if (!canReviewAccountRequests) return;
     return subscribeToPendingSignupRequests(setSignupRequests);
   }, [canReviewAccountRequests]);
-  useEffect(() => {
-    if (!canReviewReassignmentRequests) return;
-    return subscribeToPendingReassignments(setReassignments);
-  }, [canReviewReassignmentRequests]);
 
   const items: NotificationItem[] = [
     ...signupRequests.map((r) => ({
@@ -67,12 +60,6 @@ export default function NotificationBell() {
       href: "/employees/requests",
       title: t("accountRequestTitle", { name: r.name }),
       subtitle: `${r.position} — ${r.administration}`,
-    })),
-    ...reassignments.map((c) => ({
-      id: `reassignment:${c.id}`,
-      href: "/requests/reassignments",
-      title: t("reassignmentRequestTitle", { subject: c.subject }),
-      subtitle: c.pendingReassignment?.reason ?? "",
     })),
   ];
 

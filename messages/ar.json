@@ -5,6 +5,8 @@
     "loading": "جارٍ التحميل...",
     "save": "حفظ",
     "saving": "جارٍ الحفظ...",
+    "autosaving": "جارٍ حفظ التغييرات...",
+    "autosaved": "تم حفظ جميع التغييرات.",
     "cancel": "إلغاء",
     "edit": "تعديل",
     "delete": "حذف",
@@ -142,8 +144,7 @@
   "notifications": {
     "title": "الإشعارات",
     "empty": "لا توجد إشعارات جديدة.",
-    "accountRequestTitle": "طلب حساب جديد: {name}",
-    "reassignmentRequestTitle": "طلب إعادة إسناد: {subject}"
+    "accountRequestTitle": "طلب حساب جديد: {name}"
   },
   "dashboard": {
     "title": "الشكاوى",
@@ -217,25 +218,17 @@
       "notesPlaceholder": "دوّن أي شيء يستحق التذكر بخصوص هذه الشكوى...",
       "saveNote": "حفظ الملاحظة",
       "savingNote": "جارٍ الحفظ...",
-      "noteSaved": "تم الحفظ.",
-      "pendingReassignment": "إعادة إسناد معلّقة",
-      "pendingReassignmentTo": "المُقترح إسنادها إليه: {to}",
-      "pendingReassignmentBy": "طلبها {by}",
-      "cannotResolveOwnTarget": "لا يمكنك قبول أو رفض إعادة إسناد تقترحك أنت كموظف جديد — يجب أن يراجعها شخص آخر.",
-      "accept": "قبول",
-      "reject": "رفض",
-      "accepting": "جارٍ القبول...",
-      "rejecting": "جارٍ الرفض..."
+      "noteSaved": "تم الحفظ."
     },
     "reassign": {
       "title": "إعادة إسناد الشكوى",
-      "subtitle": "اختر الجهة التي ستُسند إليها هذه الشكوى واذكر السبب. لن تنتقل الشكوى حتى تتم الموافقة على الطلب.",
+      "subtitle": "اختر الجهة التي ستُسند إليها هذه الشكوى واذكر السبب.",
       "assignToLabel": "إعادة الإسناد إلى",
       "reasonLabel": "سبب إعادة الإسناد",
-      "reasonPlaceholder": "لماذا يجب إعادة إسناد هذه الشكوى؟",
+      "reasonPlaceholder": "لماذا يتم إعادة إسناد هذه الشكوى؟",
       "reasonRequired": "يرجى توضيح سبب إعادة إسناد هذه الشكوى.",
-      "submit": "إرسال الطلب",
-      "submitting": "جارٍ الإرسال..."
+      "submit": "إعادة الإسناد",
+      "submitting": "جارٍ إعادة الإسناد..."
     }
   },
   "staffSignup": {
@@ -351,25 +344,7 @@
     "subtitle": "راجع الطلبات المعلّقة التي تحتاج إلى إجرائك.",
     "noAccess": "ليس لديك صلاحية الوصول إلى أي نوع من الطلبات.",
     "accountRequests": "طلبات الحسابات",
-    "accountRequestsDescription": "طلبات إنشاء حسابات موظفين جديدة بانتظار الموافقة.",
-    "reassignmentRequests": "طلبات إعادة الإسناد",
-    "reassignmentRequestsDescription": "طلبات إعادة إسناد الشكاوى المقترحة بانتظار الموافقة.",
-    "reassignments": {
-      "title": "طلبات إعادة الإسناد",
-      "subtitle": "اقبل أو ارفض طلبات إعادة إسناد الشكاوى المقترحة.",
-      "noResults": "لا توجد طلبات إعادة إسناد معلّقة.",
-      "complaint": "الشكوى",
-      "from": "من",
-      "to": "إلى",
-      "reason": "السبب",
-      "requestedBy": "طلبها",
-      "requestedAt": "تاريخ الطلب",
-      "cannotResolveOwnTarget": "لا يمكنك قبول أو رفض إعادة إسناد تقترحك أنت كموظف جديد — يجب أن يراجعها شخص آخر.",
-      "accept": "قبول",
-      "reject": "رفض",
-      "accepting": "جارٍ القبول...",
-      "rejecting": "جارٍ الرفض..."
-    }
+    "accountRequestsDescription": "طلبات إنشاء حسابات موظفين جديدة بانتظار الموافقة."
   },
   "employees": {
     "title": "الموظفون",
@@ -584,8 +559,7 @@
       "update": "تعديل",
       "delete": "حذف",
       "viewAll": "عرض الكل",
-      "reassign": "إعادة الإسناد",
-      "acceptReassignment": "قبول إعادة الإسناد"
+      "reassign": "إعادة الإسناد"
     },
     "errors": {
       "missing_fields": "يرجى إدخال اسم الدور.",

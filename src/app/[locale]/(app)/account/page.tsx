@@ -13,7 +13,7 @@ import { CRUD_ACTIONS, PERMISSION_RESOURCES, localizedName, type Role } from "@/
 type Section = "profile" | "password" | "permissions";
 
 const ALL_RESOURCES = [...PERMISSION_RESOURCES, "marketing" as const];
-const COMPLAINTS_EXTRA_ACTIONS = ["viewAll", "reassign", "acceptReassignment"] as const;
+const COMPLAINTS_EXTRA_ACTIONS = ["viewAll", "reassign"] as const;
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);

@@ -1,5 +1,4 @@
 import {
-  addDoc,
   arrayUnion,
   collection,
   deleteDoc,
@@ -9,15 +8,21 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   Timestamp,
   updateDoc,
   where,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Complaint, ComplaintHistoryEntry, ComplaintInput, PendingReassignment } from "./types";
+import type { Complaint, ComplaintHistoryEntry, ComplaintInput } from "./types";
 
 const COLLECTION = "complaints";
+// Complaint IDs are sequential integers ("1", "2", "3", ...), not Firestore's
+// default random doc IDs — see createComplaint(). counters/complaints holds
+// the last-issued number; a transaction reads, increments, and uses it as
+// the new doc's ID so concurrent creates never collide.
+const COUNTER_REF = () => doc(db, "counters", "complaints");
 
 function toIso(value: unknown): string {
   if (value instanceof Timestamp) return value.toDate().toISOString();
@@ -47,7 +52,6 @@ function fromDoc(id: string, data: DocumentData): Complaint {
     // rather than throwing.
     history: Array.isArray(data.history) ? (data.history as ComplaintHistoryEntry[]) : [],
     notes: data.notes ?? "",
-    pendingReassignment: (data.pendingReassignment as PendingReassignment | undefined) ?? null,
     createdAt: toIso(data.createdAt),
     updatedAt: toIso(data.updatedAt),
     createdBy: data.createdBy ?? null,
@@ -67,22 +71,6 @@ export function subscribeToComplaints(
   const q = scopeToUid
     ? query(collection(db, COLLECTION), where("assignedTo", "==", scopeToUid), orderBy("createdAt", "desc"))
     : query(collection(db, COLLECTION), orderBy("createdAt", "desc"));
-  return onSnapshot(
-    q,
-    (snap) => callback(snap.docs.map((d) => fromDoc(d.id, d.data()))),
-    onError
-  );
-}
-
-// Only meaningful for a caller with complaints.acceptReassignment (or
-// viewAll) — matches the canReadComplaint() branch in firestore.rules that
-// grants them read access regardless of a complaint's current assignedTo,
-// since they need to review reassignment requests across the whole org.
-export function subscribeToPendingReassignments(
-  callback: (complaints: Complaint[]) => void,
-  onError?: (error: unknown) => void
-) {
-  const q = query(collection(db, COLLECTION), where("pendingReassignment", "!=", null));
   return onSnapshot(
     q,
     (snap) => callback(snap.docs.map((d) => fromDoc(d.id, d.data()))),
@@ -111,15 +99,20 @@ export async function createComplaint(input: ComplaintInput): Promise<string> {
   const initialHistory: ComplaintHistoryEntry[] = [
     { type: "created", status: input.status, at: new Date().toISOString(), byUid: input.createdBy },
   ];
-  const ref = await addDoc(collection(db, COLLECTION), {
-    ...input,
-    history: initialHistory,
-    notes: "",
-    pendingReassignment: null,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+  const newId = await runTransaction(db, async (transaction) => {
+    const counterSnap = await transaction.get(COUNTER_REF());
+    const next = (counterSnap.exists() ? (counterSnap.data().value as number) : 0) + 1;
+    transaction.set(COUNTER_REF(), { value: next });
+    transaction.set(doc(db, COLLECTION, String(next)), {
+      ...input,
+      history: initialHistory,
+      notes: "",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return next;
   });
-  return ref.id;
+  return String(newId);
 }
 
 // `previousStatus` is whatever the caller already has loaded (the complaint
@@ -156,76 +149,25 @@ export async function updateComplaint(
   });
 }
 
-// Reassignment is a two-step, permission-separated flow:
-//  1. requestReassignment() (complaints.reassign) proposes a new assignee —
-//     it only sets `pendingReassignment`, `assignedTo` is untouched.
-//  2. acceptReassignment() or rejectReassignment() (complaints.acceptReassignment)
-//     resolves it — accepting is the point `assignedTo` actually changes.
-// Each step logs its own history entry so the full trail (who proposed it,
-// why, and who approved/rejected it) is visible on the complaint.
-
-export async function requestReassignment(
+// Reassignment is direct — complaints.reassign moves the complaint
+// immediately, logging one "reassigned" history entry with who did it and
+// why. (There used to be a separate propose/approve flow; it's been
+// removed — see the legacy history types in types.ts.)
+export async function reassignComplaint(
   id: string,
   assignedTo: string | null,
   previousAssignedTo: string | null,
   byUid: string | null,
   reason: string
 ): Promise<void> {
-  const pending: PendingReassignment = {
-    assignedTo,
-    reason,
-    requestedBy: byUid,
-    requestedAt: new Date().toISOString(),
-  };
   await updateDoc(doc(db, COLLECTION, id), {
-    pendingReassignment: pending,
+    assignedTo,
     updatedAt: serverTimestamp(),
     history: arrayUnion({
-      type: "reassignRequested",
+      type: "reassigned",
       assignedTo,
       previousAssignedTo,
       reason,
-      at: new Date().toISOString(),
-      byUid,
-    }),
-  });
-}
-
-export async function acceptReassignment(
-  id: string,
-  pending: PendingReassignment,
-  currentAssignedTo: string | null,
-  byUid: string | null
-): Promise<void> {
-  await updateDoc(doc(db, COLLECTION, id), {
-    assignedTo: pending.assignedTo,
-    pendingReassignment: null,
-    updatedAt: serverTimestamp(),
-    history: arrayUnion({
-      type: "reassignAccepted",
-      assignedTo: pending.assignedTo,
-      previousAssignedTo: currentAssignedTo,
-      reason: pending.reason,
-      at: new Date().toISOString(),
-      byUid,
-    }),
-  });
-}
-
-export async function rejectReassignment(
-  id: string,
-  pending: PendingReassignment,
-  currentAssignedTo: string | null,
-  byUid: string | null
-): Promise<void> {
-  await updateDoc(doc(db, COLLECTION, id), {
-    pendingReassignment: null,
-    updatedAt: serverTimestamp(),
-    history: arrayUnion({
-      type: "reassignRejected",
-      assignedTo: pending.assignedTo,
-      previousAssignedTo: currentAssignedTo,
-      reason: pending.reason,
       at: new Date().toISOString(),
       byUid,
     }),

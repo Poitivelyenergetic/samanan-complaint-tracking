@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { subscribeToPendingReassignments } from "@/lib/complaints";
 import { subscribeToPendingSignupRequests } from "@/lib/signupRequests";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission } from "@/lib/types";
@@ -44,28 +43,21 @@ export default function RequestsHubPage() {
   const { profile, loading } = useAuth();
 
   const canReviewAccountRequests = hasPermission(profile, "employees", "update");
-  const canReviewReassignmentRequests = hasPermission(profile, "complaints", "acceptReassignment");
-  const canViewRequests = canReviewAccountRequests || canReviewReassignmentRequests;
 
   const [pendingAccountRequests, setPendingAccountRequests] = useState(0);
-  const [pendingReassignmentRequests, setPendingReassignmentRequests] = useState(0);
 
   useEffect(() => {
     if (!canReviewAccountRequests) return;
     return subscribeToPendingSignupRequests((requests) => setPendingAccountRequests(requests.length));
   }, [canReviewAccountRequests]);
-  useEffect(() => {
-    if (!canReviewReassignmentRequests) return;
-    return subscribeToPendingReassignments((complaints) => setPendingReassignmentRequests(complaints.length));
-  }, [canReviewReassignmentRequests]);
 
   useEffect(() => {
-    if (!loading && profile && !canViewRequests) {
+    if (!loading && profile && !canReviewAccountRequests) {
       router.replace("/dashboard");
     }
-  }, [loading, profile, canViewRequests, router]);
+  }, [loading, profile, canReviewAccountRequests, router]);
 
-  if (loading || !profile || !canViewRequests) {
+  if (loading || !profile || !canReviewAccountRequests) {
     return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
   }
 
@@ -75,22 +67,12 @@ export default function RequestsHubPage() {
       <p className="mt-0.5 text-sm text-foreground/60">{t("subtitle")}</p>
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {canReviewAccountRequests && (
-          <RequestTypeCard
-            href="/employees/requests"
-            title={t("accountRequests")}
-            description={t("accountRequestsDescription")}
-            count={pendingAccountRequests}
-          />
-        )}
-        {canReviewReassignmentRequests && (
-          <RequestTypeCard
-            href="/requests/reassignments"
-            title={t("reassignmentRequests")}
-            description={t("reassignmentRequestsDescription")}
-            count={pendingReassignmentRequests}
-          />
-        )}
+        <RequestTypeCard
+          href="/employees/requests"
+          title={t("accountRequests")}
+          description={t("accountRequestsDescription")}
+          count={pendingAccountRequests}
+        />
       </div>
     </div>
   );

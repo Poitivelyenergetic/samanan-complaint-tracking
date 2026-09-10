@@ -5,6 +5,8 @@
     "loading": "Loading...",
     "save": "Save",
     "saving": "Saving...",
+    "autosaving": "Saving changes...",
+    "autosaved": "All changes saved.",
     "cancel": "Cancel",
     "edit": "Edit",
     "delete": "Delete",
@@ -142,8 +144,7 @@
   "notifications": {
     "title": "Notifications",
     "empty": "You're all caught up.",
-    "accountRequestTitle": "New account request: {name}",
-    "reassignmentRequestTitle": "Reassignment requested: {subject}"
+    "accountRequestTitle": "New account request: {name}"
   },
   "dashboard": {
     "title": "Complaints",
@@ -217,25 +218,17 @@
       "notesPlaceholder": "Jot down anything worth remembering about this complaint...",
       "saveNote": "Save Note",
       "savingNote": "Saving...",
-      "noteSaved": "Saved.",
-      "pendingReassignment": "Pending Reassignment",
-      "pendingReassignmentTo": "Proposed assignee: {to}",
-      "pendingReassignmentBy": "Requested by {by}",
-      "cannotResolveOwnTarget": "You can't accept or reject a reassignment proposing you as the new assignee — it needs review from someone else.",
-      "accept": "Accept",
-      "reject": "Reject",
-      "accepting": "Accepting...",
-      "rejecting": "Rejecting..."
+      "noteSaved": "Saved."
     },
     "reassign": {
       "title": "Reassign Complaint",
-      "subtitle": "Choose who this should go to and explain why. The complaint won't move until the request is accepted.",
+      "subtitle": "Choose who this should go to and explain why.",
       "assignToLabel": "Reassign To",
       "reasonLabel": "Reason for reassignment",
-      "reasonPlaceholder": "Why should this complaint be reassigned?",
+      "reasonPlaceholder": "Why is this complaint being reassigned?",
       "reasonRequired": "Please explain why this complaint is being reassigned.",
-      "submit": "Submit Request",
-      "submitting": "Submitting..."
+      "submit": "Reassign",
+      "submitting": "Reassigning..."
     }
   },
   "staffSignup": {
@@ -351,25 +344,7 @@
     "subtitle": "Review pending requests that need your action.",
     "noAccess": "You don't have access to any request types.",
     "accountRequests": "Account Requests",
-    "accountRequestsDescription": "New staff account signups waiting for approval.",
-    "reassignmentRequests": "Reassignment Requests",
-    "reassignmentRequestsDescription": "Proposed complaint reassignments waiting for approval.",
-    "reassignments": {
-      "title": "Reassignment Requests",
-      "subtitle": "Accept or reject proposed complaint reassignments.",
-      "noResults": "No pending reassignment requests.",
-      "complaint": "Complaint",
-      "from": "From",
-      "to": "To",
-      "reason": "Reason",
-      "requestedBy": "Requested by",
-      "requestedAt": "Requested at",
-      "cannotResolveOwnTarget": "You can't accept or reject a reassignment proposing you as the new assignee — it needs review from someone else.",
-      "accept": "Accept",
-      "reject": "Reject",
-      "accepting": "Accepting...",
-      "rejecting": "Rejecting..."
-    }
+    "accountRequestsDescription": "New staff account signups waiting for approval."
   },
   "employees": {
     "title": "Employees",
@@ -584,8 +559,7 @@
       "update": "Update",
       "delete": "Delete",
       "viewAll": "View All",
-      "reassign": "Reassign",
-      "acceptReassignment": "Accept Reassignment"
+      "reassign": "Reassign"
     },
     "errors": {
       "missing_fields": "Please enter a role name.",
