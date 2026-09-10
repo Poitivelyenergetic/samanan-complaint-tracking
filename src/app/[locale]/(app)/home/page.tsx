@@ -60,11 +60,39 @@ const STATUS_ICONS: Record<ComplaintStatus, React.ReactNode> = {
 
 type DateFilter = "all" | "today" | "7d" | "30d" | "month";
 
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+// Recharts' <Tooltip> renders unstyled by default (a plain white box,
+// regardless of the app's theme) — these give it the same surface/border/
+// text tokens as the rest of the app so it doesn't look out of place in
+// dark mode. var(--*) resolves against whichever theme is active, same as
+// the stroke="var(--foreground)" pattern already used on the axes below.
+const TOOLTIP_CONTENT_STYLE: React.CSSProperties = {
+  backgroundColor: "var(--surface)",
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+  color: "var(--foreground)",
+  fontSize: 12,
+  padding: "8px 12px",
+  boxShadow: "0 4px 16px rgba(0,0,0,0.16)",
+};
+const TOOLTIP_LABEL_STYLE: React.CSSProperties = { color: "var(--foreground)", fontWeight: 600, marginBottom: 4 };
+const TOOLTIP_ITEM_STYLE: React.CSSProperties = { color: "var(--foreground)" };
+// The default hover cursor on bar charts is a harsh solid gray rectangle —
+// tone it down to a faint themed highlight instead.
+const BAR_CURSOR = { fill: "var(--border)", opacity: 0.4 };
+
+function ChartCard({
+  title,
+  large = false,
+  children,
+}: {
+  title: string;
+  large?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <div className="rounded-xl border border-border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md">
       <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-      <div className="mt-4 h-64">{children}</div>
+      <div className={large ? "mt-4 h-80" : "mt-4 h-56"}>{children}</div>
     </div>
   );
 }
@@ -279,75 +307,100 @@ export default function HomePage() {
             ))}
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <ChartCard title={t("statusBreakdown")}>
-              {statusPieData.length === 0 ? (
-                <EmptyChart text={t("noData")} />
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={statusPieData}
-                      dataKey="count"
-                      nameKey="label"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={80}
-                      isAnimationActive={false}
-                      label={({ name, percent }) => `${name} ${Math.round((percent ?? 0) * 100)}%`}
-                      labelLine={false}
-                    >
-                      {statusPieData.map((row) => (
-                        <Cell key={row.status} fill={STATUS_COLORS[row.status]} stroke="none" />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend verticalAlign="bottom" height={36} />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </ChartCard>
+          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <ChartCard title={t("statusBreakdown")} large>
+                {statusPieData.length === 0 ? (
+                  <EmptyChart text={t("noData")} />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={statusPieData}
+                        dataKey="count"
+                        nameKey="label"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        isAnimationActive={false}
+                        label={({ name, percent }) => `${name} ${Math.round((percent ?? 0) * 100)}%`}
+                        labelLine={false}
+                      >
+                        {statusPieData.map((row) => (
+                          <Cell key={row.status} fill={STATUS_COLORS[row.status]} stroke="none" />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={TOOLTIP_CONTENT_STYLE}
+                        labelStyle={TOOLTIP_LABEL_STYLE}
+                        itemStyle={TOOLTIP_ITEM_STYLE}
+                      />
+                      <Legend verticalAlign="bottom" height={36} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </ChartCard>
+            </div>
 
-            <ChartCard title={t("categoryBreakdown")}>
-              {categoryData.length === 0 ? (
-                <EmptyChart text={t("noData")} />
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={categoryData} layout="vertical" margin={{ left: 8, right: 16 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                    <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
-                    <YAxis type="category" dataKey="label" width={110} stroke="var(--foreground)" opacity={0.7} fontSize={12} />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#385bc1" radius={[0, 4, 4, 0]} isAnimationActive={false} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </ChartCard>
+            <div className="space-y-4">
+              <ChartCard title={t("categoryBreakdown")}>
+                {categoryData.length === 0 ? (
+                  <EmptyChart text={t("noData")} />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={categoryData} layout="vertical" margin={{ left: 8, right: 16 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                      <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
+                      <YAxis type="category" dataKey="label" width={90} stroke="var(--foreground)" opacity={0.7} fontSize={11} />
+                      <Tooltip
+                        contentStyle={TOOLTIP_CONTENT_STYLE}
+                        labelStyle={TOOLTIP_LABEL_STYLE}
+                        itemStyle={TOOLTIP_ITEM_STYLE}
+                        cursor={BAR_CURSOR}
+                      />
+                      <Bar dataKey="count" fill="#385bc1" radius={[0, 4, 4, 0]} isAnimationActive={false} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </ChartCard>
 
-            <ChartCard title={t("sourceBreakdown")}>
-              {sourceData.length === 0 ? (
-                <EmptyChart text={t("noData")} />
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={sourceData} layout="vertical" margin={{ left: 8, right: 16 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                    <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
-                    <YAxis type="category" dataKey="label" width={110} stroke="var(--foreground)" opacity={0.7} fontSize={12} />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#22c55e" radius={[0, 4, 4, 0]} isAnimationActive={false} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </ChartCard>
+              <ChartCard title={t("sourceBreakdown")}>
+                {sourceData.length === 0 ? (
+                  <EmptyChart text={t("noData")} />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={sourceData} layout="vertical" margin={{ left: 8, right: 16 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                      <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
+                      <YAxis type="category" dataKey="label" width={90} stroke="var(--foreground)" opacity={0.7} fontSize={11} />
+                      <Tooltip
+                        contentStyle={TOOLTIP_CONTENT_STYLE}
+                        labelStyle={TOOLTIP_LABEL_STYLE}
+                        itemStyle={TOOLTIP_ITEM_STYLE}
+                        cursor={BAR_CURSOR}
+                      />
+                      <Bar dataKey="count" fill="#22c55e" radius={[0, 4, 4, 0]} isAnimationActive={false} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </ChartCard>
+            </div>
+          </div>
 
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ChartCard title={t("trend")}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={trendData} margin={{ left: -16, right: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="label" stroke="var(--foreground)" opacity={0.5} fontSize={11} />
                   <YAxis allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
-                  <Tooltip />
+                  <Tooltip
+                    contentStyle={TOOLTIP_CONTENT_STYLE}
+                    labelStyle={TOOLTIP_LABEL_STYLE}
+                    itemStyle={TOOLTIP_ITEM_STYLE}
+                    cursor={{ stroke: "var(--border)" }}
+                  />
                   <Line type="monotone" dataKey="count" stroke="#385bc1" strokeWidth={2} dot={false} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -363,7 +416,12 @@ export default function HomePage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                       <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
                       <YAxis type="category" dataKey="name" width={110} stroke="var(--foreground)" opacity={0.7} fontSize={12} />
-                      <Tooltip />
+                      <Tooltip
+                        contentStyle={TOOLTIP_CONTENT_STYLE}
+                        labelStyle={TOOLTIP_LABEL_STYLE}
+                        itemStyle={TOOLTIP_ITEM_STYLE}
+                        cursor={BAR_CURSOR}
+                      />
                       <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} isAnimationActive={false} />
                     </BarChart>
                   </ResponsiveContainer>
