@@ -56,10 +56,15 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div
-      className="rounded-xl border border-border bg-surface p-4 shadow-sm"
-      style={{ borderInlineStartWidth: 4, borderInlineStartColor: color }}
+      className="rounded-xl border p-4 shadow-sm"
+      style={{
+        backgroundColor: `${color}1f`,
+        borderColor: `${color}40`,
+        borderInlineStartWidth: 4,
+        borderInlineStartColor: color,
+      }}
     >
-      <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-foreground/70">{label}</p>
       <p className="mt-1.5 text-3xl font-bold" style={{ color }}>
         {value}
       </p>
