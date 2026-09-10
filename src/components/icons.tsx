@@ -183,15 +183,14 @@ export function IconTrendingUp(props: IconProps) {
 }
 
 export function IconGear(props: IconProps) {
+  const teeth = [0, 45, 90, 135, 180, 225, 270, 315];
   return (
     <Base {...props}>
-      <circle cx="10" cy="10" r="2.6" stroke="currentColor" strokeWidth="1.5" />
-      <path
-        d="M10 3.5v1.7M10 14.8v1.7M16.5 10h-1.7M5.2 10H3.5M14.6 5.4l-1.2 1.2M6.6 13.4l-1.2 1.2M14.6 14.6l-1.2-1.2M6.6 6.6 5.4 5.4"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
+      {teeth.map((angle) => (
+        <rect key={angle} x="9.15" y="1.2" width="1.7" height="3" rx="0.4" fill="currentColor" transform={`rotate(${angle} 10 10)`} />
+      ))}
+      <circle cx="10" cy="10" r="5.6" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="10" cy="10" r="2" stroke="currentColor" strokeWidth="1.5" />
     </Base>
   );
 }

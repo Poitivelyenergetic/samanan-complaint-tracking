@@ -107,7 +107,7 @@ function NavGroup({
         className="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-sm font-bold text-brand transition-colors hover:bg-white/5"
       >
         <span className="flex items-center gap-3">
-          {icon}
+          <span className={`flex shrink-0 transition-transform duration-200 ${open ? "rotate-90" : ""}`}>{icon}</span>
           {label}
         </span>
         <IconChevronDown className={`shrink-0 transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
