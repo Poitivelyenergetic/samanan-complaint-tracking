@@ -77,6 +77,22 @@ export function subscribeToComplaints(
   );
 }
 
+// Only meaningful for a caller with complaints.acceptReassignment (or
+// viewAll) — matches the canReadComplaint() branch in firestore.rules that
+// grants them read access regardless of a complaint's current assignedTo,
+// since they need to review reassignment requests across the whole org.
+export function subscribeToPendingReassignments(
+  callback: (complaints: Complaint[]) => void,
+  onError?: (error: unknown) => void
+) {
+  const q = query(collection(db, COLLECTION), where("pendingReassignment", "!=", null));
+  return onSnapshot(
+    q,
+    (snap) => callback(snap.docs.map((d) => fromDoc(d.id, d.data()))),
+    onError
+  );
+}
+
 export function subscribeToComplaint(
   id: string,
   callback: (complaint: Complaint | null) => void,

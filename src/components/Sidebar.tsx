@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { useAuth } from "@/lib/auth-context";
+import { subscribeToPendingSignupRequests } from "@/lib/signupRequests";
+import { subscribeToPendingReassignments } from "@/lib/complaints";
 import { hasPermission, localizedName, type PermissionResource } from "@/lib/types";
 
 const SETTINGS_ITEMS: { href: string; key: string; resource: PermissionResource }[] = [
@@ -48,6 +50,22 @@ function SidebarContents({ onNavigate }: { onNavigate?: () => void }) {
   const canViewAllComplaints = hasPermission(profile, "complaints", "viewAll");
   const canCreateComplaints = hasPermission(profile, "complaints", "create");
   const canAccessMarketing = hasPermission(profile, "marketing", "view");
+  const canReviewAccountRequests = hasPermission(profile, "employees", "update");
+  const canReviewReassignmentRequests = hasPermission(profile, "complaints", "acceptReassignment");
+  const canViewRequests = canReviewAccountRequests || canReviewReassignmentRequests;
+
+  const [pendingAccountRequests, setPendingAccountRequests] = useState(0);
+  const [pendingReassignmentRequests, setPendingReassignmentRequests] = useState(0);
+  const pendingRequestsCount = pendingAccountRequests + pendingReassignmentRequests;
+
+  useEffect(() => {
+    if (!canReviewAccountRequests) return;
+    return subscribeToPendingSignupRequests((requests) => setPendingAccountRequests(requests.length));
+  }, [canReviewAccountRequests]);
+  useEffect(() => {
+    if (!canReviewReassignmentRequests) return;
+    return subscribeToPendingReassignments((complaints) => setPendingReassignmentRequests(complaints.length));
+  }, [canReviewReassignmentRequests]);
 
   return (
     <div className="flex h-full flex-col bg-[#1f2430] text-[#aab2c5]">
@@ -72,9 +90,9 @@ function SidebarContents({ onNavigate }: { onNavigate?: () => void }) {
           <SidebarLink href="/marketing" label={t("marketing")} active={isActive("/marketing")} onNavigate={onNavigate} />
         )}
 
-        {visibleSettingsItems.length > 0 && (
+        {(visibleSettingsItems.length > 0 || canViewRequests) && (
           <div className="pt-3">
-            <p className="px-3 text-xs font-bold text-[#6b7284]">{t("settings")}</p>
+            <p className="px-3 text-xs font-bold text-brand">{t("settings")}</p>
             <div className="mt-1 space-y-1">
               {visibleSettingsItems.map((item) => (
                 <SidebarLink
@@ -85,6 +103,22 @@ function SidebarContents({ onNavigate }: { onNavigate?: () => void }) {
                   onNavigate={onNavigate}
                 />
               ))}
+              {canViewRequests && (
+                <Link
+                  href="/requests"
+                  onClick={onNavigate}
+                  className={`flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive("/requests") ? "bg-brand text-brand-foreground" : "text-[#aab2c5] hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  {t("requests")}
+                  {pendingRequestsCount > 0 && (
+                    <span className="ms-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/20 px-1 text-xs font-semibold text-white">
+                      {pendingRequestsCount}
+                    </span>
+                  )}
+                </Link>
+              )}
             </div>
           </div>
         )}

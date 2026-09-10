@@ -32,6 +32,7 @@
     "departments": "Departments",
     "employees": "Employees",
     "roles": "Roles & Permissions",
+    "requests": "Requests",
     "logout": "Log out",
     "signedInAs": "Signed in as"
   },
@@ -205,6 +206,30 @@
     "title": "Marketing",
     "subtitle": "Marketing tools and campaigns",
     "comingSoon": "Coming soon. This section is a placeholder for future marketing features."
+  },
+  "requests": {
+    "title": "Requests",
+    "subtitle": "Review pending requests that need your action.",
+    "noAccess": "You don't have access to any request types.",
+    "accountRequests": "Account Requests",
+    "accountRequestsDescription": "New staff account signups waiting for approval.",
+    "reassignmentRequests": "Reassignment Requests",
+    "reassignmentRequestsDescription": "Proposed complaint reassignments waiting for approval.",
+    "reassignments": {
+      "title": "Reassignment Requests",
+      "subtitle": "Accept or reject proposed complaint reassignments.",
+      "noResults": "No pending reassignment requests.",
+      "complaint": "Complaint",
+      "from": "From",
+      "to": "To",
+      "reason": "Reason",
+      "requestedBy": "Requested by",
+      "requestedAt": "Requested at",
+      "accept": "Accept",
+      "reject": "Reject",
+      "accepting": "Accepting...",
+      "rejecting": "Rejecting..."
+    }
   },
   "employees": {
     "title": "Employees",

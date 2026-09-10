@@ -107,9 +107,13 @@ service cloud.firestore {
     // currently assigned to them. `list` queries are validated against the
     // query shape, not fetched-then-filtered — the client must query with a
     // matching where("assignedTo","==",uid) clause, or Firestore denies the
-    // whole request rather than silently returning a subset.
+    // whole request rather than silently returning a subset. Someone who
+    // can approve reassignments also gets viewAll-equivalent read access —
+    // reviewing a request (and the Requests hub's reassignment list) needs
+    // to see complaints regardless of who they're currently assigned to.
     function canReadComplaint() {
       return hasPermission("complaints", "viewAll")
+        || hasPermission("complaints", "acceptReassignment")
         || (hasPermission("complaints", "view") && resource.data.assignedTo == request.auth.uid);
     }
 
