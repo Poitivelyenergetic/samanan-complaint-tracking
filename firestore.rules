@@ -78,6 +78,15 @@ service cloud.firestore {
       return affected.hasOnly(["assignedTo", "updatedAt", "history"]);
     }
 
+    // The Notes scratchpad is deliberately available to anyone who can see
+    // the complaint (view-only staff included) — it isn't part of the
+    // formal edit form or history log, just a place to jot something down
+    // about a complaint they're handling.
+    function isNotesOnlyWrite() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return affected.hasOnly(["notes", "updatedAt"]);
+    }
+
     // Without complaints.viewAll, a staff member only sees complaints
     // currently assigned to them. `list` queries are validated against the
     // query shape, not fetched-then-filtered — the client must query with a
@@ -92,7 +101,8 @@ service cloud.firestore {
       allow get: if canReadComplaint();
       allow list: if canReadComplaint();
       allow update: if hasPermission("complaints", "update")
-        || (hasPermission("complaints", "reassign") && isReassignOnlyWrite());
+        || (hasPermission("complaints", "reassign") && isReassignOnlyWrite())
+        || (canReadComplaint() && isNotesOnlyWrite());
       allow delete: if hasPermission("complaints", "delete");
       allow create: if isSignedIn() && hasPermission("complaints", "create") && isSelfCreatedComplaint();
     }

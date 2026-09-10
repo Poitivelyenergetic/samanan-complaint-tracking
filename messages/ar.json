@@ -151,7 +151,23 @@
       "historyCreated": "تم فتحها بالحالة \"{status}\"",
       "historyStatus": "تم تغيير الحالة من \"{previousStatus}\" إلى \"{status}\"",
       "historyReassigned": "تمت إعادة الإسناد من {from} إلى {to}",
-      "historyActorPublic": "عام"
+      "historyReassignedReason": "السبب: {reason}",
+      "historyActorPublic": "عام",
+      "notes": "ملاحظات",
+      "notesPlaceholder": "دوّن أي شيء يستحق التذكر بخصوص هذه الشكوى...",
+      "saveNote": "حفظ الملاحظة",
+      "savingNote": "جارٍ الحفظ...",
+      "noteSaved": "تم الحفظ."
+    },
+    "reassign": {
+      "title": "إعادة إسناد الشكوى",
+      "subtitle": "اختر الجهة التي ستُسند إليها هذه الشكوى واذكر السبب.",
+      "assignToLabel": "إعادة الإسناد إلى",
+      "reasonLabel": "سبب إعادة الإسناد",
+      "reasonPlaceholder": "لماذا يجب إعادة إسناد هذه الشكوى؟",
+      "reasonRequired": "يرجى توضيح سبب إعادة إسناد هذه الشكوى.",
+      "submit": "إعادة الإسناد",
+      "submitting": "جارٍ إعادة الإسناد..."
     }
   },
   "staffSignup": {

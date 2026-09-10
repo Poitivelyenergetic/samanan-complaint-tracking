@@ -151,7 +151,23 @@
       "historyCreated": "Opened with status \"{status}\"",
       "historyStatus": "Status changed from \"{previousStatus}\" to \"{status}\"",
       "historyReassigned": "Reassigned from {from} to {to}",
-      "historyActorPublic": "Public"
+      "historyReassignedReason": "Reason: {reason}",
+      "historyActorPublic": "Public",
+      "notes": "Notes",
+      "notesPlaceholder": "Jot down anything worth remembering about this complaint...",
+      "saveNote": "Save Note",
+      "savingNote": "Saving...",
+      "noteSaved": "Saved."
+    },
+    "reassign": {
+      "title": "Reassign Complaint",
+      "subtitle": "Choose who this should go to and explain why.",
+      "assignToLabel": "Reassign To",
+      "reasonLabel": "Reason for reassignment",
+      "reasonPlaceholder": "Why should this complaint be reassigned?",
+      "reasonRequired": "Please explain why this complaint is being reassigned.",
+      "submit": "Reassign",
+      "submitting": "Reassigning..."
     }
   },
   "staffSignup": {

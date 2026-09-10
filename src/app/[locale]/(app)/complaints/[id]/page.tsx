@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { useLocale, useTranslations, useFormatter } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { deleteComplaint, reassignComplaint, subscribeToComplaint, updateComplaint } from "@/lib/complaints";
+import { deleteComplaint, subscribeToComplaint, updateComplaint, updateComplaintNotes } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, localizedName, type Complaint, type ComplaintInput, type StaffUser } from "@/lib/types";
@@ -26,8 +26,9 @@ export default function ComplaintDetailPage({
   const [complaint, setComplaint] = useState<Complaint | null | undefined>(undefined);
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [deleting, setDeleting] = useState(false);
-  const [reassignTo, setReassignTo] = useState("");
-  const [reassigning, setReassigning] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
 
   // Without complaints.update, an account gets a read-only view. Default to
   // read-only (rather than editable) if the profile hasn't loaded yet,
@@ -46,18 +47,22 @@ export default function ComplaintDetailPage({
     [id]
   );
   useEffect(() => subscribeToStaff(setStaff), []);
+  useEffect(() => {
+    if (complaint) Promise.resolve().then(() => setNotes(complaint.notes));
+  }, [complaint]);
 
   async function handleSubmit(values: ComplaintInput) {
     await updateComplaint(id, values, complaint?.status ?? null, user?.uid ?? null);
   }
 
-  async function handleReassign() {
-    setReassigning(true);
+  async function handleSaveNotes() {
+    setSavingNotes(true);
+    setNotesSaved(false);
     try {
-      await reassignComplaint(id, reassignTo || null, complaint?.assignedTo ?? null, user?.uid ?? null);
-      setReassignTo("");
+      await updateComplaintNotes(id, notes);
+      setNotesSaved(true);
     } finally {
-      setReassigning(false);
+      setSavingNotes(false);
     }
   }
 
@@ -125,28 +130,12 @@ export default function ComplaintDetailPage({
             </p>
           </div>
           {canReassign && (
-            <div className="flex items-center gap-2">
-              <select
-                value={reassignTo}
-                onChange={(e) => setReassignTo(e.target.value)}
-                className="rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-              >
-                <option value="">{tCommon("unassigned")}</option>
-                {staff.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {localizedName(member, locale)}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={handleReassign}
-                disabled={reassigning}
-                className="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-brand-foreground hover:opacity-90 disabled:opacity-60"
-              >
-                {t("reassign")}
-              </button>
-            </div>
+            <Link
+              href={`/complaints/${id}/reassign`}
+              className="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-brand-foreground hover:opacity-90"
+            >
+              {t("reassign")}
+            </Link>
           )}
         </div>
 
@@ -175,6 +164,31 @@ export default function ComplaintDetailPage({
           readOnly={!canEdit}
           hideAssignedTo
         />
+      </div>
+
+      <div className="mt-6 rounded-lg border border-border bg-surface p-6">
+        <h2 className="text-sm font-semibold text-foreground">{t("notes")}</h2>
+        <textarea
+          rows={4}
+          value={notes}
+          onChange={(e) => {
+            setNotes(e.target.value);
+            setNotesSaved(false);
+          }}
+          placeholder={t("notesPlaceholder")}
+          className="mt-3 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+        />
+        <div className="mt-2 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleSaveNotes}
+            disabled={savingNotes || notes === complaint.notes}
+            className="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-brand-foreground hover:opacity-90 disabled:opacity-60"
+          >
+            {savingNotes ? t("savingNote") : t("saveNote")}
+          </button>
+          {notesSaved && <span className="text-xs text-foreground/50">{t("noteSaved")}</span>}
+        </div>
       </div>
 
       {complaint.history.length > 0 && (
@@ -206,6 +220,9 @@ export default function ComplaintDetailPage({
                           to: assigneeName(entry.assignedTo),
                         })}
                     </p>
+                    {entry.type === "reassigned" && entry.reason && (
+                      <p className="text-foreground/60">{t("historyReassignedReason", { reason: entry.reason })}</p>
+                    )}
                     <p className="text-xs text-foreground/50">
                       {actorName} ·{" "}
                       {format.dateTime(new Date(entry.at), { dateStyle: "medium", timeStyle: "short" })}

@@ -49,6 +49,7 @@ function fromDoc(id: string, data: DocumentData): Complaint {
     // Complaints predating history tracking have none — treat as empty
     // rather than throwing.
     history: Array.isArray(data.history) ? (data.history as ComplaintHistoryEntry[]) : [],
+    notes: data.notes ?? "",
     createdAt: toIso(data.createdAt),
     updatedAt: toIso(data.updatedAt),
     createdBy: data.createdBy ?? null,
@@ -99,6 +100,7 @@ export async function createComplaint(input: ComplaintInput): Promise<string> {
   const ref = await addDoc(collection(db, COLLECTION), {
     ...input,
     history: initialHistory,
+    notes: "",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -137,14 +139,16 @@ export async function updateComplaint(
 
 // The dedicated Reassign action — separate from updateComplaint so that
 // reassigning always logs a "reassigned" history entry (recording both who
-// it came from and who it went to), and so the complaints.reassign
-// permission gate has one clear call site. `previousAssignedTo` is whatever
-// the caller already has loaded (the complaint being reassigned).
+// it came from and who it went to, plus the required reason), and so the
+// complaints.reassign permission gate has one clear call site.
+// `previousAssignedTo` is whatever the caller already has loaded (the
+// complaint being reassigned).
 export async function reassignComplaint(
   id: string,
   assignedTo: string | null,
   previousAssignedTo: string | null,
-  byUid: string | null
+  byUid: string | null,
+  reason: string
 ): Promise<void> {
   await updateDoc(doc(db, COLLECTION, id), {
     assignedTo,
@@ -153,9 +157,22 @@ export async function reassignComplaint(
       type: "reassigned",
       assignedTo,
       previousAssignedTo,
+      reason,
       at: new Date().toISOString(),
       byUid,
     }),
+  });
+}
+
+// A lightweight scratchpad field, separate from the formal edit form and
+// history log — saving a note only requires complaints.view (or viewAll),
+// not complaints.update, since it's meant to be usable by any staff member
+// working a complaint even if they can't otherwise edit it. See
+// isNotesOnlyWrite() in firestore.rules.
+export async function updateComplaintNotes(id: string, notes: string): Promise<void> {
+  await updateDoc(doc(db, COLLECTION, id), {
+    notes,
+    updatedAt: serverTimestamp(),
   });
 }
 

@@ -328,6 +328,7 @@ export interface ComplaintHistoryEntry {
   previousStatus?: ComplaintStatus; // set when type === "status" — the status it changed from
   assignedTo?: string | null; // set when type === "reassigned" — the new assignee
   previousAssignedTo?: string | null; // set when type === "reassigned" — who it was reassigned from
+  reason?: string; // set when type === "reassigned" — why the complaint was reassigned
   at: string; // ISO string (client clock — Firestore's arrayUnion can't hold serverTimestamp() inside array elements)
   // Firebase Auth UID of the staff member who performed the action, or null
   // for a public complaint's own initial "created" entry (nothing else in
@@ -352,6 +353,7 @@ export interface Complaint {
   assignedTo: string | null; // Firestore UID of staff, or null if unassigned
   status: ComplaintStatus;
   history: ComplaintHistoryEntry[];
+  notes: string; // free-text scratchpad for staff working the complaint — not part of the formal history log
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
   createdBy: string | null; // UID of staff who created it, null for public submissions
@@ -359,7 +361,7 @@ export interface Complaint {
 
 export type ComplaintInput = Omit<
   Complaint,
-  "id" | "createdAt" | "updatedAt" | "history"
+  "id" | "createdAt" | "updatedAt" | "history" | "notes"
 >;
 
 export type SignupRequestStatus = "pending" | "approved" | "rejected";
