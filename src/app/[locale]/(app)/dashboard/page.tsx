@@ -241,7 +241,7 @@ export default function DashboardPage() {
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard
             icon={<IconClipboardList />}
-            color="#385bc1"
+            color="#475569"
             label={t("stats.total")}
             value={visibleComplaints.length}
             active={statusFilter === ""}
@@ -249,7 +249,7 @@ export default function DashboardPage() {
           />
           <StatCard
             icon={<IconInbox />}
-            color="#4f7fe0"
+            color="#3b82f6"
             label={t("stats.open")}
             value={statusCounts.Open}
             active={statusFilter === "Open"}

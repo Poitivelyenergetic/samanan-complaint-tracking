@@ -52,15 +52,17 @@ import {
   IconXCircle,
 } from "@/components/icons";
 
-// A cohesive palette anchored on the app's brand blue (#385bc1) — shades of
-// blue/teal for the two blue-family statuses, plus two deliberate accent
-// colors (amber for "in progress", green for "done") and a neutral gray for
-// the non-outcome status, rather than a grab-bag of unrelated hues.
+// Each status gets its own distinct, intuitive hue — blue for "open",
+// violet for "assigned to someone", amber for "in progress", red for
+// "cancelled", green for "done". An earlier version kept Open/Assigned both
+// in the blue family for a "cohesive" look, but that made them (and the
+// Total stat card) read as the same color at a glance in the small stat-card
+// icons — distinctness matters more there than a shared palette.
 const STATUS_COLORS: Record<ComplaintStatus, string> = {
-  Open: "#4f7fe0",
-  Assigned: "#2d4a9e",
+  Open: "#3b82f6",
+  Assigned: "#7c3aed",
   Processing: "#d97706",
-  Cancel: "#64748b",
+  Cancel: "#dc2626",
   Closed: "#16a34a",
 };
 
@@ -541,7 +543,7 @@ export default function HomePage() {
                 icon={<IconClipboardList />}
                 label={t("totalTickets")}
                 value={list.length}
-                color="#385bc1"
+                color="#475569"
                 href="/dashboard"
               />
             </Reveal>
