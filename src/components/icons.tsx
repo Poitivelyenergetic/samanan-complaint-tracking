@@ -207,14 +207,42 @@ export function IconBroadcast(props: IconProps) {
 }
 
 export function IconGear(props: IconProps) {
-  const teeth = [0, 45, 90, 135, 180, 225, 270, 315];
+  // Six wide, chunky teeth read as an actual gear at small sizes — the
+  // previous version's eight thin ones looked more like tick marks.
+  const teeth = [0, 60, 120, 180, 240, 300];
   return (
     <Base {...props}>
       {teeth.map((angle) => (
-        <rect key={angle} x="9.15" y="1.2" width="1.7" height="3" rx="0.4" fill="currentColor" transform={`rotate(${angle} 10 10)`} />
+        <rect key={angle} x="8.85" y="0.85" width="2.3" height="3.3" rx="0.7" fill="currentColor" transform={`rotate(${angle} 10 10)`} />
       ))}
-      <circle cx="10" cy="10" r="5.6" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="10" cy="10" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="10" cy="10" r="5.3" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="10" cy="10" r="2.1" stroke="currentColor" strokeWidth="1.6" />
+    </Base>
+  );
+}
+
+// A distinct "in progress" symbol — deliberately not the gear, which is
+// reserved for Settings elsewhere in the app and would otherwise read as
+// the same icon meaning two different things.
+export function IconRefreshCw(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path
+        d="M16 6.5a6.5 6.5 0 0 0-11-3.2L3 5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M3 2.3v3h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M4 13.5a6.5 6.5 0 0 0 11 3.2L17 15"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M17 17.7v-3h-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </Base>
   );
 }
@@ -224,6 +252,16 @@ export function IconXCircle(props: IconProps) {
     <Base {...props}>
       <circle cx="10" cy="10" r="7.25" stroke="currentColor" strokeWidth="1.5" />
       <path d="M7.5 7.5 12.5 12.5M12.5 7.5 7.5 12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </Base>
+  );
+}
+
+export function IconHome(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M3.5 9.5 10 3.5l6.5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5.5 8v8a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V8" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M8 17v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
     </Base>
   );
 }

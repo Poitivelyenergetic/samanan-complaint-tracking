@@ -25,6 +25,7 @@
     "confirmDelete": "Are you sure you want to delete this complaint?"
   },
   "nav": {
+    "home": "Home",
     "dashboard": "Complaints",
     "tasks": "Tasks",
     "newComplaint": "New Complaint",
@@ -98,6 +99,8 @@
     "welcome": "Welcome back, {name}",
     "subtitleAdmin": "Here's how things are looking across the organization.",
     "subtitleEmployee": "Here's what's on your plate.",
+    "overview": "Overview",
+    "analytics": "Analytics",
     "totalTickets": "Total Tickets",
     "statusBreakdown": "Status Breakdown",
     "categoryBreakdown": "By Category",
@@ -111,6 +114,9 @@
     "dateFilterLast7": "Last 7 days",
     "dateFilterLast30": "Last 30 days",
     "dateFilterThisMonth": "This month",
+    "dateFilterCustom": "Custom range",
+    "dateFrom": "From",
+    "dateTo": "To",
     "employeeFilter": "Employee",
     "employeeFilterAll": "All employees"
   },

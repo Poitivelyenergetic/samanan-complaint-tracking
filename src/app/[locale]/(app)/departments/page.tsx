@@ -5,22 +5,25 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { subscribeToDepartments, deleteDepartment } from "@/lib/departments";
 import { subscribeToAdministrations } from "@/lib/administrations";
+import { subscribeToCompanies } from "@/lib/companies";
 import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
 import {
   hasPermission,
   localizedName,
   type Administration,
+  type Company,
   type Department,
   type StaffUser,
 } from "@/lib/types";
+import { computeManagerScope, scopeDepartments } from "@/lib/orgScope";
 import Select from "@/components/Select";
 
 export default function DepartmentsPage() {
   const t = useTranslations("departments");
   const tCommon = useTranslations("common");
   const locale = useLocale();
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const canCreate = hasPermission(profile, "departments", "create");
   const canUpdate = hasPermission(profile, "departments", "update");
   const canDelete = hasPermission(profile, "departments", "delete");
@@ -28,22 +31,28 @@ export default function DepartmentsPage() {
 
   const [departments, setDepartments] = useState<Department[] | null>(null);
   const [administrations, setAdministrations] = useState<Administration[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [administrationFilter, setAdministrationFilter] = useState("");
 
   useEffect(() => subscribeToDepartments(setDepartments), []);
   useEffect(() => subscribeToAdministrations(setAdministrations), []);
+  useEffect(() => subscribeToCompanies(setCompanies), []);
   useEffect(() => subscribeToStaff(setStaff), []);
 
   const administrationsById = useMemo(() => new Map(administrations.map((a) => [a.id, a])), [administrations]);
   const staffById = useMemo(() => new Map(staff.map((s) => [s.id, s])), [staff]);
+  const hasBroaderAccess = hasPermission(profile, "complaints", "viewAll");
+  const managerScope = useMemo(
+    () => computeManagerScope(user?.uid, companies, administrations, departments ?? [], hasBroaderAccess),
+    [user?.uid, companies, administrations, departments, hasBroaderAccess]
+  );
 
   const filtered = useMemo(() => {
     if (!departments) return [];
-    return administrationFilter
-      ? departments.filter((d) => d.administrationId === administrationFilter)
-      : departments;
-  }, [departments, administrationFilter]);
+    const inScope = scopeDepartments(departments, administrations, managerScope);
+    return administrationFilter ? inScope.filter((d) => d.administrationId === administrationFilter) : inScope;
+  }, [departments, administrations, administrationFilter, managerScope]);
 
   async function handleDelete(department: Department) {
     const hasEmployees = staff.some((s) => s.departmentId === department.id);

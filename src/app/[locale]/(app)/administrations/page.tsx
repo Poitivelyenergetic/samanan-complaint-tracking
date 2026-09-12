@@ -16,13 +16,14 @@ import {
   type Department,
   type StaffUser,
 } from "@/lib/types";
+import { computeManagerScope, scopeAdministrations } from "@/lib/orgScope";
 import Select from "@/components/Select";
 
 export default function AdministrationsPage() {
   const t = useTranslations("administrations");
   const tCommon = useTranslations("common");
   const locale = useLocale();
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const canCreate = hasPermission(profile, "administrations", "create");
   const canUpdate = hasPermission(profile, "administrations", "update");
   const canDelete = hasPermission(profile, "administrations", "delete");
@@ -41,11 +42,20 @@ export default function AdministrationsPage() {
 
   const companiesById = useMemo(() => new Map(companies.map((c) => [c.id, c])), [companies]);
   const staffById = useMemo(() => new Map(staff.map((s) => [s.id, s])), [staff]);
+  // A General Manager (the designated manager of a company/administration/
+  // department) only sees their own branch of the org tree — unless they
+  // already hold complaints.viewAll, the app's "sees everything" flag.
+  const hasBroaderAccess = hasPermission(profile, "complaints", "viewAll");
+  const managerScope = useMemo(
+    () => computeManagerScope(user?.uid, companies, administrations ?? [], departments, hasBroaderAccess),
+    [user?.uid, companies, administrations, departments, hasBroaderAccess]
+  );
 
   const filtered = useMemo(() => {
     if (!administrations) return [];
-    return companyFilter ? administrations.filter((a) => a.companyId === companyFilter) : administrations;
-  }, [administrations, companyFilter]);
+    const inScope = scopeAdministrations(administrations, managerScope);
+    return companyFilter ? inScope.filter((a) => a.companyId === companyFilter) : inScope;
+  }, [administrations, companyFilter, managerScope]);
 
   async function handleDelete(administration: Administration) {
     const hasDepartments = departments.some((d) => d.administrationId === administration.id);

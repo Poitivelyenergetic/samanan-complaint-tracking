@@ -18,6 +18,7 @@ import {
   type Department,
   type StaffUser,
 } from "@/lib/types";
+import { computeManagerScope, scopeStaff } from "@/lib/orgScope";
 import Select from "@/components/Select";
 
 export default function EmployeesPage() {
@@ -54,11 +55,17 @@ export default function EmployeesPage() {
   const companiesById = useMemo(() => new Map(companies.map((c) => [c.id, c])), [companies]);
   const administrationsById = useMemo(() => new Map(administrations.map((a) => [a.id, a])), [administrations]);
   const departmentsById = useMemo(() => new Map(departments.map((d) => [d.id, d])), [departments]);
+  const hasBroaderAccess = hasPermission(profile, "complaints", "viewAll");
+  const managerScope = useMemo(
+    () => computeManagerScope(user?.uid, companies, administrations, departments, hasBroaderAccess),
+    [user?.uid, companies, administrations, departments, hasBroaderAccess]
+  );
 
   const filtered = useMemo(() => {
     if (!staff) return [];
+    const inScope = scopeStaff(staff, managerScope);
     const term = search.trim().toLowerCase();
-    return staff.filter((s) => {
+    return inScope.filter((s) => {
       if (companyFilter && s.companyId !== companyFilter) return false;
       if (administrationFilter && s.administrationId !== administrationFilter) return false;
       if (departmentFilter && s.departmentId !== departmentFilter) return false;
@@ -73,7 +80,7 @@ export default function EmployeesPage() {
       }
       return true;
     });
-  }, [staff, search, companyFilter, administrationFilter, departmentFilter]);
+  }, [staff, search, companyFilter, administrationFilter, departmentFilter, managerScope]);
 
   async function handleDelete(member: StaffUser) {
     if (!window.confirm(tEdit("deleteConfirm"))) return;

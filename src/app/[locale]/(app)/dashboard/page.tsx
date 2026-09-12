@@ -19,7 +19,7 @@ import {
 import { COMPLAINT_STATUSES } from "@/lib/types";
 import StatusBadge from "@/components/StatusBadge";
 import Select from "@/components/Select";
-import { IconClipboardList, IconGear, IconInbox, IconShieldCheck } from "@/components/icons";
+import { IconClipboardList, IconInbox, IconRefreshCw, IconShieldCheck } from "@/components/icons";
 
 function StatCard({
   icon,
@@ -149,7 +149,7 @@ export default function DashboardPage() {
             value={statusCounts.Open}
           />
           <StatCard
-            icon={<IconGear />}
+            icon={<IconRefreshCw />}
             iconClassName="bg-amber-50 text-amber-600"
             label={t("stats.processing")}
             value={statusCounts.Processing}

@@ -18,6 +18,7 @@ import {
   IconClipboardList,
   IconFolder,
   IconGear,
+  IconHome,
   IconInbox,
   IconLayoutGrid,
   IconLogout,
@@ -249,6 +250,20 @@ function SidebarContents({
             <img src="/samnan-logo.svg" alt={tCommon("appName")} className="h-8 w-auto brightness-0 invert" />
           )}
         </Link>
+      </div>
+
+      <div className={collapsed ? "flex justify-center px-2 pb-2" : "px-2 pb-2"}>
+        {collapsed ? (
+          <SidebarIconLink
+            href="/home"
+            label={t("home")}
+            icon={<IconHome />}
+            active={pathname === "/home"}
+            onNavigate={onNavigate}
+          />
+        ) : (
+          <SidebarLink href="/home" label={t("home")} icon={<IconHome />} active={pathname === "/home"} onNavigate={onNavigate} />
+        )}
       </div>
 
       <nav className="flex-1 space-y-1 overflow-x-hidden overflow-y-auto px-2">

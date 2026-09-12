@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations, useFormatter } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import {
@@ -22,22 +22,29 @@ import { subscribeToComplaints } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { subscribeToComplaintTypes } from "@/lib/complaintTypes";
 import { subscribeToComplaintSources } from "@/lib/complaintSources";
+import { subscribeToCompanies } from "@/lib/companies";
+import { subscribeToAdministrations } from "@/lib/administrations";
+import { subscribeToDepartments } from "@/lib/departments";
 import { useAuth } from "@/lib/auth-context";
 import {
   COMPLAINT_STATUSES,
   hasPermission,
   localizedName,
+  type Administration,
+  type Company,
   type Complaint,
   type ComplaintSource,
   type ComplaintStatus,
   type ComplaintType,
+  type Department,
   type StaffUser,
 } from "@/lib/types";
+import { computeManagerScope, scopeStaff } from "@/lib/orgScope";
 import Select from "@/components/Select";
 import {
   IconClipboardList,
-  IconGear,
   IconInbox,
+  IconRefreshCw,
   IconShieldCheck,
   IconUsers,
   IconXCircle,
@@ -87,12 +94,12 @@ function colorForSource(label: string): string {
 const STATUS_ICONS: Record<ComplaintStatus, React.ReactNode> = {
   Open: <IconInbox />,
   Assigned: <IconUsers />,
-  Processing: <IconGear />,
+  Processing: <IconRefreshCw />,
   Cancel: <IconXCircle />,
   Closed: <IconShieldCheck />,
 };
 
-type DateFilter = "all" | "today" | "7d" | "30d" | "month";
+type DateFilter = "all" | "today" | "7d" | "30d" | "month" | "custom";
 
 // Recharts' <Tooltip> renders unstyled by default (a plain white box,
 // regardless of the app's theme) — these give it the same surface/border/
@@ -114,17 +121,20 @@ const TOOLTIP_ITEM_STYLE: React.CSSProperties = { color: "var(--foreground)" };
 // tone it down to a faint themed highlight instead.
 const BAR_CURSOR = { fill: "var(--border)", opacity: 0.4 };
 
+// Deliberately quiet — no visible border/background until the user actually
+// interacts with it, so five of these across the grid read as a small
+// affordance in each card's corner rather than five loud controls fighting
+// the titles for attention.
 const compactSelectClass =
-  "w-auto rounded-md border border-border bg-surface px-2 py-1 text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand";
+  "w-auto rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-xs text-foreground/50 outline-none " +
+  "transition-colors hover:border-border hover:bg-surface hover:text-foreground focus:border-brand focus:bg-surface focus:text-foreground focus:ring-1 focus:ring-brand";
 
 function ChartCard({
   title,
-  large = false,
   filter,
   children,
 }: {
   title: string;
-  large?: boolean;
   // Each card's own filter control, rendered top-right of its header —
   // independent of every other card's filter and of the page-level
   // employee filter.
@@ -133,8 +143,8 @@ function ChartCard({
 }) {
   return (
     <div className="rounded-xl border border-border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+      <div className="flex items-start justify-between gap-2">
+        <h2 className="pt-1 text-sm font-semibold text-foreground">{title}</h2>
         {filter}
       </div>
       {/* Recharts' SVG text inherits the page's dir="rtl" in the Arabic
@@ -142,7 +152,7 @@ function ChartCard({
           overlapping the bars instead of beside them). Forcing dir="ltr"
           here keeps chart internals laid out consistently regardless of
           the app's locale — recharts has no RTL layout mode of its own. */}
-      <div dir="ltr" className={large ? "mt-4 h-80" : "mt-4 h-56"}>
+      <div dir="ltr" className="mt-4 h-72">
         {children}
       </div>
     </div>
@@ -225,6 +235,8 @@ function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: nu
   );
 }
 
+// "custom" has no fixed cutoff of its own — the caller combines this with
+// the two date inputs (see dateRangeFor) instead.
 function cutoffFor(filter: DateFilter): Date | null {
   const now = new Date();
   switch (filter) {
@@ -245,10 +257,28 @@ function cutoffFor(filter: DateFilter): Date | null {
     }
     case "month":
       return new Date(now.getFullYear(), now.getMonth(), 1);
+    case "custom":
     case "all":
     default:
       return null;
   }
+}
+
+// customFrom/customTo are "YYYY-MM-DD" strings from <input type="date">
+// (empty string when unset). Only meaningful when filter === "custom" —
+// every other filter still goes through cutoffFor's fixed lower bound with
+// no upper bound.
+function dateRangeFor(
+  filter: DateFilter,
+  customFrom: string,
+  customTo: string
+): { from: Date | null; to: Date | null } {
+  if (filter === "custom") {
+    const to = customTo ? new Date(customTo) : null;
+    if (to) to.setHours(23, 59, 59, 999);
+    return { from: customFrom ? new Date(customFrom) : null, to };
+  }
+  return { from: cutoffFor(filter), to: null };
 }
 
 export default function HomePage() {
@@ -257,7 +287,7 @@ export default function HomePage() {
   const tCommon = useTranslations("common");
   const format = useFormatter();
   const locale = useLocale();
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
 
   const canView = hasPermission(profile, "complaints", "view");
   const canViewAll = hasPermission(profile, "complaints", "viewAll");
@@ -266,6 +296,9 @@ export default function HomePage() {
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [complaintTypes, setComplaintTypes] = useState<ComplaintType[]>([]);
   const [complaintSources, setComplaintSources] = useState<ComplaintSource[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [administrations, setAdministrations] = useState<Administration[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   // "Who" stays a page-level filter (applies to every card and the top stat
   // row) — everything else is filtered per-card instead, by whichever
   // dimension makes sense for that specific chart. Status is already the
@@ -273,6 +306,8 @@ export default function HomePage() {
   // the page-level one used to be; the other charts get a status filter.
   const [employeeFilter, setEmployeeFilter] = useState("");
   const [statusBreakdownDateFilter, setStatusBreakdownDateFilter] = useState<DateFilter>("all");
+  const [statusBreakdownFrom, setStatusBreakdownFrom] = useState("");
+  const [statusBreakdownTo, setStatusBreakdownTo] = useState("");
   const [categoryStatusFilter, setCategoryStatusFilter] = useState<ComplaintStatus | "">("");
   const [sourceStatusFilter, setSourceStatusFilter] = useState<ComplaintStatus | "">("");
   const [trendStatusFilter, setTrendStatusFilter] = useState<ComplaintStatus | "">("");
@@ -285,17 +320,34 @@ export default function HomePage() {
   useEffect(() => subscribeToStaff(setStaff), []);
   useEffect(() => subscribeToComplaintTypes(setComplaintTypes), []);
   useEffect(() => subscribeToComplaintSources(setComplaintSources), []);
+  useEffect(() => subscribeToCompanies(setCompanies), []);
+  useEffect(() => subscribeToAdministrations(setAdministrations), []);
+  useEffect(() => subscribeToDepartments(setDepartments), []);
 
   const staffById = useMemo(() => new Map(staff.map((s) => [s.id, s])), [staff]);
   const typesById = useMemo(() => new Map(complaintTypes.map((ct) => [ct.id, ct])), [complaintTypes]);
   const sourcesById = useMemo(() => new Map(complaintSources.map((cs) => [cs.id, cs])), [complaintSources]);
 
-  // Scoped by "who" only — the top stat row's basis, and the starting
-  // point every card further narrows with its own filter.
+  // A General Manager (the designated manager of a company/administration/
+  // department) only sees stats for their own branch of the org tree — same
+  // scoping as the Administrations/Departments/Employees list pages.
+  const managerScope = useMemo(
+    () => computeManagerScope(user?.uid, companies, administrations, departments, canViewAll),
+    [user?.uid, companies, administrations, departments, canViewAll]
+  );
+  const scopedStaff = useMemo(() => scopeStaff(staff, managerScope), [staff, managerScope]);
+  const scopedStaffIds = useMemo(() => new Set(scopedStaff.map((s) => s.id)), [scopedStaff]);
+
+  // Scoped by "who" (the employee filter) and, for a General Manager, by
+  // their org branch — the top stat row's basis, and the starting point
+  // every card further narrows with its own filter.
   const list = useMemo(() => {
     const base = complaints ?? [];
-    return base.filter((c) => !employeeFilter || c.assignedTo === employeeFilter);
-  }, [complaints, employeeFilter]);
+    return base.filter((c) => {
+      if (managerScope && (!c.assignedTo || !scopedStaffIds.has(c.assignedTo))) return false;
+      return !employeeFilter || c.assignedTo === employeeFilter;
+    });
+  }, [complaints, employeeFilter, managerScope, scopedStaffIds]);
 
   // Drives the top stat row (Total + one card per status) — always
   // all-time, since date filtering now lives on the Status Breakdown card
@@ -311,9 +363,15 @@ export default function HomePage() {
   );
 
   const statusBreakdownList = useMemo(() => {
-    const cutoff = cutoffFor(statusBreakdownDateFilter);
-    return cutoff ? list.filter((c) => new Date(c.createdAt) >= cutoff) : list;
-  }, [list, statusBreakdownDateFilter]);
+    const { from, to } = dateRangeFor(statusBreakdownDateFilter, statusBreakdownFrom, statusBreakdownTo);
+    if (!from && !to) return list;
+    return list.filter((c) => {
+      const created = new Date(c.createdAt);
+      if (from && created < from) return false;
+      if (to && created > to) return false;
+      return true;
+    });
+  }, [list, statusBreakdownDateFilter, statusBreakdownFrom, statusBreakdownTo]);
   const statusPieData = useMemo(
     () =>
       COMPLAINT_STATUSES.map((status) => ({
@@ -326,15 +384,6 @@ export default function HomePage() {
         .filter((row) => row.count > 0),
     [statusBreakdownList, tStatus]
   );
-  // A fresh inline function here would give <Pie label> a new reference on
-  // every render, which is one of the suspected triggers of a Recharts
-  // Pie-animation freeze in this layout (an unstable prop combined with
-  // ResponsiveContainer's ResizeObserver can spiral into a render loop).
-  const statusPieLabel = useCallback(
-    ({ name, percent }: { name?: string; percent?: number }) => `${name} ${Math.round((percent ?? 0) * 100)}%`,
-    []
-  );
-
   const categoryData = useMemo(() => {
     const scoped = categoryStatusFilter ? list.filter((c) => c.status === categoryStatusFilter) : list;
     const counts = new Map<string, number>();
@@ -423,7 +472,7 @@ export default function HomePage() {
                 aria-label={t("employeeFilter")}
               >
                 <option value="">{t("employeeFilterAll")}</option>
-                {staff.map((member) => (
+                {scopedStaff.map((member) => (
                   <option key={member.id} value={member.id}>
                     {localizedName(member, locale)}
                   </option>
@@ -432,7 +481,8 @@ export default function HomePage() {
             </div>
           )}
 
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <h2 className="mt-8 text-xs font-semibold uppercase tracking-wide text-foreground/40">{t("overview")}</h2>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <Reveal>
               <StatCard
                 icon={<IconClipboardList />}
@@ -455,25 +505,46 @@ export default function HomePage() {
             ))}
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <Reveal>
+          <h2 className="mt-10 text-xs font-semibold uppercase tracking-wide text-foreground/40">{t("analytics")}</h2>
+          <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <Reveal>
               <ChartCard
                 title={t("statusBreakdown")}
-                large
                 filter={
-                  <Select
-                    value={statusBreakdownDateFilter}
-                    onChange={(e) => setStatusBreakdownDateFilter(e.target.value as DateFilter)}
-                    className={compactSelectClass}
-                    aria-label={t("dateFilter")}
-                  >
-                    <option value="all">{t("dateFilterAll")}</option>
-                    <option value="today">{t("dateFilterToday")}</option>
-                    <option value="7d">{t("dateFilterLast7")}</option>
-                    <option value="30d">{t("dateFilterLast30")}</option>
-                    <option value="month">{t("dateFilterThisMonth")}</option>
-                  </Select>
+                  <div className="flex flex-col items-end gap-1">
+                    <Select
+                      value={statusBreakdownDateFilter}
+                      onChange={(e) => setStatusBreakdownDateFilter(e.target.value as DateFilter)}
+                      className={compactSelectClass}
+                      aria-label={t("dateFilter")}
+                    >
+                      <option value="all">{t("dateFilterAll")}</option>
+                      <option value="today">{t("dateFilterToday")}</option>
+                      <option value="7d">{t("dateFilterLast7")}</option>
+                      <option value="30d">{t("dateFilterLast30")}</option>
+                      <option value="month">{t("dateFilterThisMonth")}</option>
+                      <option value="custom">{t("dateFilterCustom")}</option>
+                    </Select>
+                    {statusBreakdownDateFilter === "custom" && (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="date"
+                          value={statusBreakdownFrom}
+                          onChange={(e) => setStatusBreakdownFrom(e.target.value)}
+                          aria-label={t("dateFrom")}
+                          className="w-[124px] rounded-md border border-border bg-surface px-1.5 py-0.5 text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                        />
+                        <span className="text-xs text-foreground/40">–</span>
+                        <input
+                          type="date"
+                          value={statusBreakdownTo}
+                          onChange={(e) => setStatusBreakdownTo(e.target.value)}
+                          aria-label={t("dateTo")}
+                          className="w-[124px] rounded-md border border-border bg-surface px-1.5 py-0.5 text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                        />
+                      </div>
+                    )}
+                  </div>
                 }
               >
                 {statusPieData.length === 0 ? (
@@ -493,8 +564,8 @@ export default function HomePage() {
                         nameKey="label"
                         cx="50%"
                         cy="50%"
-                        innerRadius={50}
-                        outerRadius={80}
+                        innerRadius={55}
+                        outerRadius={85}
                         // Tried a debounced ResponsiveContainer and a
                         // stable label callback (below) to fix this
                         // properly, but the pie's animation still gets
@@ -502,8 +573,11 @@ export default function HomePage() {
                         // — worse than no animation. Disabling it is the
                         // only reliable option found so far.
                         isAnimationActive={false}
-                        label={statusPieLabel}
-                        labelLine={false}
+                        // No outer percentage labels — in this card's
+                        // (now-narrower, uniform-grid) width they clipped
+                        // against the edge. The legend below plus the
+                        // hover tooltip already cover the same info more
+                        // cleanly.
                       >
                         {statusPieData.map((row) => (
                           <Cell key={row.status} fill={STATUS_COLORS[row.status]} stroke="none" />
@@ -519,11 +593,9 @@ export default function HomePage() {
                   </ResponsiveContainer>
                 )}
               </ChartCard>
-              </Reveal>
-            </div>
+            </Reveal>
 
-            <div className="space-y-4">
-              <Reveal delay={80}>
+            <Reveal delay={60}>
               <ChartCard
                 title={t("categoryBreakdown")}
                 filter={
@@ -561,9 +633,9 @@ export default function HomePage() {
                   </ResponsiveContainer>
                 )}
               </ChartCard>
-              </Reveal>
+            </Reveal>
 
-              <Reveal delay={160}>
+            <Reveal delay={120}>
               <ChartCard
                 title={t("sourceBreakdown")}
                 filter={
@@ -605,55 +677,15 @@ export default function HomePage() {
                   </ResponsiveContainer>
                 )}
               </ChartCard>
-              </Reveal>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Reveal>
-            <ChartCard
-              title={t("trend")}
-              filter={
-                <Select
-                  value={trendStatusFilter}
-                  onChange={(e) => setTrendStatusFilter(e.target.value as ComplaintStatus | "")}
-                  className={compactSelectClass}
-                  aria-label={tCommon("filter")}
-                >
-                  <option value="">{tCommon("all")}</option>
-                  {COMPLAINT_STATUSES.map((status) => (
-                    <option key={status} value={status}>
-                      {tStatus(status)}
-                    </option>
-                  ))}
-                </Select>
-              }
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={trendData} margin={{ left: -16, right: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="label" stroke="var(--foreground)" opacity={0.5} fontSize={11} />
-                  <YAxis allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
-                  <Tooltip
-                    contentStyle={TOOLTIP_CONTENT_STYLE}
-                    labelStyle={TOOLTIP_LABEL_STYLE}
-                    itemStyle={TOOLTIP_ITEM_STYLE}
-                    cursor={{ stroke: "var(--border)" }}
-                  />
-                  <Line type="monotone" dataKey="count" stroke="#385bc1" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </ChartCard>
             </Reveal>
 
-            {canViewAll && (
-              <Reveal delay={80}>
+            <Reveal delay={180}>
               <ChartCard
-                title={t("topAssignees")}
+                title={t("trend")}
                 filter={
                   <Select
-                    value={topAssigneesStatusFilter}
-                    onChange={(e) => setTopAssigneesStatusFilter(e.target.value as ComplaintStatus | "")}
+                    value={trendStatusFilter}
+                    onChange={(e) => setTrendStatusFilter(e.target.value as ComplaintStatus | "")}
                     className={compactSelectClass}
                     aria-label={tCommon("filter")}
                   >
@@ -666,25 +698,62 @@ export default function HomePage() {
                   </Select>
                 }
               >
-                {topAssignees.length === 0 ? (
-                  <EmptyChart text={t("noData")} />
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={topAssignees} layout="vertical" margin={{ left: 8, right: 16 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                      <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
-                      <YAxis type="category" dataKey="name" width={110} stroke="var(--foreground)" opacity={0.7} fontSize={12} />
-                      <Tooltip
-                        contentStyle={TOOLTIP_CONTENT_STYLE}
-                        labelStyle={TOOLTIP_LABEL_STYLE}
-                        itemStyle={TOOLTIP_ITEM_STYLE}
-                        cursor={BAR_CURSOR}
-                      />
-                      <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={trendData} margin={{ left: -16, right: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="label" stroke="var(--foreground)" opacity={0.5} fontSize={11} />
+                    <YAxis allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
+                    <Tooltip
+                      contentStyle={TOOLTIP_CONTENT_STYLE}
+                      labelStyle={TOOLTIP_LABEL_STYLE}
+                      itemStyle={TOOLTIP_ITEM_STYLE}
+                      cursor={{ stroke: "var(--border)" }}
+                    />
+                    <Line type="monotone" dataKey="count" stroke="#385bc1" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
               </ChartCard>
+            </Reveal>
+
+            {canViewAll && (
+              <Reveal delay={240}>
+                <ChartCard
+                  title={t("topAssignees")}
+                  filter={
+                    <Select
+                      value={topAssigneesStatusFilter}
+                      onChange={(e) => setTopAssigneesStatusFilter(e.target.value as ComplaintStatus | "")}
+                      className={compactSelectClass}
+                      aria-label={tCommon("filter")}
+                    >
+                      <option value="">{tCommon("all")}</option>
+                      {COMPLAINT_STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {tStatus(status)}
+                        </option>
+                      ))}
+                    </Select>
+                  }
+                >
+                  {topAssignees.length === 0 ? (
+                    <EmptyChart text={t("noData")} />
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={topAssignees} layout="vertical" margin={{ left: 8, right: 16 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                        <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
+                        <YAxis type="category" dataKey="name" width={110} stroke="var(--foreground)" opacity={0.7} fontSize={12} />
+                        <Tooltip
+                          contentStyle={TOOLTIP_CONTENT_STYLE}
+                          labelStyle={TOOLTIP_LABEL_STYLE}
+                          itemStyle={TOOLTIP_ITEM_STYLE}
+                          cursor={BAR_CURSOR}
+                        />
+                        <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </ChartCard>
               </Reveal>
             )}
           </div>
