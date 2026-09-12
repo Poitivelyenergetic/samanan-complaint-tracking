@@ -4,13 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations, useFormatter } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
   Legend,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -598,47 +598,59 @@ export default function HomePage() {
                 {statusPieData.length === 0 ? (
                   <EmptyChart text={t("noData")} />
                 ) : (
-                  // debounce throttles ResponsiveContainer's ResizeObserver
-                  // callback — without it, a resize triggered mid-animation
-                  // (e.g. by the arc's own growing bounding box) can
-                  // retrigger another render before the browser settles,
-                  // spiraling into a hang. This was reproducible before
-                  // adding debounce.
-                  <ResponsiveContainer width="100%" height="100%" debounce={200}>
-                    <PieChart>
-                      <Pie
-                        data={statusPieData}
-                        dataKey="count"
-                        nameKey="label"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={55}
-                        outerRadius={85}
-                        // Tried a debounced ResponsiveContainer and a
-                        // stable label callback (below) to fix this
-                        // properly, but the pie's animation still gets
-                        // permanently stuck mid-arc instead of completing
-                        // — worse than no animation. Disabling it is the
-                        // only reliable option found so far.
-                        isAnimationActive={false}
-                        // No outer percentage labels — in this card's
-                        // (now-narrower, uniform-grid) width they clipped
-                        // against the edge. The legend below plus the
-                        // hover tooltip already cover the same info more
-                        // cleanly.
-                      >
-                        {statusPieData.map((row) => (
-                          <Cell key={row.status} fill={STATUS_COLORS[row.status]} stroke="none" />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={TOOLTIP_CONTENT_STYLE}
-                        labelStyle={TOOLTIP_LABEL_STYLE}
-                        itemStyle={TOOLTIP_ITEM_STYLE}
-                      />
-                      <Legend verticalAlign="bottom" height={36} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <div className="relative h-full">
+                    {/* debounce throttles ResponsiveContainer's ResizeObserver
+                        callback — without it, a resize triggered mid-animation
+                        (e.g. by the arc's own growing bounding box) can
+                        retrigger another render before the browser settles,
+                        spiraling into a hang. This was reproducible before
+                        adding debounce. */}
+                    <ResponsiveContainer width="100%" height="100%" debounce={200}>
+                      <PieChart>
+                        <Pie
+                          data={statusPieData}
+                          dataKey="count"
+                          nameKey="label"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={85}
+                          // Tried a debounced ResponsiveContainer and a
+                          // stable label callback (below) to fix this
+                          // properly, but the pie's animation still gets
+                          // permanently stuck mid-arc instead of completing
+                          // — worse than no animation. Disabling it is the
+                          // only reliable option found so far.
+                          isAnimationActive={false}
+                          // No outer percentage labels — in this card's
+                          // (now-narrower, uniform-grid) width they clipped
+                          // against the edge. The legend below plus the
+                          // hover tooltip already cover the same info more
+                          // cleanly.
+                        >
+                          {statusPieData.map((row) => (
+                            <Cell key={row.status} fill={STATUS_COLORS[row.status]} stroke="none" />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={TOOLTIP_CONTENT_STYLE}
+                          labelStyle={TOOLTIP_LABEL_STYLE}
+                          itemStyle={TOOLTIP_ITEM_STYLE}
+                        />
+                        <Legend verticalAlign="bottom" height={36} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    {/* Centered in the donut's hole — the ring alone left
+                        that space empty; a total count gives it a purpose
+                        instead of just being a hole. Shifted up 18px to sit
+                        above the legend row rendered below the chart. */}
+                    <div className="pointer-events-none absolute inset-0 flex -translate-y-[18px] flex-col items-center justify-center">
+                      <span className="text-2xl font-bold text-foreground">{statusBreakdownList.length}</span>
+                      <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/40">
+                        {t("totalShort")}
+                      </span>
+                    </div>
+                  </div>
                 )}
               </ChartCard>
             </Reveal>
@@ -675,7 +687,7 @@ export default function HomePage() {
                         itemStyle={TOOLTIP_ITEM_STYLE}
                         cursor={BAR_CURSOR}
                       />
-                      <Bar dataKey="count" fill="#385bc1" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="count" fill="#385bc1" radius={[0, 4, 4, 0]} barSize={28} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -714,7 +726,7 @@ export default function HomePage() {
                         itemStyle={TOOLTIP_ITEM_STYLE}
                         cursor={BAR_CURSOR}
                       />
-                      <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                      <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={28}>
                         {sourceData.map((row) => (
                           <Cell key={row.label} fill={row.color} />
                         ))}
@@ -744,7 +756,13 @@ export default function HomePage() {
                 }
               >
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={trendData} margin={{ left: -16, right: 8 }}>
+                  <AreaChart data={trendData} margin={{ left: -16, right: 8 }}>
+                    <defs>
+                      <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#385bc1" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#385bc1" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="label" stroke="var(--foreground)" opacity={0.5} fontSize={11} />
                     <YAxis allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
@@ -754,8 +772,16 @@ export default function HomePage() {
                       itemStyle={TOOLTIP_ITEM_STYLE}
                       cursor={{ stroke: "var(--border)" }}
                     />
-                    <Line type="monotone" dataKey="count" stroke="#385bc1" strokeWidth={2} dot={false} />
-                  </LineChart>
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#385bc1"
+                      strokeWidth={2}
+                      fill="url(#trendFill)"
+                      dot={{ r: 3, fill: "#385bc1", strokeWidth: 0 }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </AreaChart>
                 </ResponsiveContainer>
               </ChartCard>
             </Reveal>
@@ -793,7 +819,7 @@ export default function HomePage() {
                           itemStyle={TOOLTIP_ITEM_STYLE}
                           cursor={BAR_CURSOR}
                         />
-                        <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                        <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={28} />
                       </BarChart>
                     </ResponsiveContainer>
                   )}

@@ -102,6 +102,7 @@
     "overview": "Overview",
     "analytics": "Analytics",
     "totalTickets": "Total Tickets",
+    "totalShort": "Total",
     "statusBreakdown": "Status Breakdown",
     "categoryBreakdown": "By Category",
     "sourceBreakdown": "By Source",
