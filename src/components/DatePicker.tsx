@@ -11,6 +11,13 @@ interface DatePickerProps {
   placeholder?: string;
   // Overrides the trigger button's default styling.
   className?: string;
+  // Which edge of the trigger the popover's own edge anchors to. "start"
+  // (default) opens growing toward the end — right for a field that's
+  // itself near the left of a row. "end" anchors the popover's right edge
+  // to the trigger's right edge instead, so it grows leftward — for a
+  // field sitting near the right of a row (e.g. a "To" date next to a
+  // narrow container edge), which would otherwise overflow past it.
+  align?: "start" | "end";
 }
 
 function parseISODate(value: string): Date | null {
@@ -39,7 +46,15 @@ const DEFAULT_TRIGGER_CLASS =
 // unthemed against the rest of the app. Kept LTR internally regardless of
 // locale (dates read left-to-right even in the Arabic UI, matching how
 // charts are already forced dir="ltr" for the same reason).
-export default function DatePicker({ value, onChange, id, ariaLabel, placeholder, className }: DatePickerProps) {
+export default function DatePicker({
+  value,
+  onChange,
+  id,
+  ariaLabel,
+  placeholder,
+  className,
+  align = "start",
+}: DatePickerProps) {
   const locale = useLocale();
   const [open, setOpen] = useState(false);
   const selected = useMemo(() => parseISODate(value), [value]);
@@ -101,7 +116,9 @@ export default function DatePicker({ value, onChange, id, ariaLabel, placeholder
       {open && (
         <div
           dir="ltr"
-          className="absolute z-30 mt-1 w-60 rounded-lg border border-border bg-surface p-3 shadow-lg"
+          className={`absolute z-30 mt-1 w-60 rounded-lg border border-border bg-surface p-3 shadow-lg ${
+            align === "end" ? "end-0" : "start-0"
+          }`}
         >
           <div className="flex items-center justify-between">
             <button

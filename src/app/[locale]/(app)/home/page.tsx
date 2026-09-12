@@ -585,6 +585,7 @@ export default function HomePage() {
                               onChange={setStatusBreakdownTo}
                               ariaLabel={t("dateTo")}
                               placeholder={t("dateTo")}
+                              align="end"
                               className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-start text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
                             />
                           </div>
