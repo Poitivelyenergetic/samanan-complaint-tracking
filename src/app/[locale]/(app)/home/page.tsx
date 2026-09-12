@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations, useFormatter } from "next-intl";
 import {
   Bar,
@@ -42,12 +42,16 @@ import {
   IconXCircle,
 } from "@/components/icons";
 
+// A cohesive palette anchored on the app's brand blue (#385bc1) — shades of
+// blue/teal for the two blue-family statuses, plus two deliberate accent
+// colors (amber for "in progress", green for "done") and a neutral gray for
+// the non-outcome status, rather than a grab-bag of unrelated hues.
 const STATUS_COLORS: Record<ComplaintStatus, string> = {
-  Open: "#3b82f6",
-  Assigned: "#06b6d4",
-  Processing: "#f59e0b",
+  Open: "#4f7fe0",
+  Assigned: "#2d4a9e",
+  Processing: "#d97706",
   Cancel: "#64748b",
-  Closed: "#22c55e",
+  Closed: "#16a34a",
 };
 
 const STATUS_ICONS: Record<ComplaintStatus, React.ReactNode> = {
@@ -123,6 +127,45 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label:
       </div>
       <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-foreground/60">{label}</p>
       <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
+    </div>
+  );
+}
+
+// Fades/slides a card in the first time it scrolls into view, rather than
+// everything being visible immediately on load. Only triggers once (the
+// observer disconnects after the first intersection) so scrolling back up
+// and down doesn't re-animate it. This only ever transitions opacity/
+// transform on the wrapping div — it never touches a chart's own size, so
+// it can't retrigger the ResizeObserver-related issues the pie chart has.
+function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -40px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      style={{ transitionDelay: `${delay}ms` }}
+      className={`transition-all duration-500 ease-out motion-reduce:transition-none motion-reduce:transform-none ${
+        visible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+      }`}
+    >
+      {children}
     </div>
   );
 }
@@ -228,6 +271,14 @@ export default function HomePage() {
         .filter((row) => row.count > 0),
     [statusBreakdownList, tStatus]
   );
+  // A fresh inline function here would give <Pie label> a new reference on
+  // every render, which is one of the suspected triggers of a Recharts
+  // Pie-animation freeze in this layout (an unstable prop combined with
+  // ResponsiveContainer's ResizeObserver can spiral into a render loop).
+  const statusPieLabel = useCallback(
+    ({ name, percent }: { name?: string; percent?: number }) => `${name} ${Math.round((percent ?? 0) * 100)}%`,
+    []
+  );
 
   const categoryData = useMemo(() => {
     const scoped = categoryStatusFilter ? list.filter((c) => c.status === categoryStatusFilter) : list;
@@ -327,20 +378,24 @@ export default function HomePage() {
           )}
 
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <StatCard icon={<IconClipboardList />} label={t("totalTickets")} value={list.length} color="#385bc1" />
-            {statusData.map((row) => (
-              <StatCard
-                key={row.status}
-                icon={STATUS_ICONS[row.status]}
-                label={row.label}
-                value={row.count}
-                color={STATUS_COLORS[row.status]}
-              />
+            <Reveal>
+              <StatCard icon={<IconClipboardList />} label={t("totalTickets")} value={list.length} color="#385bc1" />
+            </Reveal>
+            {statusData.map((row, i) => (
+              <Reveal key={row.status} delay={(i + 1) * 60}>
+                <StatCard
+                  icon={STATUS_ICONS[row.status]}
+                  label={row.label}
+                  value={row.count}
+                  color={STATUS_COLORS[row.status]}
+                />
+              </Reveal>
             ))}
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2">
+              <Reveal>
               <ChartCard
                 title={t("statusBreakdown")}
                 large
@@ -362,7 +417,13 @@ export default function HomePage() {
                 {statusPieData.length === 0 ? (
                   <EmptyChart text={t("noData")} />
                 ) : (
-                  <ResponsiveContainer width="100%" height="100%">
+                  // debounce throttles ResponsiveContainer's ResizeObserver
+                  // callback — without it, a resize triggered mid-animation
+                  // (e.g. by the arc's own growing bounding box) can
+                  // retrigger another render before the browser settles,
+                  // spiraling into a hang. This was reproducible before
+                  // adding debounce.
+                  <ResponsiveContainer width="100%" height="100%" debounce={200}>
                     <PieChart>
                       <Pie
                         data={statusPieData}
@@ -372,13 +433,14 @@ export default function HomePage() {
                         cy="50%"
                         innerRadius={50}
                         outerRadius={80}
-                        // Recharts' pie entrance/resize animation has a
-                        // reproducible browser-hang bug in this layout
-                        // (likely a ResizeObserver feedback loop against
-                        // the surrounding grid) — keep it disabled while
-                        // the bar/line charts keep theirs.
+                        // Tried a debounced ResponsiveContainer and a
+                        // stable label callback (below) to fix this
+                        // properly, but the pie's animation still gets
+                        // permanently stuck mid-arc instead of completing
+                        // — worse than no animation. Disabling it is the
+                        // only reliable option found so far.
                         isAnimationActive={false}
-                        label={({ name, percent }) => `${name} ${Math.round((percent ?? 0) * 100)}%`}
+                        label={statusPieLabel}
                         labelLine={false}
                       >
                         {statusPieData.map((row) => (
@@ -395,9 +457,11 @@ export default function HomePage() {
                   </ResponsiveContainer>
                 )}
               </ChartCard>
+              </Reveal>
             </div>
 
             <div className="space-y-4">
+              <Reveal delay={80}>
               <ChartCard
                 title={t("categoryBreakdown")}
                 filter={
@@ -435,7 +499,9 @@ export default function HomePage() {
                   </ResponsiveContainer>
                 )}
               </ChartCard>
+              </Reveal>
 
+              <Reveal delay={160}>
               <ChartCard
                 title={t("sourceBreakdown")}
                 filter={
@@ -468,15 +534,17 @@ export default function HomePage() {
                         itemStyle={TOOLTIP_ITEM_STYLE}
                         cursor={BAR_CURSOR}
                       />
-                      <Bar dataKey="count" fill="#22c55e" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="count" fill="#2d4a9e" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
               </ChartCard>
+              </Reveal>
             </div>
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Reveal>
             <ChartCard
               title={t("trend")}
               filter={
@@ -510,8 +578,10 @@ export default function HomePage() {
                 </LineChart>
               </ResponsiveContainer>
             </ChartCard>
+            </Reveal>
 
             {canViewAll && (
+              <Reveal delay={80}>
               <ChartCard
                 title={t("topAssignees")}
                 filter={
@@ -549,6 +619,7 @@ export default function HomePage() {
                   </ResponsiveContainer>
                 )}
               </ChartCard>
+              </Reveal>
             )}
           </div>
         </>
