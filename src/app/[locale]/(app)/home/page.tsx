@@ -55,6 +55,35 @@ const STATUS_COLORS: Record<ComplaintStatus, string> = {
   Closed: "#16a34a",
 };
 
+// Recognized platform/channel names get their real brand color in the "By
+// Source" chart instead of one flat color for every bar — matched by
+// lowercase substring against whichever name is currently displayed
+// (English or Arabic-typed-as-English, however the source was entered), so
+// it works without needing a manual color field on each complaint source.
+// Falls back to the app's default blue for anything unrecognized.
+const SOURCE_BRAND_COLORS: [string, string][] = [
+  ["whatsapp", "#25d366"],
+  ["snapchat", "#f5c518"],
+  ["snap chat", "#f5c518"],
+  ["instagram", "#e1306c"],
+  ["facebook", "#1877f2"],
+  ["telegram", "#26a5e4"],
+  ["tiktok", "#fe2c55"],
+  ["twitter", "#1da1f2"],
+  ["linkedin", "#0a66c2"],
+  ["google", "#4285f4"],
+  ["email", "#64748b"],
+  ["phone", "#64748b"],
+  ["call", "#64748b"],
+];
+const DEFAULT_SOURCE_COLOR = "#2d4a9e";
+
+function colorForSource(label: string): string {
+  const lower = label.toLowerCase();
+  const match = SOURCE_BRAND_COLORS.find(([keyword]) => lower.includes(keyword));
+  return match ? match[1] : DEFAULT_SOURCE_COLOR;
+}
+
 const STATUS_ICONS: Record<ComplaintStatus, React.ReactNode> = {
   Open: <IconInbox />,
   Assigned: <IconUsers />,
@@ -333,7 +362,7 @@ export default function HomePage() {
     return [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
-      .map(([label, count]) => ({ label, count }));
+      .map(([label, count]) => ({ label, count, color: colorForSource(label) }));
   }, [list, sourceStatusFilter, sourcesById, locale]);
 
   const trendData = useMemo(() => {
@@ -567,7 +596,11 @@ export default function HomePage() {
                         itemStyle={TOOLTIP_ITEM_STYLE}
                         cursor={BAR_CURSOR}
                       />
-                      <Bar dataKey="count" fill="#2d4a9e" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                        {sourceData.map((row) => (
+                          <Cell key={row.label} fill={row.color} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
