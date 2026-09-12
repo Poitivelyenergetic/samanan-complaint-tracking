@@ -80,19 +80,37 @@ const TOOLTIP_ITEM_STYLE: React.CSSProperties = { color: "var(--foreground)" };
 // tone it down to a faint themed highlight instead.
 const BAR_CURSOR = { fill: "var(--border)", opacity: 0.4 };
 
+const compactSelectClass =
+  "w-auto rounded-md border border-border bg-surface px-2 py-1 text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand";
+
 function ChartCard({
   title,
   large = false,
+  filter,
   children,
 }: {
   title: string;
   large?: boolean;
+  // Each card's own filter control, rendered top-right of its header —
+  // independent of every other card's filter and of the page-level
+  // employee filter.
+  filter?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div className="rounded-xl border border-border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md">
-      <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-      <div className={large ? "mt-4 h-80" : "mt-4 h-56"}>{children}</div>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        {filter}
+      </div>
+      {/* Recharts' SVG text inherits the page's dir="rtl" in the Arabic
+          locale, which corrupts label positioning (bar/axis labels render
+          overlapping the bars instead of beside them). Forcing dir="ltr"
+          here keeps chart internals laid out consistently regardless of
+          the app's locale — recharts has no RTL layout mode of its own. */}
+      <div dir="ltr" className={large ? "mt-4 h-80" : "mt-4 h-56"}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -150,8 +168,17 @@ export default function HomePage() {
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [complaintTypes, setComplaintTypes] = useState<ComplaintType[]>([]);
   const [complaintSources, setComplaintSources] = useState<ComplaintSource[]>([]);
-  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+  // "Who" stays a page-level filter (applies to every card and the top stat
+  // row) — everything else is filtered per-card instead, by whichever
+  // dimension makes sense for that specific chart. Status is already the
+  // Status Breakdown chart's own axis, so it gets a date-range filter like
+  // the page-level one used to be; the other charts get a status filter.
   const [employeeFilter, setEmployeeFilter] = useState("");
+  const [statusBreakdownDateFilter, setStatusBreakdownDateFilter] = useState<DateFilter>("all");
+  const [categoryStatusFilter, setCategoryStatusFilter] = useState<ComplaintStatus | "">("");
+  const [sourceStatusFilter, setSourceStatusFilter] = useState<ComplaintStatus | "">("");
+  const [trendStatusFilter, setTrendStatusFilter] = useState<ComplaintStatus | "">("");
+  const [topAssigneesStatusFilter, setTopAssigneesStatusFilter] = useState<ComplaintStatus | "">("");
 
   useEffect(() => {
     if (!profile || !canView) return;
@@ -165,16 +192,16 @@ export default function HomePage() {
   const typesById = useMemo(() => new Map(complaintTypes.map((ct) => [ct.id, ct])), [complaintTypes]);
   const sourcesById = useMemo(() => new Map(complaintSources.map((cs) => [cs.id, cs])), [complaintSources]);
 
+  // Scoped by "who" only — the top stat row's basis, and the starting
+  // point every card further narrows with its own filter.
   const list = useMemo(() => {
     const base = complaints ?? [];
-    const cutoff = cutoffFor(dateFilter);
-    return base.filter((c) => {
-      if (cutoff && new Date(c.createdAt) < cutoff) return false;
-      if (employeeFilter && c.assignedTo !== employeeFilter) return false;
-      return true;
-    });
-  }, [complaints, dateFilter, employeeFilter]);
+    return base.filter((c) => !employeeFilter || c.assignedTo === employeeFilter);
+  }, [complaints, employeeFilter]);
 
+  // Drives the top stat row (Total + one card per status) — always
+  // all-time, since date filtering now lives on the Status Breakdown card
+  // specifically rather than the page as a whole.
   const statusData = useMemo(
     () =>
       COMPLAINT_STATUSES.map((status) => ({
@@ -184,13 +211,28 @@ export default function HomePage() {
       })),
     [list, tStatus]
   );
-  // The pie only plots statuses that actually occur — an empty 0-count
-  // slice has no visual width but still confuses the legend/tooltip.
-  const statusPieData = useMemo(() => statusData.filter((row) => row.count > 0), [statusData]);
+
+  const statusBreakdownList = useMemo(() => {
+    const cutoff = cutoffFor(statusBreakdownDateFilter);
+    return cutoff ? list.filter((c) => new Date(c.createdAt) >= cutoff) : list;
+  }, [list, statusBreakdownDateFilter]);
+  const statusPieData = useMemo(
+    () =>
+      COMPLAINT_STATUSES.map((status) => ({
+        status,
+        label: tStatus(status),
+        count: statusBreakdownList.filter((c) => c.status === status).length,
+      }))
+        // Only plot statuses that actually occur — an empty 0-count slice
+        // has no visual width but still confuses the legend/tooltip.
+        .filter((row) => row.count > 0),
+    [statusBreakdownList, tStatus]
+  );
 
   const categoryData = useMemo(() => {
+    const scoped = categoryStatusFilter ? list.filter((c) => c.status === categoryStatusFilter) : list;
     const counts = new Map<string, number>();
-    list.forEach((c) => {
+    scoped.forEach((c) => {
       const type = typesById.get(c.complaintTypeId);
       const label = type ? localizedName(type, locale) : undefined;
       if (!label) return;
@@ -200,11 +242,12 @@ export default function HomePage() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
       .map(([label, count]) => ({ label, count }));
-  }, [list, typesById, locale]);
+  }, [list, categoryStatusFilter, typesById, locale]);
 
   const sourceData = useMemo(() => {
+    const scoped = sourceStatusFilter ? list.filter((c) => c.status === sourceStatusFilter) : list;
     const counts = new Map<string, number>();
-    list.forEach((c) => {
+    scoped.forEach((c) => {
       const source = sourcesById.get(c.complaintSourceId);
       const label = source ? localizedName(source, locale) : undefined;
       if (!label) return;
@@ -214,9 +257,10 @@ export default function HomePage() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
       .map(([label, count]) => ({ label, count }));
-  }, [list, sourcesById, locale]);
+  }, [list, sourceStatusFilter, sourcesById, locale]);
 
   const trendData = useMemo(() => {
+    const scoped = trendStatusFilter ? list.filter((c) => c.status === trendStatusFilter) : list;
     const days: { date: string; label: string; count: number }[] = [];
     const now = new Date();
     for (let i = 13; i >= 0; i--) {
@@ -229,16 +273,17 @@ export default function HomePage() {
       });
     }
     const byDay = new Map(days.map((d) => [d.date, d]));
-    list.forEach((c) => {
+    scoped.forEach((c) => {
       const bucket = byDay.get(c.createdAt.slice(0, 10));
       if (bucket) bucket.count += 1;
     });
     return days;
-  }, [list, format]);
+  }, [list, trendStatusFilter, format]);
 
   const topAssignees = useMemo(() => {
+    const scoped = topAssigneesStatusFilter ? list.filter((c) => c.status === topAssigneesStatusFilter) : list;
     const counts = new Map<string, number>();
-    list.forEach((c) => {
+    scoped.forEach((c) => {
       if (!c.assignedTo) return;
       counts.set(c.assignedTo, (counts.get(c.assignedTo) ?? 0) + 1);
     });
@@ -246,7 +291,7 @@ export default function HomePage() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([uid, count]) => ({ name: localizedName(staffById.get(uid), locale) || uid, count }));
-  }, [list, staffById, locale]);
+  }, [list, topAssigneesStatusFilter, staffById, locale]);
 
   const name = profile ? localizedName(profile, locale) || profile.username : "";
 
@@ -263,21 +308,8 @@ export default function HomePage() {
         <p className="mt-6 text-sm text-foreground/50">{tCommon("loading")}</p>
       ) : (
         <>
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <Select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value as DateFilter)}
-              className="w-auto rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-              aria-label={t("dateFilter")}
-            >
-              <option value="all">{t("dateFilterAll")}</option>
-              <option value="today">{t("dateFilterToday")}</option>
-              <option value="7d">{t("dateFilterLast7")}</option>
-              <option value="30d">{t("dateFilterLast30")}</option>
-              <option value="month">{t("dateFilterThisMonth")}</option>
-            </Select>
-
-            {canViewAll && (
+          {canViewAll && (
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <Select
                 value={employeeFilter}
                 onChange={(e) => setEmployeeFilter(e.target.value)}
@@ -291,8 +323,8 @@ export default function HomePage() {
                   </option>
                 ))}
               </Select>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <StatCard icon={<IconClipboardList />} label={t("totalTickets")} value={list.length} color="#385bc1" />
@@ -309,7 +341,24 @@ export default function HomePage() {
 
           <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <ChartCard title={t("statusBreakdown")} large>
+              <ChartCard
+                title={t("statusBreakdown")}
+                large
+                filter={
+                  <Select
+                    value={statusBreakdownDateFilter}
+                    onChange={(e) => setStatusBreakdownDateFilter(e.target.value as DateFilter)}
+                    className={compactSelectClass}
+                    aria-label={t("dateFilter")}
+                  >
+                    <option value="all">{t("dateFilterAll")}</option>
+                    <option value="today">{t("dateFilterToday")}</option>
+                    <option value="7d">{t("dateFilterLast7")}</option>
+                    <option value="30d">{t("dateFilterLast30")}</option>
+                    <option value="month">{t("dateFilterThisMonth")}</option>
+                  </Select>
+                }
+              >
                 {statusPieData.length === 0 ? (
                   <EmptyChart text={t("noData")} />
                 ) : (
@@ -323,6 +372,11 @@ export default function HomePage() {
                         cy="50%"
                         innerRadius={50}
                         outerRadius={80}
+                        // Recharts' pie entrance/resize animation has a
+                        // reproducible browser-hang bug in this layout
+                        // (likely a ResizeObserver feedback loop against
+                        // the surrounding grid) — keep it disabled while
+                        // the bar/line charts keep theirs.
                         isAnimationActive={false}
                         label={({ name, percent }) => `${name} ${Math.round((percent ?? 0) * 100)}%`}
                         labelLine={false}
@@ -344,7 +398,24 @@ export default function HomePage() {
             </div>
 
             <div className="space-y-4">
-              <ChartCard title={t("categoryBreakdown")}>
+              <ChartCard
+                title={t("categoryBreakdown")}
+                filter={
+                  <Select
+                    value={categoryStatusFilter}
+                    onChange={(e) => setCategoryStatusFilter(e.target.value as ComplaintStatus | "")}
+                    className={compactSelectClass}
+                    aria-label={tCommon("filter")}
+                  >
+                    <option value="">{tCommon("all")}</option>
+                    {COMPLAINT_STATUSES.map((status) => (
+                      <option key={status} value={status}>
+                        {tStatus(status)}
+                      </option>
+                    ))}
+                  </Select>
+                }
+              >
                 {categoryData.length === 0 ? (
                   <EmptyChart text={t("noData")} />
                 ) : (
@@ -359,13 +430,30 @@ export default function HomePage() {
                         itemStyle={TOOLTIP_ITEM_STYLE}
                         cursor={BAR_CURSOR}
                       />
-                      <Bar dataKey="count" fill="#385bc1" radius={[0, 4, 4, 0]} isAnimationActive={false} />
+                      <Bar dataKey="count" fill="#385bc1" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
               </ChartCard>
 
-              <ChartCard title={t("sourceBreakdown")}>
+              <ChartCard
+                title={t("sourceBreakdown")}
+                filter={
+                  <Select
+                    value={sourceStatusFilter}
+                    onChange={(e) => setSourceStatusFilter(e.target.value as ComplaintStatus | "")}
+                    className={compactSelectClass}
+                    aria-label={tCommon("filter")}
+                  >
+                    <option value="">{tCommon("all")}</option>
+                    {COMPLAINT_STATUSES.map((status) => (
+                      <option key={status} value={status}>
+                        {tStatus(status)}
+                      </option>
+                    ))}
+                  </Select>
+                }
+              >
                 {sourceData.length === 0 ? (
                   <EmptyChart text={t("noData")} />
                 ) : (
@@ -380,7 +468,7 @@ export default function HomePage() {
                         itemStyle={TOOLTIP_ITEM_STYLE}
                         cursor={BAR_CURSOR}
                       />
-                      <Bar dataKey="count" fill="#22c55e" radius={[0, 4, 4, 0]} isAnimationActive={false} />
+                      <Bar dataKey="count" fill="#22c55e" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -389,7 +477,24 @@ export default function HomePage() {
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <ChartCard title={t("trend")}>
+            <ChartCard
+              title={t("trend")}
+              filter={
+                <Select
+                  value={trendStatusFilter}
+                  onChange={(e) => setTrendStatusFilter(e.target.value as ComplaintStatus | "")}
+                  className={compactSelectClass}
+                  aria-label={tCommon("filter")}
+                >
+                  <option value="">{tCommon("all")}</option>
+                  {COMPLAINT_STATUSES.map((status) => (
+                    <option key={status} value={status}>
+                      {tStatus(status)}
+                    </option>
+                  ))}
+                </Select>
+              }
+            >
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={trendData} margin={{ left: -16, right: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -401,13 +506,30 @@ export default function HomePage() {
                     itemStyle={TOOLTIP_ITEM_STYLE}
                     cursor={{ stroke: "var(--border)" }}
                   />
-                  <Line type="monotone" dataKey="count" stroke="#385bc1" strokeWidth={2} dot={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="count" stroke="#385bc1" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </ChartCard>
 
             {canViewAll && (
-              <ChartCard title={t("topAssignees")}>
+              <ChartCard
+                title={t("topAssignees")}
+                filter={
+                  <Select
+                    value={topAssigneesStatusFilter}
+                    onChange={(e) => setTopAssigneesStatusFilter(e.target.value as ComplaintStatus | "")}
+                    className={compactSelectClass}
+                    aria-label={tCommon("filter")}
+                  >
+                    <option value="">{tCommon("all")}</option>
+                    {COMPLAINT_STATUSES.map((status) => (
+                      <option key={status} value={status}>
+                        {tStatus(status)}
+                      </option>
+                    ))}
+                  </Select>
+                }
+              >
                 {topAssignees.length === 0 ? (
                   <EmptyChart text={t("noData")} />
                 ) : (
@@ -422,7 +544,7 @@ export default function HomePage() {
                         itemStyle={TOOLTIP_ITEM_STYLE}
                         cursor={BAR_CURSOR}
                       />
-                      <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} isAnimationActive={false} />
+                      <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
