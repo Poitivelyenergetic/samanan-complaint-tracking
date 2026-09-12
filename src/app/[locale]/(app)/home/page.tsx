@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations, useFormatter } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import {
   Bar,
   BarChart,
@@ -119,15 +120,40 @@ function ChartCard({
   );
 }
 
-function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-surface p-4 shadow-sm transition-shadow hover:shadow-md">
+function StatCard({
+  icon,
+  label,
+  value,
+  color,
+  href,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  color: string;
+  // When set, the whole card links to the Complaints list — e.g. a status
+  // card links to that status pre-filtered — so clicking a number takes you
+  // straight to the underlying tickets instead of just showing the count.
+  href?: string;
+}) {
+  const className =
+    "block rounded-xl border border-border bg-surface p-4 text-start shadow-sm transition-all hover:shadow-md" +
+    (href ? " hover:border-brand/40 hover:-translate-y-0.5" : "");
+  const content = (
+    <>
       <div className="inline-flex rounded-lg p-2" style={{ backgroundColor: `${color}1f`, color }}>
         {icon}
       </div>
       <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-foreground/60">{label}</p>
       <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
-    </div>
+    </>
+  );
+  return href ? (
+    <Link href={href} className={className}>
+      {content}
+    </Link>
+  ) : (
+    <div className={className}>{content}</div>
   );
 }
 
@@ -379,7 +405,13 @@ export default function HomePage() {
 
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <Reveal>
-              <StatCard icon={<IconClipboardList />} label={t("totalTickets")} value={list.length} color="#385bc1" />
+              <StatCard
+                icon={<IconClipboardList />}
+                label={t("totalTickets")}
+                value={list.length}
+                color="#385bc1"
+                href="/dashboard"
+              />
             </Reveal>
             {statusData.map((row, i) => (
               <Reveal key={row.status} delay={(i + 1) * 60}>
@@ -388,6 +420,7 @@ export default function HomePage() {
                   label={row.label}
                   value={row.count}
                   color={STATUS_COLORS[row.status]}
+                  href={`/dashboard?status=${row.status}`}
                 />
               </Reveal>
             ))}

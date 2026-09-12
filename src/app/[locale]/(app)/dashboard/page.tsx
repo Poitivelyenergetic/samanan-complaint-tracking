@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations, useFormatter } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { subscribeToComplaints } from "@/lib/complaints";
@@ -50,12 +51,27 @@ export default function DashboardPage() {
   const canView = hasPermission(profile, "complaints", "view");
   const canCreate = hasPermission(profile, "complaints", "create");
   const canViewAll = hasPermission(profile, "complaints", "viewAll");
+  const searchParams = useSearchParams();
 
   const [complaints, setComplaints] = useState<Complaint[] | null>(null);
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [complaintSources, setComplaintSources] = useState<ComplaintSource[]>([]);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ComplaintStatus | "">("");
+  // Lets the home page's stat cards link straight into a status-filtered
+  // view (e.g. /dashboard?status=Open). Adjusted during render (the
+  // React-recommended way to sync state to a changing external value)
+  // rather than in an effect, so it stays in sync even when arriving here
+  // again from a different stat card link doesn't remount the page.
+  const paramStatus = searchParams.get("status");
+  const validParamStatus = (
+    paramStatus && (COMPLAINT_STATUSES as readonly string[]).includes(paramStatus) ? paramStatus : ""
+  ) as ComplaintStatus | "";
+  const [statusFilter, setStatusFilter] = useState<ComplaintStatus | "">(validParamStatus);
+  const [syncedParamStatus, setSyncedParamStatus] = useState(validParamStatus);
+  if (validParamStatus !== syncedParamStatus) {
+    setSyncedParamStatus(validParamStatus);
+    setStatusFilter(validParamStatus);
+  }
   const [assigneeFilter, setAssigneeFilter] = useState("");
 
   useEffect(() => {
