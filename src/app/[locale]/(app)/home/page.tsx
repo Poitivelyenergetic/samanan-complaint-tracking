@@ -41,6 +41,7 @@ import {
 } from "@/lib/types";
 import { computeManagerScope, scopeStaff } from "@/lib/orgScope";
 import SearchableSelect from "@/components/SearchableSelect";
+import DatePicker from "@/components/DatePicker";
 import {
   IconClipboardList,
   IconInbox,
@@ -558,13 +559,16 @@ export default function HomePage() {
                           >
                             {t("dateFrom")}
                           </label>
-                          <input
-                            id="statusBreakdownFrom"
-                            type="date"
-                            value={statusBreakdownFrom}
-                            onChange={(e) => setStatusBreakdownFrom(e.target.value)}
-                            className="w-[136px] rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-                          />
+                          <div className="w-[136px]">
+                            <DatePicker
+                              id="statusBreakdownFrom"
+                              value={statusBreakdownFrom}
+                              onChange={setStatusBreakdownFrom}
+                              ariaLabel={t("dateFrom")}
+                              placeholder={t("dateFrom")}
+                              className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-start text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                            />
+                          </div>
                         </div>
                         <span className="pb-2 text-foreground/30">→</span>
                         <div className="flex flex-col gap-1">
@@ -574,13 +578,16 @@ export default function HomePage() {
                           >
                             {t("dateTo")}
                           </label>
-                          <input
-                            id="statusBreakdownTo"
-                            type="date"
-                            value={statusBreakdownTo}
-                            onChange={(e) => setStatusBreakdownTo(e.target.value)}
-                            className="w-[136px] rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-                          />
+                          <div className="w-[136px]">
+                            <DatePicker
+                              id="statusBreakdownTo"
+                              value={statusBreakdownTo}
+                              onChange={setStatusBreakdownTo}
+                              ariaLabel={t("dateTo")}
+                              placeholder={t("dateTo")}
+                              className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-start text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                            />
+                          </div>
                         </div>
                       </div>
                     )}
