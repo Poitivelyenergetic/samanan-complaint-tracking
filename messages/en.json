@@ -163,6 +163,8 @@
     "searchPlaceholder": "Search by subject, customer name/phone, or reference number...",
     "statusFilter": "Status",
     "assigneeFilter": "Assigned to",
+    "typeFilter": "Type",
+    "sourceFilter": "Source",
     "noResults": "No complaints found.",
     "stats": {
       "total": "Total Complaints",

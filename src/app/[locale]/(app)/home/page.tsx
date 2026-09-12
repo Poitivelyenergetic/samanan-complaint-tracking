@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations, useFormatter } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import {
   Area,
   AreaChart,
@@ -10,6 +10,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Dot,
   Legend,
   Pie,
   PieChart,
@@ -282,6 +283,28 @@ function dateRangeFor(
   return { from: cutoffFor(filter), to: null };
 }
 
+// "YYYY-MM-DD" in the viewer's local timezone — deliberately not
+// toISOString().slice(0, 10), which is UTC and can land on the wrong day for
+// timestamps near local midnight.
+function toLocalISODate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+// Builds a link into the Complaints list pre-filtered to match exactly what
+// a clicked chart segment represents — same idea as the stat cards above,
+// which already link to `/dashboard?status=X`.
+function dashboardHref(params: Record<string, string | undefined>): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value) query.set(key, value);
+  }
+  const qs = query.toString();
+  return qs ? `/dashboard?${qs}` : "/dashboard";
+}
+
 export default function HomePage() {
   const t = useTranslations("home");
   const tStatus = useTranslations("status");
@@ -289,6 +312,7 @@ export default function HomePage() {
   const format = useFormatter();
   const locale = useLocale();
   const { user, profile } = useAuth();
+  const router = useRouter();
 
   const canView = hasPermission(profile, "complaints", "view");
   const canViewAll = hasPermission(profile, "complaints", "viewAll");
@@ -416,30 +440,29 @@ export default function HomePage() {
     const scoped = categoryStatusFilter ? list.filter((c) => c.status === categoryStatusFilter) : list;
     const counts = new Map<string, number>();
     scoped.forEach((c) => {
-      const type = typesById.get(c.complaintTypeId);
-      const label = type ? localizedName(type, locale) : undefined;
-      if (!label) return;
-      counts.set(label, (counts.get(label) ?? 0) + 1);
+      if (!typesById.has(c.complaintTypeId)) return;
+      counts.set(c.complaintTypeId, (counts.get(c.complaintTypeId) ?? 0) + 1);
     });
     return [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
-      .map(([label, count]) => ({ label, count }));
+      .map(([id, count]) => ({ id, label: localizedName(typesById.get(id), locale) || id, count }));
   }, [list, categoryStatusFilter, typesById, locale]);
 
   const sourceData = useMemo(() => {
     const scoped = sourceStatusFilter ? list.filter((c) => c.status === sourceStatusFilter) : list;
     const counts = new Map<string, number>();
     scoped.forEach((c) => {
-      const source = sourcesById.get(c.complaintSourceId);
-      const label = source ? localizedName(source, locale) : undefined;
-      if (!label) return;
-      counts.set(label, (counts.get(label) ?? 0) + 1);
+      if (!sourcesById.has(c.complaintSourceId)) return;
+      counts.set(c.complaintSourceId, (counts.get(c.complaintSourceId) ?? 0) + 1);
     });
     return [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
-      .map(([label, count]) => ({ label, count, color: colorForSource(label) }));
+      .map(([id, count]) => {
+        const label = localizedName(sourcesById.get(id), locale) || id;
+        return { id, label, count, color: colorForSource(label) };
+      });
   }, [list, sourceStatusFilter, sourcesById, locale]);
 
   const trendData = useMemo(() => {
@@ -450,14 +473,18 @@ export default function HomePage() {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
       days.push({
-        date: d.toISOString().slice(0, 10),
+        // Local calendar day, not toISOString's UTC day — otherwise a
+        // complaint created late at night can bucket (and later, via the
+        // dashboard link, filter) under the wrong day for anyone west of
+        // UTC, or the right day only by accident for anyone east of it.
+        date: toLocalISODate(d),
         label: format.dateTime(d, { month: "short", day: "numeric" }),
         count: 0,
       });
     }
     const byDay = new Map(days.map((d) => [d.date, d]));
     scoped.forEach((c) => {
-      const bucket = byDay.get(c.createdAt.slice(0, 10));
+      const bucket = byDay.get(toLocalISODate(new Date(c.createdAt)));
       if (bucket) bucket.count += 1;
     });
     return days;
@@ -473,7 +500,7 @@ export default function HomePage() {
     return [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
-      .map(([uid, count]) => ({ name: localizedName(staffById.get(uid), locale) || uid, count }));
+      .map(([uid, count]) => ({ id: uid, name: localizedName(staffById.get(uid), locale) || uid, count }));
   }, [list, topAssigneesStatusFilter, staffById, locale]);
 
   const name = profile ? localizedName(profile, locale) || profile.username : "";
@@ -629,7 +656,13 @@ export default function HomePage() {
                           // cleanly.
                         >
                           {statusPieData.map((row) => (
-                            <Cell key={row.status} fill={STATUS_COLORS[row.status]} stroke="none" />
+                            <Cell
+                              key={row.status}
+                              fill={STATUS_COLORS[row.status]}
+                              stroke="none"
+                              cursor="pointer"
+                              onClick={() => router.push(dashboardHref({ status: row.status }))}
+                            />
                           ))}
                         </Pie>
                         <Tooltip
@@ -687,7 +720,17 @@ export default function HomePage() {
                         itemStyle={TOOLTIP_ITEM_STYLE}
                         cursor={BAR_CURSOR}
                       />
-                      <Bar dataKey="count" fill="#385bc1" radius={[0, 4, 4, 0]} barSize={28} />
+                      <Bar
+                        dataKey="count"
+                        fill="#385bc1"
+                        radius={[0, 4, 4, 0]}
+                        barSize={28}
+                        cursor="pointer"
+                        onClick={(data: { payload?: { id: string } }) => {
+                          if (!data.payload) return;
+                          router.push(dashboardHref({ type: data.payload.id, status: categoryStatusFilter || undefined }));
+                        }}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -728,7 +771,14 @@ export default function HomePage() {
                       />
                       <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={28}>
                         {sourceData.map((row) => (
-                          <Cell key={row.label} fill={row.color} />
+                          <Cell
+                            key={row.id}
+                            fill={row.color}
+                            cursor="pointer"
+                            onClick={() =>
+                              router.push(dashboardHref({ source: row.id, status: sourceStatusFilter || undefined }))
+                            }
+                          />
                         ))}
                       </Bar>
                     </BarChart>
@@ -778,8 +828,47 @@ export default function HomePage() {
                       stroke="#385bc1"
                       strokeWidth={2}
                       fill="url(#trendFill)"
-                      dot={{ r: 3, fill: "#385bc1", strokeWidth: 0 }}
-                      activeDot={{ r: 5 }}
+                      dot={(props: { cx?: number; cy?: number; payload?: { date: string } }) => (
+                        <Dot
+                          key={props.payload?.date ?? `${props.cx}-${props.cy}`}
+                          cx={props.cx ?? 0}
+                          cy={props.cy ?? 0}
+                          r={3}
+                          fill="#385bc1"
+                          strokeWidth={0}
+                          cursor="pointer"
+                          onClick={() => {
+                            if (!props.payload) return;
+                            router.push(
+                              dashboardHref({
+                                from: props.payload.date,
+                                to: props.payload.date,
+                                status: trendStatusFilter || undefined,
+                              })
+                            );
+                          }}
+                        />
+                      )}
+                      activeDot={(props: { cx?: number; cy?: number; payload?: { date: string } }) => (
+                        <Dot
+                          key={props.payload?.date ?? `${props.cx}-${props.cy}`}
+                          cx={props.cx ?? 0}
+                          cy={props.cy ?? 0}
+                          r={5}
+                          fill="#385bc1"
+                          cursor="pointer"
+                          onClick={() => {
+                            if (!props.payload) return;
+                            router.push(
+                              dashboardHref({
+                                from: props.payload.date,
+                                to: props.payload.date,
+                                status: trendStatusFilter || undefined,
+                              })
+                            );
+                          }}
+                        />
+                      )}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -819,7 +908,19 @@ export default function HomePage() {
                           itemStyle={TOOLTIP_ITEM_STYLE}
                           cursor={BAR_CURSOR}
                         />
-                        <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={28} />
+                        <Bar
+                          dataKey="count"
+                          fill="#6366f1"
+                          radius={[0, 4, 4, 0]}
+                          barSize={28}
+                          cursor="pointer"
+                          onClick={(data: { payload?: { id: string } }) => {
+                            if (!data.payload) return;
+                            router.push(
+                              dashboardHref({ assignedTo: data.payload.id, status: topAssigneesStatusFilter || undefined })
+                            );
+                          }}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   )}

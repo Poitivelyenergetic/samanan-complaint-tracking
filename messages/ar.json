@@ -163,6 +163,8 @@
     "searchPlaceholder": "ابحث بالموضوع أو اسم/هاتف العميل أو الرقم المرجعي...",
     "statusFilter": "الحالة",
     "assigneeFilter": "المسندة إلى",
+    "typeFilter": "النوع",
+    "sourceFilter": "المصدر",
     "noResults": "لا توجد شكاوى.",
     "stats": {
       "total": "إجمالي الشكاوى",

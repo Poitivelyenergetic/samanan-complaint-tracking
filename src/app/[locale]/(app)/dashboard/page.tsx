@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations, useFormatter } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { subscribeToComplaints } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { subscribeToComplaintSources } from "@/lib/complaintSources";
+import { subscribeToComplaintTypes } from "@/lib/complaintTypes";
 import { useAuth } from "@/lib/auth-context";
 import {
   hasPermission,
@@ -14,6 +15,7 @@ import {
   type Complaint,
   type ComplaintSource,
   type ComplaintStatus,
+  type ComplaintType,
   type StaffUser,
 } from "@/lib/types";
 import { COMPLAINT_STATUSES } from "@/lib/types";
@@ -26,18 +28,28 @@ function StatCard({
   iconClassName,
   label,
   value,
+  active,
+  onClick,
 }: {
   icon: React.ReactNode;
   iconClassName: string;
   label: string;
   value: number;
+  // Whether this card's filter is the one currently applied — highlighted
+  // so a click that narrows the list below stays visibly "selected".
+  active?: boolean;
+  onClick?: () => void;
 }) {
+  const className =
+    "block w-full text-start rounded-xl border bg-surface p-5 shadow-sm transition-all hover:shadow-md" +
+    (onClick ? " hover:border-brand/40 hover:-translate-y-0.5" : "") +
+    (active ? " border-brand" : " border-border");
   return (
-    <div className="rounded-xl border border-border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md">
+    <button type="button" onClick={onClick} className={className}>
       <div className={`inline-flex rounded-lg p-2 ${iconClassName}`}>{icon}</div>
       <p className="mt-4 text-sm font-medium text-foreground/60">{label}</p>
       <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
-    </div>
+    </button>
   );
 }
 
@@ -52,16 +64,19 @@ export default function DashboardPage() {
   const canCreate = hasPermission(profile, "complaints", "create");
   const canViewAll = hasPermission(profile, "complaints", "viewAll");
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [complaints, setComplaints] = useState<Complaint[] | null>(null);
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [complaintSources, setComplaintSources] = useState<ComplaintSource[]>([]);
+  const [complaintTypes, setComplaintTypes] = useState<ComplaintType[]>([]);
   const [search, setSearch] = useState("");
-  // Lets the home page's stat cards link straight into a status-filtered
-  // view (e.g. /dashboard?status=Open). Adjusted during render (the
-  // React-recommended way to sync state to a changing external value)
-  // rather than in an effect, so it stays in sync even when arriving here
-  // again from a different stat card link doesn't remount the page.
+  // Lets the home page's stat cards / chart bars — and this page's own stat
+  // cards — link straight into a filtered view (e.g. /dashboard?status=Open).
+  // Adjusted during render (the React-recommended way to sync state to a
+  // changing external value) rather than in an effect, so it stays in sync
+  // even when a link to this same page with different params doesn't remount
+  // it.
   const paramStatus = searchParams.get("status");
   const validParamStatus = (
     paramStatus && (COMPLAINT_STATUSES as readonly string[]).includes(paramStatus) ? paramStatus : ""
@@ -72,7 +87,51 @@ export default function DashboardPage() {
     setSyncedParamStatus(validParamStatus);
     setStatusFilter(validParamStatus);
   }
-  const [assigneeFilter, setAssigneeFilter] = useState("");
+
+  const paramAssignedTo = searchParams.get("assignedTo") ?? "";
+  const [assigneeFilter, setAssigneeFilter] = useState(paramAssignedTo);
+  const [syncedParamAssignedTo, setSyncedParamAssignedTo] = useState(paramAssignedTo);
+  if (paramAssignedTo !== syncedParamAssignedTo) {
+    setSyncedParamAssignedTo(paramAssignedTo);
+    setAssigneeFilter(paramAssignedTo);
+  }
+
+  const paramType = searchParams.get("type") ?? "";
+  const [typeFilter, setTypeFilter] = useState(paramType);
+  const [syncedParamType, setSyncedParamType] = useState(paramType);
+  if (paramType !== syncedParamType) {
+    setSyncedParamType(paramType);
+    setTypeFilter(paramType);
+  }
+
+  const paramSource = searchParams.get("source") ?? "";
+  const [sourceFilter, setSourceFilter] = useState(paramSource);
+  const [syncedParamSource, setSyncedParamSource] = useState(paramSource);
+  if (paramSource !== syncedParamSource) {
+    setSyncedParamSource(paramSource);
+    setSourceFilter(paramSource);
+  }
+
+  // "YYYY-MM-DD", inclusive on both ends — lets a home page trend chart
+  // point link straight to that single day's complaints. No dedicated UI
+  // control for these (unlike the filters above); they're only ever set by
+  // arriving via such a link, and clearing back to a normal view (e.g. the
+  // Total stat card) drops them like any other param not in the URL.
+  const paramFrom = searchParams.get("from") ?? "";
+  const [fromFilter, setFromFilter] = useState(paramFrom);
+  const [syncedParamFrom, setSyncedParamFrom] = useState(paramFrom);
+  if (paramFrom !== syncedParamFrom) {
+    setSyncedParamFrom(paramFrom);
+    setFromFilter(paramFrom);
+  }
+
+  const paramTo = searchParams.get("to") ?? "";
+  const [toFilter, setToFilter] = useState(paramTo);
+  const [syncedParamTo, setSyncedParamTo] = useState(paramTo);
+  if (paramTo !== syncedParamTo) {
+    setSyncedParamTo(paramTo);
+    setToFilter(paramTo);
+  }
 
   useEffect(() => {
     if (!profile || !canView) return;
@@ -80,6 +139,7 @@ export default function DashboardPage() {
   }, [profile, canView, canViewAll]);
   useEffect(() => subscribeToStaff(setStaff), []);
   useEffect(() => subscribeToComplaintSources(setComplaintSources), []);
+  useEffect(() => subscribeToComplaintTypes(setComplaintTypes), []);
 
   const staffById = useMemo(() => {
     const map = new Map<string, StaffUser>();
@@ -87,6 +147,20 @@ export default function DashboardPage() {
     return map;
   }, [staff]);
   const sourcesById = useMemo(() => new Map(complaintSources.map((s) => [s.id, s])), [complaintSources]);
+  const typeFilterOptions = useMemo(
+    () => [
+      { id: "", label: `${t("typeFilter")}: ${tCommon("all")}` },
+      ...complaintTypes.map((type) => ({ id: type.id, label: localizedName(type, locale) })),
+    ],
+    [complaintTypes, locale, t, tCommon]
+  );
+  const sourceFilterOptions = useMemo(
+    () => [
+      { id: "", label: `${t("sourceFilter")}: ${tCommon("all")}` },
+      ...complaintSources.map((source) => ({ id: source.id, label: localizedName(source, locale) })),
+    ],
+    [complaintSources, locale, t, tCommon]
+  );
   const statusFilterOptions = useMemo(
     () => [
       { id: "", label: `${t("statusFilter")}: ${tCommon("all")}` },
@@ -115,9 +189,18 @@ export default function DashboardPage() {
   const filtered = useMemo(() => {
     if (!visibleComplaints) return [];
     const term = search.trim().toLowerCase();
+    const from = fromFilter ? new Date(`${fromFilter}T00:00:00`) : null;
+    const to = toFilter ? new Date(`${toFilter}T23:59:59.999`) : null;
     return visibleComplaints.filter((c) => {
       if (statusFilter && c.status !== statusFilter) return false;
       if (assigneeFilter && c.assignedTo !== assigneeFilter) return false;
+      if (typeFilter && c.complaintTypeId !== typeFilter) return false;
+      if (sourceFilter && c.complaintSourceId !== sourceFilter) return false;
+      if (from || to) {
+        const created = new Date(c.createdAt);
+        if (from && created < from) return false;
+        if (to && created > to) return false;
+      }
       if (
         term &&
         !c.subject.toLowerCase().includes(term) &&
@@ -129,7 +212,7 @@ export default function DashboardPage() {
       }
       return true;
     });
-  }, [visibleComplaints, search, statusFilter, assigneeFilter]);
+  }, [visibleComplaints, search, statusFilter, assigneeFilter, typeFilter, sourceFilter, fromFilter, toFilter]);
 
   return (
     <div>
@@ -155,24 +238,32 @@ export default function DashboardPage() {
             iconClassName="bg-blue-50 text-blue-600"
             label={t("stats.total")}
             value={visibleComplaints.length}
+            active={statusFilter === ""}
+            onClick={() => router.push("/dashboard")}
           />
           <StatCard
             icon={<IconInbox />}
             iconClassName="bg-indigo-50 text-indigo-600"
             label={t("stats.open")}
             value={statusCounts.Open}
+            active={statusFilter === "Open"}
+            onClick={() => router.push(statusFilter === "Open" ? "/dashboard" : "/dashboard?status=Open")}
           />
           <StatCard
             icon={<IconRefreshCw />}
             iconClassName="bg-amber-50 text-amber-600"
             label={t("stats.processing")}
             value={statusCounts.Processing}
+            active={statusFilter === "Processing"}
+            onClick={() => router.push(statusFilter === "Processing" ? "/dashboard" : "/dashboard?status=Processing")}
           />
           <StatCard
             icon={<IconShieldCheck />}
             iconClassName="bg-green-50 text-green-600"
             label={t("stats.closed")}
             value={statusCounts.Closed}
+            active={statusFilter === "Closed"}
+            onClick={() => router.push(statusFilter === "Closed" ? "/dashboard" : "/dashboard?status=Closed")}
           />
         </div>
       )}
@@ -209,6 +300,28 @@ export default function DashboardPage() {
             />
           </div>
         )}
+        <div className="w-[220px]">
+          <SearchableSelect
+            items={typeFilterOptions}
+            value={typeFilter}
+            onChange={setTypeFilter}
+            getId={(option) => option.id}
+            getLabel={(option) => option.label}
+            allowClear={false}
+            ariaLabel={t("typeFilter")}
+          />
+        </div>
+        <div className="w-[220px]">
+          <SearchableSelect
+            items={sourceFilterOptions}
+            value={sourceFilter}
+            onChange={setSourceFilter}
+            getId={(option) => option.id}
+            getLabel={(option) => option.label}
+            allowClear={false}
+            ariaLabel={t("sourceFilter")}
+          />
+        </div>
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
