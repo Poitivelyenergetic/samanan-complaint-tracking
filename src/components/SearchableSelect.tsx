@@ -3,16 +3,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 interface SearchableSelectProps<T> {
-  items: T[];
+  items: readonly T[];
   value: string; // selected item's id, "" = none selected
   onChange: (id: string) => void;
   getId: (item: T) => string;
   getLabel: (item: T) => string;
-  placeholder: string;
+  placeholder?: string;
   disabled?: boolean;
   id?: string;
   ariaLabel?: string;
+  // Hide the "×" clear button — for fields that always require a value
+  // (e.g. a complaint's status), clearing to "" is invalid.
+  allowClear?: boolean;
+  // Overrides the input's default styling — for compact/inline filter spots
+  // (e.g. a chart card's corner control) that need a quieter look than the
+  // standard full-size form field.
+  className?: string;
 }
+
+const DEFAULT_INPUT_CLASS =
+  "w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60";
 
 // A type-to-search combobox: styled like the app's other inputs, but backed
 // by a filtered dropdown instead of a native <select>. Used everywhere the
@@ -24,10 +34,12 @@ export default function SearchableSelect<T>({
   onChange,
   getId,
   getLabel,
-  placeholder,
+  placeholder = "",
   disabled = false,
   id,
   ariaLabel,
+  allowClear = true,
+  className,
 }: SearchableSelectProps<T>) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -80,9 +92,9 @@ export default function SearchableSelect<T>({
           onBlur={() => {
             blurTimeout.current = setTimeout(() => setOpen(false), 150);
           }}
-          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
+          className={className ?? DEFAULT_INPUT_CLASS}
         />
-        {selectedItem && !disabled && (
+        {selectedItem && !disabled && allowClear && (
           <button
             type="button"
             tabIndex={-1}

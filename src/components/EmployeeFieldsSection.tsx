@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { localizedName, type Administration, type Company, type Department, type Role } from "@/lib/types";
-import Select from "./Select";
+import SearchableSelect from "./SearchableSelect";
 
 export interface EmployeeFieldsValues {
   nameAr: string;
@@ -197,68 +197,53 @@ export default function EmployeeFieldsSection({
           <label htmlFor="companyId" className="block text-sm font-medium text-foreground">
             {t("company")}
           </label>
-          <Select
-            id="companyId"
-            required={required}
-            value={values.companyId}
-            onChange={(e) => updateCompany(e.target.value)}
-            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-          >
-            <option value="" disabled>
-              {t("selectCompany")}
-            </option>
-            {companies.map((c) => (
-              <option key={c.id} value={c.id}>
-                {localizedName(c, locale)}
-              </option>
-            ))}
-          </Select>
+          <div className="mt-1">
+            <SearchableSelect
+              id="companyId"
+              items={companies}
+              value={values.companyId}
+              onChange={updateCompany}
+              getId={(c) => c.id}
+              getLabel={(c) => localizedName(c, locale)}
+              placeholder={t("selectCompany")}
+            />
+          </div>
         </div>
 
         <div>
           <label htmlFor="administrationId" className="block text-sm font-medium text-foreground">
             {t("administration")}
           </label>
-          <Select
-            id="administrationId"
-            required={required}
-            disabled={!values.companyId}
-            value={values.administrationId}
-            onChange={(e) => updateAdministration(e.target.value)}
-            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
-          >
-            <option value="" disabled>
-              {t("selectAdministration")}
-            </option>
-            {administrationsInCompany.map((a) => (
-              <option key={a.id} value={a.id}>
-                {localizedName(a, locale)}
-              </option>
-            ))}
-          </Select>
+          <div className="mt-1">
+            <SearchableSelect
+              id="administrationId"
+              disabled={!values.companyId}
+              items={administrationsInCompany}
+              value={values.administrationId}
+              onChange={updateAdministration}
+              getId={(a) => a.id}
+              getLabel={(a) => localizedName(a, locale)}
+              placeholder={t("selectAdministration")}
+            />
+          </div>
         </div>
 
         <div>
           <label htmlFor="departmentId" className="block text-sm font-medium text-foreground">
             {t("department")}
           </label>
-          <Select
-            id="departmentId"
-            required={required}
-            disabled={!values.administrationId}
-            value={values.departmentId}
-            onChange={(e) => update("departmentId", e.target.value)}
-            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
-          >
-            <option value="" disabled>
-              {t("selectDepartment")}
-            </option>
-            {departmentsInAdministration.map((d) => (
-              <option key={d.id} value={d.id}>
-                {localizedName(d, locale)}
-              </option>
-            ))}
-          </Select>
+          <div className="mt-1">
+            <SearchableSelect
+              id="departmentId"
+              disabled={!values.administrationId}
+              items={departmentsInAdministration}
+              value={values.departmentId}
+              onChange={(id) => update("departmentId", id)}
+              getId={(d) => d.id}
+              getLabel={(d) => localizedName(d, locale)}
+              placeholder={t("selectDepartment")}
+            />
+          </div>
         </div>
       </div>
 

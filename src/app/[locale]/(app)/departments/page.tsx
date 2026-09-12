@@ -17,7 +17,7 @@ import {
   type StaffUser,
 } from "@/lib/types";
 import { computeManagerScope, scopeDepartments } from "@/lib/orgScope";
-import Select from "@/components/Select";
+import SearchableSelect from "@/components/SearchableSelect";
 
 export default function DepartmentsPage() {
   const t = useTranslations("departments");
@@ -41,6 +41,13 @@ export default function DepartmentsPage() {
   useEffect(() => subscribeToStaff(setStaff), []);
 
   const administrationsById = useMemo(() => new Map(administrations.map((a) => [a.id, a])), [administrations]);
+  const administrationFilterOptions = useMemo(
+    () => [
+      { id: "", label: t("filterAllAdministrations") },
+      ...administrations.map((a) => ({ id: a.id, label: localizedName(a, locale) })),
+    ],
+    [administrations, locale, t]
+  );
   const staffById = useMemo(() => new Map(staff.map((s) => [s.id, s])), [staff]);
   const hasBroaderAccess = hasPermission(profile, "complaints", "viewAll");
   const managerScope = useMemo(
@@ -81,19 +88,15 @@ export default function DepartmentsPage() {
         )}
       </div>
 
-      <div className="mt-4">
-        <Select
+      <div className="mt-4 max-w-xs">
+        <SearchableSelect
+          items={administrationFilterOptions}
           value={administrationFilter}
-          onChange={(e) => setAdministrationFilter(e.target.value)}
-          className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-        >
-          <option value="">{t("filterAllAdministrations")}</option>
-          {administrations.map((a) => (
-            <option key={a.id} value={a.id}>
-              {localizedName(a, locale)}
-            </option>
-          ))}
-        </Select>
+          onChange={setAdministrationFilter}
+          getId={(option) => option.id}
+          getLabel={(option) => option.label}
+          allowClear={false}
+        />
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-surface">

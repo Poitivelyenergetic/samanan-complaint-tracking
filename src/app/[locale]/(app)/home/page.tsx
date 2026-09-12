@@ -40,7 +40,7 @@ import {
   type StaffUser,
 } from "@/lib/types";
 import { computeManagerScope, scopeStaff } from "@/lib/orgScope";
-import Select from "@/components/Select";
+import SearchableSelect from "@/components/SearchableSelect";
 import {
   IconClipboardList,
   IconInbox,
@@ -337,6 +337,33 @@ export default function HomePage() {
   );
   const scopedStaff = useMemo(() => scopeStaff(staff, managerScope), [staff, managerScope]);
   const scopedStaffIds = useMemo(() => new Set(scopedStaff.map((s) => s.id)), [scopedStaff]);
+  const employeeFilterOptions = useMemo(
+    () => [
+      { id: "", label: t("employeeFilterAll") },
+      ...scopedStaff.map((member) => ({ id: member.id, label: localizedName(member, locale) })),
+    ],
+    [scopedStaff, locale, t]
+  );
+  // Shared by every per-card status filter (Category/Source/Trend/Top
+  // Assignees) — they all offer the same "All statuses" + one-per-status set.
+  const statusFilterOptions = useMemo(
+    () => [
+      { id: "", label: tCommon("all") },
+      ...COMPLAINT_STATUSES.map((status) => ({ id: status, label: tStatus(status) })),
+    ],
+    [tCommon, tStatus]
+  );
+  const dateFilterOptions = useMemo(
+    () => [
+      { id: "all", label: t("dateFilterAll") },
+      { id: "today", label: t("dateFilterToday") },
+      { id: "7d", label: t("dateFilterLast7") },
+      { id: "30d", label: t("dateFilterLast30") },
+      { id: "month", label: t("dateFilterThisMonth") },
+      { id: "custom", label: t("dateFilterCustom") },
+    ],
+    [t]
+  );
 
   // Scoped by "who" (the employee filter) and, for a General Manager, by
   // their org branch — the top stat row's basis, and the starting point
@@ -465,19 +492,17 @@ export default function HomePage() {
         <>
           {canViewAll && (
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Select
-                value={employeeFilter}
-                onChange={(e) => setEmployeeFilter(e.target.value)}
-                className="w-auto rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-                aria-label={t("employeeFilter")}
-              >
-                <option value="">{t("employeeFilterAll")}</option>
-                {scopedStaff.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {localizedName(member, locale)}
-                  </option>
-                ))}
-              </Select>
+              <div className="w-[220px]">
+                <SearchableSelect
+                  items={employeeFilterOptions}
+                  value={employeeFilter}
+                  onChange={setEmployeeFilter}
+                  getId={(option) => option.id}
+                  getLabel={(option) => option.label}
+                  allowClear={false}
+                  ariaLabel={t("employeeFilter")}
+                />
+              </div>
             </div>
           )}
 
@@ -511,37 +536,52 @@ export default function HomePage() {
               <ChartCard
                 title={t("statusBreakdown")}
                 filter={
-                  <div className="flex flex-col items-end gap-1">
-                    <Select
-                      value={statusBreakdownDateFilter}
-                      onChange={(e) => setStatusBreakdownDateFilter(e.target.value as DateFilter)}
-                      className={compactSelectClass}
-                      aria-label={t("dateFilter")}
-                    >
-                      <option value="all">{t("dateFilterAll")}</option>
-                      <option value="today">{t("dateFilterToday")}</option>
-                      <option value="7d">{t("dateFilterLast7")}</option>
-                      <option value="30d">{t("dateFilterLast30")}</option>
-                      <option value="month">{t("dateFilterThisMonth")}</option>
-                      <option value="custom">{t("dateFilterCustom")}</option>
-                    </Select>
+                  <div className="relative flex flex-col items-end">
+                    <div className="w-[150px]">
+                      <SearchableSelect
+                        items={dateFilterOptions}
+                        value={statusBreakdownDateFilter}
+                        onChange={(id) => setStatusBreakdownDateFilter(id as DateFilter)}
+                        getId={(option) => option.id}
+                        getLabel={(option) => option.label}
+                        allowClear={false}
+                        className={compactSelectClass}
+                        ariaLabel={t("dateFilter")}
+                      />
+                    </div>
                     {statusBreakdownDateFilter === "custom" && (
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="date"
-                          value={statusBreakdownFrom}
-                          onChange={(e) => setStatusBreakdownFrom(e.target.value)}
-                          aria-label={t("dateFrom")}
-                          className="w-[124px] rounded-md border border-border bg-surface px-1.5 py-0.5 text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-                        />
-                        <span className="text-xs text-foreground/40">–</span>
-                        <input
-                          type="date"
-                          value={statusBreakdownTo}
-                          onChange={(e) => setStatusBreakdownTo(e.target.value)}
-                          aria-label={t("dateTo")}
-                          className="w-[124px] rounded-md border border-border bg-surface px-1.5 py-0.5 text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-                        />
+                      <div className="absolute end-0 top-full z-10 mt-1 flex items-end gap-2 rounded-lg border border-border bg-surface p-3 shadow-lg">
+                        <div className="flex flex-col gap-1">
+                          <label
+                            htmlFor="statusBreakdownFrom"
+                            className="text-[10px] font-semibold uppercase tracking-wide text-foreground/40"
+                          >
+                            {t("dateFrom")}
+                          </label>
+                          <input
+                            id="statusBreakdownFrom"
+                            type="date"
+                            value={statusBreakdownFrom}
+                            onChange={(e) => setStatusBreakdownFrom(e.target.value)}
+                            className="w-[136px] rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                          />
+                        </div>
+                        <span className="pb-2 text-foreground/30">→</span>
+                        <div className="flex flex-col gap-1">
+                          <label
+                            htmlFor="statusBreakdownTo"
+                            className="text-[10px] font-semibold uppercase tracking-wide text-foreground/40"
+                          >
+                            {t("dateTo")}
+                          </label>
+                          <input
+                            id="statusBreakdownTo"
+                            type="date"
+                            value={statusBreakdownTo}
+                            onChange={(e) => setStatusBreakdownTo(e.target.value)}
+                            className="w-[136px] rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -599,19 +639,18 @@ export default function HomePage() {
               <ChartCard
                 title={t("categoryBreakdown")}
                 filter={
-                  <Select
-                    value={categoryStatusFilter}
-                    onChange={(e) => setCategoryStatusFilter(e.target.value as ComplaintStatus | "")}
-                    className={compactSelectClass}
-                    aria-label={tCommon("filter")}
-                  >
-                    <option value="">{tCommon("all")}</option>
-                    {COMPLAINT_STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {tStatus(status)}
-                      </option>
-                    ))}
-                  </Select>
+                  <div className="w-[130px]">
+                    <SearchableSelect
+                      items={statusFilterOptions}
+                      value={categoryStatusFilter}
+                      onChange={(id) => setCategoryStatusFilter(id as ComplaintStatus | "")}
+                      getId={(option) => option.id}
+                      getLabel={(option) => option.label}
+                      allowClear={false}
+                      className={compactSelectClass}
+                      ariaLabel={tCommon("filter")}
+                    />
+                  </div>
                 }
               >
                 {categoryData.length === 0 ? (
@@ -639,19 +678,18 @@ export default function HomePage() {
               <ChartCard
                 title={t("sourceBreakdown")}
                 filter={
-                  <Select
-                    value={sourceStatusFilter}
-                    onChange={(e) => setSourceStatusFilter(e.target.value as ComplaintStatus | "")}
-                    className={compactSelectClass}
-                    aria-label={tCommon("filter")}
-                  >
-                    <option value="">{tCommon("all")}</option>
-                    {COMPLAINT_STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {tStatus(status)}
-                      </option>
-                    ))}
-                  </Select>
+                  <div className="w-[130px]">
+                    <SearchableSelect
+                      items={statusFilterOptions}
+                      value={sourceStatusFilter}
+                      onChange={(id) => setSourceStatusFilter(id as ComplaintStatus | "")}
+                      getId={(option) => option.id}
+                      getLabel={(option) => option.label}
+                      allowClear={false}
+                      className={compactSelectClass}
+                      ariaLabel={tCommon("filter")}
+                    />
+                  </div>
                 }
               >
                 {sourceData.length === 0 ? (
@@ -683,19 +721,18 @@ export default function HomePage() {
               <ChartCard
                 title={t("trend")}
                 filter={
-                  <Select
-                    value={trendStatusFilter}
-                    onChange={(e) => setTrendStatusFilter(e.target.value as ComplaintStatus | "")}
-                    className={compactSelectClass}
-                    aria-label={tCommon("filter")}
-                  >
-                    <option value="">{tCommon("all")}</option>
-                    {COMPLAINT_STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {tStatus(status)}
-                      </option>
-                    ))}
-                  </Select>
+                  <div className="w-[130px]">
+                    <SearchableSelect
+                      items={statusFilterOptions}
+                      value={trendStatusFilter}
+                      onChange={(id) => setTrendStatusFilter(id as ComplaintStatus | "")}
+                      getId={(option) => option.id}
+                      getLabel={(option) => option.label}
+                      allowClear={false}
+                      className={compactSelectClass}
+                      ariaLabel={tCommon("filter")}
+                    />
+                  </div>
                 }
               >
                 <ResponsiveContainer width="100%" height="100%">
@@ -720,19 +757,18 @@ export default function HomePage() {
                 <ChartCard
                   title={t("topAssignees")}
                   filter={
-                    <Select
-                      value={topAssigneesStatusFilter}
-                      onChange={(e) => setTopAssigneesStatusFilter(e.target.value as ComplaintStatus | "")}
-                      className={compactSelectClass}
-                      aria-label={tCommon("filter")}
-                    >
-                      <option value="">{tCommon("all")}</option>
-                      {COMPLAINT_STATUSES.map((status) => (
-                        <option key={status} value={status}>
-                          {tStatus(status)}
-                        </option>
-                      ))}
-                    </Select>
+                    <div className="w-[130px]">
+                      <SearchableSelect
+                        items={statusFilterOptions}
+                        value={topAssigneesStatusFilter}
+                        onChange={(id) => setTopAssigneesStatusFilter(id as ComplaintStatus | "")}
+                        getId={(option) => option.id}
+                        getLabel={(option) => option.label}
+                        allowClear={false}
+                        className={compactSelectClass}
+                        ariaLabel={tCommon("filter")}
+                      />
+                    </div>
                   }
                 >
                   {topAssignees.length === 0 ? (

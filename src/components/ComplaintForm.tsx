@@ -17,7 +17,6 @@ import {
 } from "@/lib/types";
 import { toLatinDigits } from "@/lib/phone";
 import SearchableSelect from "./SearchableSelect";
-import Select from "./Select";
 
 export interface ComplaintFormValues {
   subject: string;
@@ -324,46 +323,36 @@ export default function ComplaintForm({
             <label htmlFor="complaintTypeId" className="block text-sm font-medium text-foreground">
               {t("complaintType")}
             </label>
-            <Select
-              id="complaintTypeId"
-              required
-              disabled={readOnly}
-              value={values.complaintTypeId}
-              onChange={(e) => update("complaintTypeId", e.target.value)}
-              className={textInputClass}
-            >
-              <option value="" disabled>
-                {t("selectComplaintType")}
-              </option>
-              {complaintTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {localizedName(type, locale)}
-                </option>
-              ))}
-            </Select>
+            <div className="mt-1">
+              <SearchableSelect
+                id="complaintTypeId"
+                disabled={readOnly}
+                items={complaintTypes}
+                value={values.complaintTypeId}
+                onChange={(id) => update("complaintTypeId", id)}
+                getId={(type) => type.id}
+                getLabel={(type) => localizedName(type, locale)}
+                placeholder={t("selectComplaintType")}
+              />
+            </div>
           </div>
 
           <div>
             <label htmlFor="complaintSourceId" className="block text-sm font-medium text-foreground">
               {t("source")}
             </label>
-            <Select
-              id="complaintSourceId"
-              required
-              disabled={readOnly}
-              value={values.complaintSourceId}
-              onChange={(e) => update("complaintSourceId", e.target.value)}
-              className={textInputClass}
-            >
-              <option value="" disabled>
-                {t("selectComplaintSource")}
-              </option>
-              {complaintSources.map((source) => (
-                <option key={source.id} value={source.id}>
-                  {localizedName(source, locale)}
-                </option>
-              ))}
-            </Select>
+            <div className="mt-1">
+              <SearchableSelect
+                id="complaintSourceId"
+                disabled={readOnly}
+                items={complaintSources}
+                value={values.complaintSourceId}
+                onChange={(id) => update("complaintSourceId", id)}
+                getId={(source) => source.id}
+                getLabel={(source) => localizedName(source, locale)}
+                placeholder={t("selectComplaintSource")}
+              />
+            </div>
           </div>
 
           <div>
@@ -521,19 +510,18 @@ export default function ComplaintForm({
         <label htmlFor="status" className="block text-sm font-medium text-foreground">
           {t("status")}
         </label>
-        <Select
-          id="status"
-          disabled={readOnly}
-          value={values.status}
-          onChange={(e) => update("status", e.target.value as ComplaintStatus)}
-          className={`${textInputClass} max-w-xs`}
-        >
-          {COMPLAINT_STATUSES.map((status) => (
-            <option key={status} value={status}>
-              {tStatus(status)}
-            </option>
-          ))}
-        </Select>
+        <div className="mt-1 max-w-xs">
+          <SearchableSelect
+            id="status"
+            disabled={readOnly}
+            allowClear={false}
+            items={COMPLAINT_STATUSES}
+            value={values.status}
+            onChange={(id) => update("status", id as ComplaintStatus)}
+            getId={(status) => status}
+            getLabel={(status) => tStatus(status)}
+          />
+        </div>
       </div>
 
       {statusChanged && !readOnly && (

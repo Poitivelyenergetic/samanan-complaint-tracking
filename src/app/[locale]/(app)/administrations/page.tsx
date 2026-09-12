@@ -17,7 +17,7 @@ import {
   type StaffUser,
 } from "@/lib/types";
 import { computeManagerScope, scopeAdministrations } from "@/lib/orgScope";
-import Select from "@/components/Select";
+import SearchableSelect from "@/components/SearchableSelect";
 
 export default function AdministrationsPage() {
   const t = useTranslations("administrations");
@@ -41,6 +41,13 @@ export default function AdministrationsPage() {
   useEffect(() => subscribeToStaff(setStaff), []);
 
   const companiesById = useMemo(() => new Map(companies.map((c) => [c.id, c])), [companies]);
+  const companyFilterOptions = useMemo(
+    () => [
+      { id: "", label: t("filterAllCompanies") },
+      ...companies.map((c) => ({ id: c.id, label: localizedName(c, locale) })),
+    ],
+    [companies, locale, t]
+  );
   const staffById = useMemo(() => new Map(staff.map((s) => [s.id, s])), [staff]);
   // A General Manager (the designated manager of a company/administration/
   // department) only sees their own branch of the org tree — unless they
@@ -84,19 +91,15 @@ export default function AdministrationsPage() {
         )}
       </div>
 
-      <div className="mt-4">
-        <Select
+      <div className="mt-4 max-w-xs">
+        <SearchableSelect
+          items={companyFilterOptions}
           value={companyFilter}
-          onChange={(e) => setCompanyFilter(e.target.value)}
-          className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-        >
-          <option value="">{t("filterAllCompanies")}</option>
-          {companies.map((c) => (
-            <option key={c.id} value={c.id}>
-              {localizedName(c, locale)}
-            </option>
-          ))}
-        </Select>
+          onChange={setCompanyFilter}
+          getId={(option) => option.id}
+          getLabel={(option) => option.label}
+          allowClear={false}
+        />
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-surface">

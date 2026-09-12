@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { localizedName, type CompanyInput, type StaffUser } from "@/lib/types";
-import Select from "./Select";
+import SearchableSelect from "./SearchableSelect";
 
 interface CompanyFormProps {
   staff: StaffUser[];
@@ -88,19 +88,17 @@ export default function CompanyForm({ staff, initialValues, submitLabel, submitt
         <label htmlFor="managerId" className="block text-sm font-medium text-foreground">
           {t("manager")}
         </label>
-        <Select
-          id="managerId"
-          value={values.managerId ?? ""}
-          onChange={(e) => update("managerId", e.target.value || null)}
-          className="mt-1 w-full max-w-sm rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-        >
-          <option value="">{t("managerNotAssigned")}</option>
-          {staff.map((member) => (
-            <option key={member.id} value={member.id}>
-              {localizedName(member, locale)}
-            </option>
-          ))}
-        </Select>
+        <div className="mt-1 max-w-sm">
+          <SearchableSelect
+            id="managerId"
+            items={staff}
+            value={values.managerId ?? ""}
+            onChange={(id) => update("managerId", id || null)}
+            getId={(member) => member.id}
+            getLabel={(member) => localizedName(member, locale)}
+            placeholder={t("managerNotAssigned")}
+          />
+        </div>
       </div>
 
       {error && (

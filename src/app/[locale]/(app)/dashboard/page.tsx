@@ -18,7 +18,7 @@ import {
 } from "@/lib/types";
 import { COMPLAINT_STATUSES } from "@/lib/types";
 import StatusBadge from "@/components/StatusBadge";
-import Select from "@/components/Select";
+import SearchableSelect from "@/components/SearchableSelect";
 import { IconClipboardList, IconInbox, IconRefreshCw, IconShieldCheck } from "@/components/icons";
 
 function StatCard({
@@ -87,6 +87,20 @@ export default function DashboardPage() {
     return map;
   }, [staff]);
   const sourcesById = useMemo(() => new Map(complaintSources.map((s) => [s.id, s])), [complaintSources]);
+  const statusFilterOptions = useMemo(
+    () => [
+      { id: "", label: `${t("statusFilter")}: ${tCommon("all")}` },
+      ...COMPLAINT_STATUSES.map((status) => ({ id: status, label: tStatus(status) })),
+    ],
+    [t, tCommon, tStatus]
+  );
+  const assigneeFilterOptions = useMemo(
+    () => [
+      { id: "", label: `${t("assigneeFilter")}: ${tCommon("all")}` },
+      ...staff.map((member) => ({ id: member.id, label: localizedName(member, locale) })),
+    ],
+    [staff, locale, t, tCommon]
+  );
 
   const visibleComplaints = useMemo(() => (canView ? complaints : []), [canView, complaints]);
 
@@ -171,33 +185,29 @@ export default function DashboardPage() {
           placeholder={t("searchPlaceholder")}
           className="min-w-[220px] flex-1 rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
         />
-        <Select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as ComplaintStatus | "")}
-          className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-          aria-label={t("statusFilter")}
-        >
-          <option value="">{t("statusFilter")}: {tCommon("all")}</option>
-          {COMPLAINT_STATUSES.map((status) => (
-            <option key={status} value={status}>
-              {tStatus(status)}
-            </option>
-          ))}
-        </Select>
+        <div className="w-[220px]">
+          <SearchableSelect
+            items={statusFilterOptions}
+            value={statusFilter}
+            onChange={(id) => setStatusFilter(id as ComplaintStatus | "")}
+            getId={(option) => option.id}
+            getLabel={(option) => option.label}
+            allowClear={false}
+            ariaLabel={t("statusFilter")}
+          />
+        </div>
         {canViewAll && (
-          <Select
-            value={assigneeFilter}
-            onChange={(e) => setAssigneeFilter(e.target.value)}
-            className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-            aria-label={t("assigneeFilter")}
-          >
-            <option value="">{t("assigneeFilter")}: {tCommon("all")}</option>
-            {staff.map((member) => (
-              <option key={member.id} value={member.id}>
-                {localizedName(member, locale)}
-              </option>
-            ))}
-          </Select>
+          <div className="w-[220px]">
+            <SearchableSelect
+              items={assigneeFilterOptions}
+              value={assigneeFilter}
+              onChange={setAssigneeFilter}
+              getId={(option) => option.id}
+              getLabel={(option) => option.label}
+              allowClear={false}
+              ariaLabel={t("assigneeFilter")}
+            />
+          </div>
         )}
       </div>
 

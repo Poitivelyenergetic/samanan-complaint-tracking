@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { localizedName, type AdministrationInput, type Company, type StaffUser } from "@/lib/types";
-import Select from "./Select";
+import SearchableSelect from "./SearchableSelect";
 
 interface AdministrationFormProps {
   companies: Company[];
@@ -67,22 +67,17 @@ export default function AdministrationForm({
         <label htmlFor="companyId" className="block text-sm font-medium text-foreground">
           {t("company")}
         </label>
-        <Select
-          id="companyId"
-          required
-          value={values.companyId}
-          onChange={(e) => update("companyId", e.target.value)}
-          className="mt-1 w-full max-w-sm rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-        >
-          <option value="" disabled>
-            {t("selectCompany")}
-          </option>
-          {companies.map((c) => (
-            <option key={c.id} value={c.id}>
-              {localizedName(c, locale)}
-            </option>
-          ))}
-        </Select>
+        <div className="mt-1 max-w-sm">
+          <SearchableSelect
+            id="companyId"
+            items={companies}
+            value={values.companyId}
+            onChange={(id) => update("companyId", id)}
+            getId={(c) => c.id}
+            getLabel={(c) => localizedName(c, locale)}
+            placeholder={t("selectCompany")}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -118,19 +113,17 @@ export default function AdministrationForm({
         <label htmlFor="managerId" className="block text-sm font-medium text-foreground">
           {t("manager")}
         </label>
-        <Select
-          id="managerId"
-          value={values.managerId ?? ""}
-          onChange={(e) => update("managerId", e.target.value || null)}
-          className="mt-1 w-full max-w-sm rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-        >
-          <option value="">{t("managerNotAssigned")}</option>
-          {staff.map((member) => (
-            <option key={member.id} value={member.id}>
-              {localizedName(member, locale)}
-            </option>
-          ))}
-        </Select>
+        <div className="mt-1 max-w-sm">
+          <SearchableSelect
+            id="managerId"
+            items={staff}
+            value={values.managerId ?? ""}
+            onChange={(id) => update("managerId", id || null)}
+            getId={(member) => member.id}
+            getLabel={(member) => localizedName(member, locale)}
+            placeholder={t("managerNotAssigned")}
+          />
+        </div>
       </div>
 
       {error && (

@@ -19,7 +19,7 @@ import {
   type StaffUser,
 } from "@/lib/types";
 import { computeManagerScope, scopeStaff } from "@/lib/orgScope";
-import Select from "@/components/Select";
+import SearchableSelect from "@/components/SearchableSelect";
 
 export default function EmployeesPage() {
   const t = useTranslations("employees");
@@ -55,6 +55,29 @@ export default function EmployeesPage() {
   const companiesById = useMemo(() => new Map(companies.map((c) => [c.id, c])), [companies]);
   const administrationsById = useMemo(() => new Map(administrations.map((a) => [a.id, a])), [administrations]);
   const departmentsById = useMemo(() => new Map(departments.map((d) => [d.id, d])), [departments]);
+  const companyFilterOptions = useMemo(
+    () => [
+      { id: "", label: t("filterAllCompanies") },
+      ...companies.map((c) => ({ id: c.id, label: localizedName(c, locale) })),
+    ],
+    [companies, locale, t]
+  );
+  const administrationFilterOptions = useMemo(() => {
+    const inCompany = companyFilter ? administrations.filter((a) => a.companyId === companyFilter) : administrations;
+    return [
+      { id: "", label: t("filterAllAdministrations") },
+      ...inCompany.map((a) => ({ id: a.id, label: localizedName(a, locale) })),
+    ];
+  }, [administrations, companyFilter, locale, t]);
+  const departmentFilterOptions = useMemo(() => {
+    const inAdministration = administrationFilter
+      ? departments.filter((d) => d.administrationId === administrationFilter)
+      : departments;
+    return [
+      { id: "", label: t("filterAllDepartments") },
+      ...inAdministration.map((d) => ({ id: d.id, label: localizedName(d, locale) })),
+    ];
+  }, [departments, administrationFilter, locale, t]);
   const hasBroaderAccess = hasPermission(profile, "complaints", "viewAll");
   const managerScope = useMemo(
     () => computeManagerScope(user?.uid, companies, administrations, departments, hasBroaderAccess),
@@ -127,54 +150,43 @@ export default function EmployeesPage() {
           type="search"
           className="min-w-[220px] flex-1 rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
         />
-        <Select
-          value={companyFilter}
-          onChange={(e) => {
-            setCompanyFilter(e.target.value);
-            setAdministrationFilter("");
-            setDepartmentFilter("");
-          }}
-          className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-        >
-          <option value="">{t("filterAllCompanies")}</option>
-          {companies.map((c) => (
-            <option key={c.id} value={c.id}>
-              {localizedName(c, locale)}
-            </option>
-          ))}
-        </Select>
-        <Select
-          value={administrationFilter}
-          onChange={(e) => {
-            setAdministrationFilter(e.target.value);
-            setDepartmentFilter("");
-          }}
-          className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-        >
-          <option value="">{t("filterAllAdministrations")}</option>
-          {(companyFilter ? administrations.filter((a) => a.companyId === companyFilter) : administrations).map(
-            (a) => (
-              <option key={a.id} value={a.id}>
-                {localizedName(a, locale)}
-              </option>
-            )
-          )}
-        </Select>
-        <Select
-          value={departmentFilter}
-          onChange={(e) => setDepartmentFilter(e.target.value)}
-          className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-        >
-          <option value="">{t("filterAllDepartments")}</option>
-          {(administrationFilter
-            ? departments.filter((d) => d.administrationId === administrationFilter)
-            : departments
-          ).map((d) => (
-            <option key={d.id} value={d.id}>
-              {localizedName(d, locale)}
-            </option>
-          ))}
-        </Select>
+        <div className="w-[220px]">
+          <SearchableSelect
+            items={companyFilterOptions}
+            value={companyFilter}
+            onChange={(id) => {
+              setCompanyFilter(id);
+              setAdministrationFilter("");
+              setDepartmentFilter("");
+            }}
+            getId={(option) => option.id}
+            getLabel={(option) => option.label}
+            allowClear={false}
+          />
+        </div>
+        <div className="w-[220px]">
+          <SearchableSelect
+            items={administrationFilterOptions}
+            value={administrationFilter}
+            onChange={(id) => {
+              setAdministrationFilter(id);
+              setDepartmentFilter("");
+            }}
+            getId={(option) => option.id}
+            getLabel={(option) => option.label}
+            allowClear={false}
+          />
+        </div>
+        <div className="w-[220px]">
+          <SearchableSelect
+            items={departmentFilterOptions}
+            value={departmentFilter}
+            onChange={setDepartmentFilter}
+            getId={(option) => option.id}
+            getLabel={(option) => option.label}
+            allowClear={false}
+          />
+        </div>
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-surface">
