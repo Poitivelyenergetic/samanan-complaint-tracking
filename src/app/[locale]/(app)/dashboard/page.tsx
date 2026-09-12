@@ -25,14 +25,18 @@ import { IconClipboardList, IconInbox, IconRefreshCw, IconShieldCheck } from "@/
 
 function StatCard({
   icon,
-  iconClassName,
+  color,
   label,
   value,
   active,
   onClick,
 }: {
   icon: React.ReactNode;
-  iconClassName: string;
+  // Hex color for the icon and its chip background — an alpha-blended
+  // inline style rather than a light-mode Tailwind shade (bg-blue-50 etc.),
+  // since those all render as near-identical pale chips against this app's
+  // dark theme instead of reading as distinct colors.
+  color: string;
   label: string;
   value: number;
   // Whether this card's filter is the one currently applied — highlighted
@@ -46,7 +50,9 @@ function StatCard({
     (active ? " border-brand" : " border-border");
   return (
     <button type="button" onClick={onClick} className={className}>
-      <div className={`inline-flex rounded-lg p-2 ${iconClassName}`}>{icon}</div>
+      <div className="inline-flex rounded-lg p-2" style={{ backgroundColor: `${color}1f`, color }}>
+        {icon}
+      </div>
       <p className="mt-4 text-sm font-medium text-foreground/60">{label}</p>
       <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
     </button>
@@ -235,7 +241,7 @@ export default function DashboardPage() {
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard
             icon={<IconClipboardList />}
-            iconClassName="bg-blue-50 text-blue-600"
+            color="#385bc1"
             label={t("stats.total")}
             value={visibleComplaints.length}
             active={statusFilter === ""}
@@ -243,7 +249,7 @@ export default function DashboardPage() {
           />
           <StatCard
             icon={<IconInbox />}
-            iconClassName="bg-indigo-50 text-indigo-600"
+            color="#4f7fe0"
             label={t("stats.open")}
             value={statusCounts.Open}
             active={statusFilter === "Open"}
@@ -251,7 +257,7 @@ export default function DashboardPage() {
           />
           <StatCard
             icon={<IconRefreshCw />}
-            iconClassName="bg-amber-50 text-amber-600"
+            color="#d97706"
             label={t("stats.processing")}
             value={statusCounts.Processing}
             active={statusFilter === "Processing"}
@@ -259,7 +265,7 @@ export default function DashboardPage() {
           />
           <StatCard
             icon={<IconShieldCheck />}
-            iconClassName="bg-green-50 text-green-600"
+            color="#16a34a"
             label={t("stats.closed")}
             value={statusCounts.Closed}
             active={statusFilter === "Closed"}
