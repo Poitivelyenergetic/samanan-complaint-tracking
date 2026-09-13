@@ -116,19 +116,70 @@ service cloud.firestore {
       allow create: if isSignedIn() && hasPermission("complaints", "create") && isSelfCreatedComplaint();
     }
 
+    // Tickets — a separate, parallel system to Complaints for internal
+    // requests an employee files for themselves. Filing one is open to any
+    // signed-in employee (no tickets.create permission gate, by design);
+    // "My Tickets" means either you filed it or you're the current
+    // assignee, so read access covers both, not just assignedTo like
+    // complaints. Status can be moved by anyone with tickets.update, or —
+    // uniquely to tickets — by the current assignee even without that
+    // permission, changing only the status/history fields.
+    function isSelfCreatedTicket() {
+      let d = request.resource.data;
+      return d.createdBy == request.auth.uid && d.administrationId == "leMoMH7aViBh7tSM0UtH";
+    }
+
+    function isTicketReassignWrite() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return affected.hasOnly(["departmentId", "assignedTo", "updatedAt", "history"]);
+    }
+
+    function isTicketStatusOnlyWrite() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return affected.hasOnly(["status", "updatedAt", "history"]);
+    }
+
+    function isTicketNotesOnlyWrite() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return affected.hasOnly(["notes", "updatedAt"]);
+    }
+
+    function canReadTicket() {
+      return hasPermission("tickets", "viewAll")
+        || resource.data.assignedTo == request.auth.uid
+        || resource.data.createdBy == request.auth.uid;
+    }
+
+    match /tickets/{ticketId} {
+      allow get: if canReadTicket();
+      allow list: if canReadTicket();
+      allow update: if hasPermission("tickets", "update")
+        || (hasPermission("tickets", "reassign") && isTicketReassignWrite())
+        || (isSignedIn() && resource.data.assignedTo == request.auth.uid && isTicketStatusOnlyWrite())
+        || (canReadTicket() && isTicketNotesOnlyWrite());
+      allow delete: if hasPermission("tickets", "delete");
+      allow create: if isSignedIn() && isSelfCreatedTicket();
+    }
+
     // Sequential complaint IDs ("1", "2", "3", ...) — counters/complaints
     // holds the last-issued number, incremented in the same client
     // transaction that creates the complaint doc (see createComplaint() in
     // src/lib/complaints.ts). Scoped to complaints.create, and validated so
     // a write can only ever bump the value by exactly 1 (or set it to 1 on
-    // first use) — never set it to an arbitrary number.
+    // first use) — never set it to an arbitrary number. counters/tickets
+    // works the same way, just open to any signed-in employee to match
+    // ticket creation itself.
     match /counters/{counterId} {
       allow read: if isSignedIn();
-      allow create: if hasPermission("complaints", "create")
-        && counterId == "complaints"
+      allow create: if (
+          (counterId == "complaints" && hasPermission("complaints", "create"))
+          || (counterId == "tickets" && isSignedIn())
+        )
         && request.resource.data.value == 1;
-      allow update: if hasPermission("complaints", "create")
-        && counterId == "complaints"
+      allow update: if (
+          (counterId == "complaints" && hasPermission("complaints", "create"))
+          || (counterId == "tickets" && isSignedIn())
+        )
         && request.resource.data.value == resource.data.value + 1;
     }
 
@@ -177,6 +228,22 @@ service cloud.firestore {
       allow create: if hasPermission("complaintSources", "create");
       allow update: if hasPermission("complaintSources", "update");
       allow delete: if hasPermission("complaintSources", "delete");
+    }
+
+    // Ticket Types / Sources — the same picklist pattern as Complaint
+    // Types/Sources above, offered on the New Ticket form.
+    match /ticketTypes/{typeId} {
+      allow read: if isSignedIn();
+      allow create: if hasPermission("ticketTypes", "create");
+      allow update: if hasPermission("ticketTypes", "update");
+      allow delete: if hasPermission("ticketTypes", "delete");
+    }
+
+    match /ticketSources/{sourceId} {
+      allow read: if isSignedIn();
+      allow create: if hasPermission("ticketSources", "create");
+      allow update: if hasPermission("ticketSources", "update");
+      allow delete: if hasPermission("ticketSources", "delete");
     }
 
     // Forgot-password rate-limit counters, written only by the Admin SDK

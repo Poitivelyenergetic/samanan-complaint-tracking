@@ -20,15 +20,18 @@ import {
   YAxis,
 } from "recharts";
 import { subscribeToComplaints } from "@/lib/complaints";
+import { subscribeToTickets } from "@/lib/tickets";
 import { subscribeToStaff } from "@/lib/users";
 import { subscribeToComplaintTypes } from "@/lib/complaintTypes";
 import { subscribeToComplaintSources } from "@/lib/complaintSources";
+import { subscribeToTicketTypes } from "@/lib/ticketTypes";
 import { subscribeToCompanies } from "@/lib/companies";
 import { subscribeToAdministrations } from "@/lib/administrations";
 import { subscribeToDepartments } from "@/lib/departments";
 import { useAuth } from "@/lib/auth-context";
 import {
   COMPLAINT_STATUSES,
+  TICKET_STATUSES,
   hasPermission,
   localizedName,
   type Administration,
@@ -39,6 +42,8 @@ import {
   type ComplaintType,
   type Department,
   type StaffUser,
+  type Ticket,
+  type TicketType,
 } from "@/lib/types";
 import { computeManagerScope, scopeStaff } from "@/lib/orgScope";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -307,6 +312,16 @@ function dashboardHref(params: Record<string, string | undefined>): string {
   return qs ? `/dashboard?${qs}` : "/dashboard";
 }
 
+// Same idea as dashboardHref, but into the Tickets queue.
+function ticketsHref(params: Record<string, string | undefined>): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value) query.set(key, value);
+  }
+  const qs = query.toString();
+  return qs ? `/tickets?${qs}` : "/tickets";
+}
+
 export default function HomePage() {
   const t = useTranslations("home");
   const tStatus = useTranslations("status");
@@ -318,11 +333,14 @@ export default function HomePage() {
 
   const canView = hasPermission(profile, "complaints", "view");
   const canViewAll = hasPermission(profile, "complaints", "viewAll");
+  const canViewAllTickets = hasPermission(profile, "tickets", "viewAll");
 
   const [complaints, setComplaints] = useState<Complaint[] | null>(null);
+  const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [complaintTypes, setComplaintTypes] = useState<ComplaintType[]>([]);
   const [complaintSources, setComplaintSources] = useState<ComplaintSource[]>([]);
+  const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [administrations, setAdministrations] = useState<Administration[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -344,9 +362,14 @@ export default function HomePage() {
     if (!profile || !canView) return;
     return subscribeToComplaints(setComplaints, undefined, canViewAll ? undefined : profile.id);
   }, [profile, canView, canViewAll]);
+  useEffect(() => {
+    if (!canViewAllTickets) return;
+    return subscribeToTickets(setTickets);
+  }, [canViewAllTickets]);
   useEffect(() => subscribeToStaff(setStaff), []);
   useEffect(() => subscribeToComplaintTypes(setComplaintTypes), []);
   useEffect(() => subscribeToComplaintSources(setComplaintSources), []);
+  useEffect(() => subscribeToTicketTypes(setTicketTypes), []);
   useEffect(() => subscribeToCompanies(setCompanies), []);
   useEffect(() => subscribeToAdministrations(setAdministrations), []);
   useEffect(() => subscribeToDepartments(setDepartments), []);
@@ -504,6 +527,50 @@ export default function HomePage() {
       .slice(0, 5)
       .map(([uid, count]) => ({ id: uid, name: localizedName(staffById.get(uid), locale) || uid, count }));
   }, [list, topAssigneesStatusFilter, staffById, locale]);
+
+  // Tickets get a smaller, unfiltered mirror of the Complaints analytics
+  // above — same status palette/icons, same chart types — rather than a
+  // full duplicate of every per-card filter, to keep this page from
+  // doubling in size. Only rendered for whoever can see the full ticket
+  // queue (tickets.viewAll); everyone else already gets "My Tickets" from
+  // the sidebar instead.
+  const ticketTypesById = useMemo(() => new Map(ticketTypes.map((tt) => [tt.id, tt])), [ticketTypes]);
+  const ticketList = useMemo(() => tickets ?? [], [tickets]);
+
+  const ticketStatusData = useMemo(
+    () =>
+      TICKET_STATUSES.map((status) => ({
+        status,
+        label: tStatus(status),
+        count: ticketList.filter((tk) => tk.status === status).length,
+      })),
+    [ticketList, tStatus]
+  );
+  const ticketStatusPieData = useMemo(() => ticketStatusData.filter((row) => row.count > 0), [ticketStatusData]);
+
+  const ticketTypeData = useMemo(() => {
+    const counts = new Map<string, number>();
+    ticketList.forEach((tk) => {
+      if (!ticketTypesById.has(tk.ticketTypeId)) return;
+      counts.set(tk.ticketTypeId, (counts.get(tk.ticketTypeId) ?? 0) + 1);
+    });
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([id, count]) => ({ id, label: localizedName(ticketTypesById.get(id), locale) || id, count }));
+  }, [ticketList, ticketTypesById, locale]);
+
+  const ticketTopAssignees = useMemo(() => {
+    const counts = new Map<string, number>();
+    ticketList.forEach((tk) => {
+      if (!tk.assignedTo) return;
+      counts.set(tk.assignedTo, (counts.get(tk.assignedTo) ?? 0) + 1);
+    });
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([uid, count]) => ({ id: uid, name: localizedName(staffById.get(uid), locale) || uid, count }));
+  }, [ticketList, staffById, locale]);
 
   const name = profile ? localizedName(profile, locale) || profile.username : "";
 
@@ -930,6 +997,143 @@ export default function HomePage() {
               </Reveal>
             )}
           </div>
+
+          {canViewAllTickets && (
+            <>
+              <h2 className="mt-10 text-xs font-semibold uppercase tracking-wide text-foreground/40">
+                {t("ticketsSectionTitle")}
+              </h2>
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <Reveal>
+                  <StatCard
+                    icon={<IconClipboardList />}
+                    label={t("totalTicketsShort")}
+                    value={ticketList.length}
+                    color="#475569"
+                    href="/tickets"
+                  />
+                </Reveal>
+                {ticketStatusData.map((row, i) => (
+                  <Reveal key={row.status} delay={(i + 1) * 60}>
+                    <StatCard
+                      icon={STATUS_ICONS[row.status]}
+                      label={row.label}
+                      value={row.count}
+                      color={STATUS_COLORS[row.status]}
+                      href={`/tickets?status=${row.status}`}
+                    />
+                  </Reveal>
+                ))}
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <Reveal>
+                  <ChartCard title={t("ticketStatusBreakdown")}>
+                    {ticketStatusPieData.length === 0 ? (
+                      <EmptyChart text={t("noData")} />
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%" debounce={200}>
+                        <PieChart>
+                          <Pie
+                            data={ticketStatusPieData}
+                            dataKey="count"
+                            nameKey="label"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={55}
+                            outerRadius={85}
+                            isAnimationActive={false}
+                          >
+                            {ticketStatusPieData.map((row) => (
+                              <Cell
+                                key={row.status}
+                                fill={STATUS_COLORS[row.status]}
+                                stroke="none"
+                                cursor="pointer"
+                                onClick={() => router.push(ticketsHref({ status: row.status }))}
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={TOOLTIP_CONTENT_STYLE}
+                            labelStyle={TOOLTIP_LABEL_STYLE}
+                            itemStyle={TOOLTIP_ITEM_STYLE}
+                          />
+                          <Legend verticalAlign="bottom" height={36} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    )}
+                  </ChartCard>
+                </Reveal>
+
+                <Reveal delay={60}>
+                  <ChartCard title={t("ticketTypeBreakdown")}>
+                    {ticketTypeData.length === 0 ? (
+                      <EmptyChart text={t("noData")} />
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={ticketTypeData} layout="vertical" margin={{ left: 8, right: 16 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                          <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
+                          <YAxis type="category" dataKey="label" width={90} stroke="var(--foreground)" opacity={0.7} fontSize={11} />
+                          <Tooltip
+                            contentStyle={TOOLTIP_CONTENT_STYLE}
+                            labelStyle={TOOLTIP_LABEL_STYLE}
+                            itemStyle={TOOLTIP_ITEM_STYLE}
+                            cursor={BAR_CURSOR}
+                          />
+                          <Bar
+                            dataKey="count"
+                            fill="#385bc1"
+                            radius={[0, 4, 4, 0]}
+                            barSize={28}
+                            cursor="pointer"
+                            onClick={(data: { payload?: { id: string } }) => {
+                              if (!data.payload) return;
+                              router.push(ticketsHref({ type: data.payload.id }));
+                            }}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </ChartCard>
+                </Reveal>
+
+                <Reveal delay={120}>
+                  <ChartCard title={t("ticketTopAssignees")}>
+                    {ticketTopAssignees.length === 0 ? (
+                      <EmptyChart text={t("noData")} />
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={ticketTopAssignees} layout="vertical" margin={{ left: 8, right: 16 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                          <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
+                          <YAxis type="category" dataKey="name" width={110} stroke="var(--foreground)" opacity={0.7} fontSize={12} />
+                          <Tooltip
+                            contentStyle={TOOLTIP_CONTENT_STYLE}
+                            labelStyle={TOOLTIP_LABEL_STYLE}
+                            itemStyle={TOOLTIP_ITEM_STYLE}
+                            cursor={BAR_CURSOR}
+                          />
+                          <Bar
+                            dataKey="count"
+                            fill="#6366f1"
+                            radius={[0, 4, 4, 0]}
+                            barSize={28}
+                            cursor="pointer"
+                            onClick={(data: { payload?: { id: string } }) => {
+                              if (!data.payload) return;
+                              router.push(ticketsHref({ assignedTo: data.payload.id }));
+                            }}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </ChartCard>
+                </Reveal>
+              </div>
+            </>
+          )}
         </>
       )}
     </div>

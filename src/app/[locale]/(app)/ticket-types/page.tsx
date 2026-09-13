@@ -1,0 +1,110 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
+import { subscribeToTicketTypes, deleteTicketType } from "@/lib/ticketTypes";
+import { useAuth } from "@/lib/auth-context";
+import { hasPermission, localizedName, type TicketType } from "@/lib/types";
+
+export default function TicketTypesPage() {
+  const t = useTranslations("ticketTypes");
+  const tCommon = useTranslations("common");
+  const locale = useLocale();
+  const { profile } = useAuth();
+  const canCreate = hasPermission(profile, "ticketTypes", "create");
+  const canUpdate = hasPermission(profile, "ticketTypes", "update");
+  const canDelete = hasPermission(profile, "ticketTypes", "delete");
+  const showActions = canUpdate || canDelete;
+
+  const [types, setTypes] = useState<TicketType[] | null>(null);
+
+  useEffect(() => subscribeToTicketTypes(setTypes), []);
+
+  async function handleDelete(type: TicketType) {
+    if (!window.confirm(t("deleteConfirm"))) return;
+    await deleteTicketType(type.id);
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
+          <p className="mt-0.5 text-sm text-foreground/60">{t("subtitle")}</p>
+        </div>
+        {canCreate && (
+          <Link
+            href="/ticket-types/new"
+            className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground hover:opacity-90"
+          >
+            {t("newButton")}
+          </Link>
+        )}
+      </div>
+
+      <div className="mt-6 overflow-x-auto rounded-lg border border-border bg-surface">
+        <table className="w-full min-w-[420px] text-start text-sm">
+          <thead>
+            <tr className="border-b border-border bg-black/[0.02] text-start text-xs font-semibold uppercase tracking-wide text-foreground/50">
+              <th className="px-4 py-3 text-start">{t("table.name")}</th>
+              {showActions && <th className="px-4 py-3 text-start">{tCommon("actions")}</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {types === null ? (
+              <tr>
+                <td colSpan={showActions ? 2 : 1} className="px-4 py-8 text-center text-foreground/50">
+                  {tCommon("loading")}
+                </td>
+              </tr>
+            ) : types.length === 0 ? (
+              <tr>
+                <td colSpan={showActions ? 2 : 1} className="px-4 py-8 text-center text-foreground/50">
+                  {t("noResults")}
+                </td>
+              </tr>
+            ) : (
+              types.map((type) => (
+                <tr key={type.id} className="border-b border-border last:border-0 hover:bg-black/[0.02]">
+                  <td className="px-4 py-3">
+                    {canUpdate ? (
+                      <Link href={`/ticket-types/${type.id}`} className="font-medium text-foreground hover:text-brand">
+                        {localizedName(type, locale)}
+                      </Link>
+                    ) : (
+                      <span className="font-medium text-foreground">{localizedName(type, locale)}</span>
+                    )}
+                  </td>
+                  {showActions && (
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        {canUpdate && (
+                          <Link
+                            href={`/ticket-types/${type.id}`}
+                            className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground/70 hover:bg-black/5"
+                          >
+                            {tCommon("edit")}
+                          </Link>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(type)}
+                            className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                          >
+                            {tCommon("delete")}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

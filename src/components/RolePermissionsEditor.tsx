@@ -9,19 +9,32 @@ interface RolePermissionsEditorProps {
 }
 
 const ALL_RESOURCES = [...PERMISSION_RESOURCES, "marketing" as const];
-const COMPLAINTS_EXTRA_ACTIONS = ["viewAll", "reassign"] as const;
+const EXTRA_ACTIONS = ["viewAll", "reassign"] as const;
+// Both complaints and tickets carry the same two extra flags (viewAll,
+// reassign) beyond the standard CRUD set — see ComplaintsPermission /
+// TicketsPermission in lib/types.ts.
+const RESOURCES_WITH_EXTRA_ACTIONS = ["complaints", "tickets"] as const;
+
+function hasExtraActions(
+  resource: (typeof ALL_RESOURCES)[number]
+): resource is (typeof RESOURCES_WITH_EXTRA_ACTIONS)[number] {
+  return (RESOURCES_WITH_EXTRA_ACTIONS as readonly string[]).includes(resource);
+}
 
 export default function RolePermissionsEditor({ value, onChange }: RolePermissionsEditorProps) {
   const t = useTranslations("roles.resources");
   const tActions = useTranslations("roles.actions");
 
-  const allGranted = ALL_RESOURCES.every((resource) =>
-    resource === "marketing"
-      ? value.marketing.view
-      : resource === "complaints"
-        ? CRUD_ACTIONS.every((action) => value.complaints[action]) && value.complaints.viewAll && value.complaints.reassign
-        : CRUD_ACTIONS.every((action) => value[resource][action])
-  );
+  function isResourceAllGranted(resource: (typeof ALL_RESOURCES)[number]) {
+    if (resource === "marketing") return value.marketing.view;
+    if (hasExtraActions(resource)) {
+      const perm = value[resource];
+      return CRUD_ACTIONS.every((action) => perm[action]) && perm.viewAll && perm.reassign;
+    }
+    return CRUD_ACTIONS.every((action) => value[resource][action]);
+  }
+
+  const allGranted = ALL_RESOURCES.every((resource) => isResourceAllGranted(resource));
 
   function toggleAll(next: boolean) {
     const updated: RolePermissions = {
@@ -29,18 +42,14 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
       administrations: { view: next, create: next, update: next, delete: next },
       departments: { view: next, create: next, update: next, delete: next },
       employees: { view: next, create: next, update: next, delete: next },
-      complaints: {
-        view: next,
-        create: next,
-        update: next,
-        delete: next,
-        viewAll: next,
-        reassign: next,
-      },
+      complaints: { view: next, create: next, update: next, delete: next, viewAll: next, reassign: next },
       roles: { view: next, create: next, update: next, delete: next },
       marketing: { view: next },
       complaintTypes: { view: next, create: next, update: next, delete: next },
       complaintSources: { view: next, create: next, update: next, delete: next },
+      tickets: { view: next, create: next, update: next, delete: next, viewAll: next, reassign: next },
+      ticketTypes: { view: next, create: next, update: next, delete: next },
+      ticketSources: { view: next, create: next, update: next, delete: next },
     };
     onChange(updated);
   }
@@ -50,17 +59,10 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
       onChange({ ...value, marketing: { view: next } });
       return;
     }
-    if (resource === "complaints") {
+    if (hasExtraActions(resource)) {
       onChange({
         ...value,
-        complaints: {
-          view: next,
-          create: next,
-          update: next,
-          delete: next,
-          viewAll: next,
-          reassign: next,
-        },
+        [resource]: { view: next, create: next, update: next, delete: next, viewAll: next, reassign: next },
       });
       return;
     }
@@ -75,16 +77,12 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
     onChange({ ...value, [resource]: { ...value[resource], [action]: next } });
   }
 
-  function toggleComplaintsExtra(action: (typeof COMPLAINTS_EXTRA_ACTIONS)[number], next: boolean) {
-    onChange({ ...value, complaints: { ...value.complaints, [action]: next } });
-  }
-
-  function isResourceAllGranted(resource: (typeof ALL_RESOURCES)[number]) {
-    if (resource === "marketing") return value.marketing.view;
-    if (resource === "complaints") {
-      return CRUD_ACTIONS.every((action) => value.complaints[action]) && value.complaints.viewAll && value.complaints.reassign;
-    }
-    return CRUD_ACTIONS.every((action) => value[resource][action]);
+  function toggleExtraAction(
+    resource: (typeof RESOURCES_WITH_EXTRA_ACTIONS)[number],
+    action: (typeof EXTRA_ACTIONS)[number],
+    next: boolean
+  ) {
+    onChange({ ...value, [resource]: { ...value[resource], [action]: next } });
   }
 
   return (
@@ -102,7 +100,6 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
       <div className="space-y-3">
         {ALL_RESOURCES.map((resource) => {
           const isMarketing = resource === "marketing";
-          const isComplaints = resource === "complaints";
           const resourceAllGranted = isResourceAllGranted(resource);
 
           return (
@@ -141,13 +138,13 @@ export default function RolePermissionsEditor({ value, onChange }: RolePermissio
                         {tActions(action)}
                       </label>
                     ))}
-                    {isComplaints &&
-                      COMPLAINTS_EXTRA_ACTIONS.map((action) => (
+                    {hasExtraActions(resource) &&
+                      EXTRA_ACTIONS.map((action) => (
                         <label key={action} className="flex items-center gap-2 text-sm text-foreground/80">
                           <input
                             type="checkbox"
-                            checked={value.complaints[action]}
-                            onChange={(e) => toggleComplaintsExtra(action, e.target.checked)}
+                            checked={value[resource][action]}
+                            onChange={(e) => toggleExtraAction(resource, action, e.target.checked)}
                             className="h-4 w-4 rounded border-border text-brand focus:ring-brand"
                           />
                           {tActions(action)}

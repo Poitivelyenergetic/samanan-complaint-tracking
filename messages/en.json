@@ -47,7 +47,16 @@
     "requests": "Requests",
     "logout": "Log out",
     "signedInAs": "Signed in as",
-    "hideSidebar": "Hide"
+    "hideSidebar": "Hide",
+    "complaintsGroup": "Complaints",
+    "myComplaints": "My Complaints",
+    "ticketsGroup": "Tickets",
+    "ticketsList": "Tickets",
+    "myTickets": "My Tickets",
+    "newTicket": "New Ticket",
+    "ticketInquiry": "Ticket Inquiry",
+    "ticketTypes": "Ticket Types",
+    "ticketSources": "Ticket Sources"
   },
   "login": {
     "title": "Staff Login",
@@ -119,7 +128,12 @@
     "dateFrom": "From",
     "dateTo": "To",
     "employeeFilter": "Employee",
-    "employeeFilterAll": "All employees"
+    "employeeFilterAll": "All employees",
+    "ticketsSectionTitle": "Tickets",
+    "totalTicketsShort": "Total Tickets",
+    "ticketStatusBreakdown": "Status Breakdown",
+    "ticketTypeBreakdown": "By Type",
+    "ticketTopAssignees": "Top Assignees"
   },
   "theme": {
     "light": "Light",
@@ -152,7 +166,9 @@
   "notifications": {
     "title": "Notifications",
     "empty": "You're all caught up.",
-    "accountRequestTitle": "New account request: {name}"
+    "accountRequestTitle": "New account request: {name}",
+    "ticketAssignedTitle": "You were assigned ticket #{id}",
+    "ticketStatusTitle": "Ticket #{id} is now {status}"
   },
   "dashboard": {
     "title": "Complaints",
@@ -376,7 +392,32 @@
   },
   "tickets": {
     "title": "Tickets",
-    "comingSoon": "Coming soon. This section is a placeholder for a dedicated tickets view."
+    "subtitle": "All tickets filed by employees",
+    "newButton": "New Ticket",
+    "noAccess": "You don't have access to the full ticket queue.",
+    "goToMyTickets": "Go to My Tickets",
+    "searchPlaceholder": "Search by subject, requester, or reference number...",
+    "statusFilter": "Status",
+    "assigneeFilter": "Assigned to",
+    "typeFilter": "Type",
+    "sourceFilter": "Source",
+    "noResults": "No tickets found.",
+    "stats": {
+      "total": "Total Tickets",
+      "open": "Open",
+      "processing": "Processing",
+      "closed": "Closed"
+    },
+    "table": {
+      "ticketId": "Ticket ID",
+      "subject": "Subject",
+      "requester": "Requester",
+      "type": "Type",
+      "source": "Source",
+      "assignedTo": "Assigned To",
+      "status": "Status",
+      "createdAt": "Created"
+    }
   },
   "requests": {
     "title": "Requests",
@@ -592,7 +633,10 @@
       "complaintTypes": "Complaint Types",
       "complaintSources": "Complaint Sources",
       "selectAllShort": "Select all",
-      "clearAll": "Clear all"
+      "clearAll": "Clear all",
+      "tickets": "Tickets",
+      "ticketTypes": "Ticket Types",
+      "ticketSources": "Ticket Sources"
     },
     "actions": {
       "view": "View",
@@ -617,6 +661,153 @@
       "submit": "Save Changes",
       "notFound": "Role not found.",
       "deleteConfirm": "Are you sure you want to delete this role? Employees holding only this role will lose its permissions."
+    }
+  },
+  "ticket": {
+    "fields": {
+      "requester": "Requester",
+      "ticketType": "Ticket Type",
+      "selectTicketType": "Select a ticket type",
+      "source": "Ticket Source",
+      "selectTicketSource": "Select a ticket source",
+      "subject": "Subject",
+      "description": "Description",
+      "assignedTo": "Assigned To",
+      "administration": "Administration",
+      "department": "Department",
+      "selectDepartment": "Select a department",
+      "status": "Status"
+    },
+    "new": {
+      "title": "New Ticket",
+      "submit": "Create Ticket"
+    },
+    "detail": {
+      "editTitle": "Edit Ticket",
+      "submit": "Save Changes",
+      "notFound": "Ticket not found.",
+      "statusNoteLabel": "What did you do?",
+      "statusNotePlaceholder": "Describe what changed or what you did before updating the status...",
+      "statusNoteRequired": "Please describe what you did before changing the status.",
+      "readOnlyNotice": "You have view-only access to this ticket.",
+      "assignedTo": "Assigned To",
+      "reassign": "Reassign",
+      "history": "History",
+      "historyCreated": "Opened with status \"{status}\"",
+      "historyStatus": "Status changed from \"{previousStatus}\" to \"{status}\"",
+      "historyStatusNote": "What was done: {note}",
+      "historyReassigned": "Reassigned from {from} to {to}",
+      "historyReassignedReason": "Reason: {reason}",
+      "notes": "Notes",
+      "notesPlaceholder": "Jot down anything worth remembering about this ticket...",
+      "saveNote": "Save Note",
+      "savingNote": "Saving...",
+      "noteSaved": "Saved."
+    },
+    "reassign": {
+      "title": "Reassign Ticket",
+      "subtitle": "Choose which department and employee this should go to, and explain why.",
+      "assignToLabel": "Reassign To",
+      "reasonLabel": "Reason for reassignment",
+      "reasonPlaceholder": "Why is this ticket being reassigned?",
+      "reasonRequired": "Please explain why this ticket is being reassigned.",
+      "submit": "Reassign",
+      "submitting": "Reassigning..."
+    }
+  },
+  "ticketInquiry": {
+    "title": "Ticket Inquiry",
+    "subtitle": "Search a requester's name or ticket ID to see every ticket they've filed.",
+    "searchPlaceholder": "Search by requester name or ticket ID...",
+    "prompt": "Start typing a requester's name or ticket ID to search.",
+    "noResults": "No tickets found for that search.",
+    "table": {
+      "ticketId": "Ticket ID",
+      "subject": "Subject",
+      "requester": "Requester",
+      "assignedTo": "Assigned To",
+      "status": "Status",
+      "createdAt": "Created"
+    }
+  },
+  "myTickets": {
+    "title": "My Tickets",
+    "subtitle": "Tickets you filed, or are currently assigned to handle.",
+    "newButton": "New Ticket",
+    "noResults": "You have no tickets yet.",
+    "roleAssignee": "Assigned to you",
+    "roleFiler": "Filed by you",
+    "table": {
+      "ticketId": "Ticket ID",
+      "subject": "Subject",
+      "type": "Type",
+      "role": "Your role",
+      "status": "Status",
+      "createdAt": "Created"
+    }
+  },
+  "myComplaints": {
+    "title": "My Complaints",
+    "subtitle": "Complaints currently assigned to you.",
+    "noAccess": "You don't have access to complaints.",
+    "noResults": "You have no complaints assigned to you.",
+    "table": {
+      "issueId": "Issue ID",
+      "subject": "Subject",
+      "customer": "Customer",
+      "source": "Source",
+      "status": "Status",
+      "createdAt": "Created"
+    }
+  },
+  "ticketTypes": {
+    "title": "Ticket Types",
+    "subtitle": "Manage the list of ticket types employees can choose from",
+    "newButton": "+ New ticket type",
+    "noResults": "No ticket types found.",
+    "notFound": "Ticket type not found.",
+    "deleteConfirm": "Are you sure you want to delete this ticket type?",
+    "table": {
+      "name": "Name"
+    },
+    "fields": {
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)"
+    },
+    "new": {
+      "title": "New Ticket Type",
+      "submit": "Create"
+    },
+    "edit": {
+      "title": "Edit Ticket Type",
+      "submit": "Save Changes",
+      "notFound": "Ticket type not found.",
+      "deleteConfirm": "Are you sure you want to delete this ticket type?"
+    }
+  },
+  "ticketSources": {
+    "title": "Ticket Sources",
+    "subtitle": "Manage the list of ticket sources employees can choose from",
+    "newButton": "+ New ticket source",
+    "noResults": "No ticket sources found.",
+    "notFound": "Ticket source not found.",
+    "deleteConfirm": "Are you sure you want to delete this ticket source?",
+    "table": {
+      "name": "Name"
+    },
+    "fields": {
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)"
+    },
+    "new": {
+      "title": "New Ticket Source",
+      "submit": "Create"
+    },
+    "edit": {
+      "title": "Edit Ticket Source",
+      "submit": "Save Changes",
+      "notFound": "Ticket source not found.",
+      "deleteConfirm": "Are you sure you want to delete this ticket source?"
     }
   }
 }

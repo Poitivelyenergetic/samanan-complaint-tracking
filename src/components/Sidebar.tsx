@@ -45,8 +45,6 @@ const SETTINGS_RESOURCE_ITEMS: { href: string; key: string; resource: Permission
   { href: "/departments", key: "departments", resource: "departments", icon: <IconFolder /> },
   { href: "/employees", key: "employees", resource: "employees", icon: <IconUsers /> },
   { href: "/roles", key: "roles", resource: "roles", icon: <IconShieldCheck /> },
-  { href: "/complaint-types", key: "complaintTypes", resource: "complaintTypes", icon: <IconTag /> },
-  { href: "/complaint-sources", key: "complaintSources", resource: "complaintSources", icon: <IconBroadcast /> },
 ];
 
 const LOCALE_LABELS: Record<string, string> = { ar: "العربية", en: "English" };
@@ -194,16 +192,22 @@ function SidebarContents({
 
   const [servicesOpen, setServicesOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(true);
+  const [complaintsOpen, setComplaintsOpen] = useState(true);
+  const [ticketsOpen, setTicketsOpen] = useState(true);
 
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + "/");
   }
 
   const visibleSettingsItems = SETTINGS_RESOURCE_ITEMS.filter((item) => hasPermission(profile, item.resource, "view"));
-  const canViewComplaints = hasPermission(profile, "complaints", "view");
   const canViewAllComplaints = hasPermission(profile, "complaints", "viewAll");
+  const canViewOwnComplaints = hasPermission(profile, "complaints", "view");
   const canCreateComplaints = hasPermission(profile, "complaints", "create");
-  const canUseComplaintInquiry = hasPermission(profile, "complaints", "viewAll");
+  const canViewComplaintTypes = hasPermission(profile, "complaintTypes", "view");
+  const canViewComplaintSources = hasPermission(profile, "complaintSources", "view");
+  const canViewAllTickets = hasPermission(profile, "tickets", "viewAll");
+  const canViewTicketTypes = hasPermission(profile, "ticketTypes", "view");
+  const canViewTicketSources = hasPermission(profile, "ticketSources", "view");
   const canAccessMarketing = hasPermission(profile, "marketing", "view");
   const canReviewAccountRequests = hasPermission(profile, "employees", "update");
 
@@ -214,19 +218,35 @@ function SidebarContents({
     return subscribeToPendingSignupRequests((requests) => setPendingAccountRequests(requests.length));
   }, [canReviewAccountRequests]);
 
-  const serviceItems: NavItem[] = [
-    ...(canViewComplaints
-      ? [{ href: "/dashboard", label: canViewAllComplaints ? t("dashboard") : t("tasks"), icon: <IconClipboardList /> }]
-      : []),
+  const complaintsItems: NavItem[] = [
+    ...(canViewAllComplaints ? [{ href: "/dashboard", label: t("dashboard"), icon: <IconClipboardList /> }] : []),
+    ...(canViewOwnComplaints ? [{ href: "/my-complaints", label: t("myComplaints"), icon: <IconInbox /> }] : []),
     ...(canCreateComplaints ? [{ href: "/complaints/new", label: t("newComplaint"), icon: <IconPlusCircle /> }] : []),
-    ...(canUseComplaintInquiry
+    ...(canViewAllComplaints
       ? [{ href: "/complaints/inquiry", label: t("complaintInquiry"), icon: <IconSearch /> }]
       : []),
+    ...(canViewComplaintTypes ? [{ href: "/complaint-types", label: t("complaintTypes"), icon: <IconTag /> }] : []),
+    ...(canViewComplaintSources
+      ? [{ href: "/complaint-sources", label: t("complaintSources"), icon: <IconBroadcast /> }]
+      : []),
+  ];
+
+  // Filing a ticket, "My Tickets", and Ticket Inquiry-of-your-own are open
+  // to every signed-in employee by design — see lib/tickets.ts.
+  const ticketItems: NavItem[] = [
+    ...(canViewAllTickets ? [{ href: "/tickets", label: t("ticketsList"), icon: <IconClipboardList /> }] : []),
+    { href: "/my-tickets", label: t("myTickets"), icon: <IconInbox /> },
+    { href: "/tickets/new", label: t("newTicket"), icon: <IconPlusCircle /> },
+    ...(canViewAllTickets ? [{ href: "/tickets/inquiry", label: t("ticketInquiry"), icon: <IconSearch /> }] : []),
+    ...(canViewTicketTypes ? [{ href: "/ticket-types", label: t("ticketTypes"), icon: <IconTag /> }] : []),
+    ...(canViewTicketSources ? [{ href: "/ticket-sources", label: t("ticketSources"), icon: <IconBroadcast /> }] : []),
+  ];
+
+  const serviceItems: NavItem[] = [
     { href: "/receivables", label: t("receivables"), icon: <IconArrowDownCircle /> },
     { href: "/payables", label: t("payables"), icon: <IconArrowUpCircle /> },
     { href: "/sales-opportunities", label: t("salesOpportunities"), icon: <IconTrendingUp /> },
     ...(canAccessMarketing ? [{ href: "/marketing", label: t("marketing"), icon: <IconMegaphone /> }] : []),
-    { href: "/tickets", label: t("tickets"), icon: <IconTicket /> },
   ];
 
   const settingsItems: NavItem[] = [
@@ -269,7 +289,7 @@ function SidebarContents({
       <nav className="flex-1 space-y-1 overflow-x-hidden overflow-y-auto px-2">
         {collapsed ? (
           <div className="flex flex-col items-center space-y-1 pt-2">
-            {[...serviceItems, ...settingsItems].map((item) => (
+            {[...complaintsItems, ...ticketItems, ...serviceItems, ...settingsItems].map((item) => (
               <SidebarIconLink
                 key={item.href}
                 href={item.href}
@@ -283,6 +303,24 @@ function SidebarContents({
           </div>
         ) : (
           <>
+            <NavGroup
+              label={t("complaintsGroup")}
+              icon={<IconClipboardList />}
+              items={complaintsItems}
+              open={complaintsOpen}
+              onToggle={() => setComplaintsOpen((v) => !v)}
+              isActive={isActive}
+              onNavigate={onNavigate}
+            />
+            <NavGroup
+              label={t("ticketsGroup")}
+              icon={<IconTicket />}
+              items={ticketItems}
+              open={ticketsOpen}
+              onToggle={() => setTicketsOpen((v) => !v)}
+              isActive={isActive}
+              onNavigate={onNavigate}
+            />
             <NavGroup
               label={t("services")}
               icon={<IconLayoutGrid />}

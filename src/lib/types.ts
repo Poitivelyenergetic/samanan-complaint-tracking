@@ -22,6 +22,9 @@ export const PERMISSION_RESOURCES = [
   "roles",
   "complaintTypes",
   "complaintSources",
+  "tickets",
+  "ticketTypes",
+  "ticketSources",
 ] as const;
 
 export type PermissionResource = (typeof PERMISSION_RESOURCES)[number];
@@ -53,6 +56,18 @@ export interface ComplaintsPermission extends CrudPermission {
   reassign: boolean;
 }
 
+// Same shape as ComplaintsPermission, but `create` is never actually
+// checked anywhere — filing a ticket (New Ticket, and the resulting "My
+// Tickets" entry) is open to every signed-in employee regardless of role,
+// by design. It's kept here only so the Roles & Permissions screen can
+// render a normal-looking CRUD row for Tickets; viewAll (see every ticket,
+// not just your own) and reassign (change department/employee) are what
+// actually gate anything for this resource, same as complaints.
+export interface TicketsPermission extends CrudPermission {
+  viewAll: boolean;
+  reassign: boolean;
+}
+
 export interface RolePermissions {
   companies: CrudPermission;
   administrations: CrudPermission;
@@ -63,6 +78,9 @@ export interface RolePermissions {
   marketing: MarketingPermission;
   complaintTypes: CrudPermission;
   complaintSources: CrudPermission;
+  tickets: TicketsPermission;
+  ticketTypes: CrudPermission;
+  ticketSources: CrudPermission;
 }
 
 export function emptyCrud(): CrudPermission {
@@ -81,6 +99,14 @@ function fullComplaintsPermission(): ComplaintsPermission {
   return { ...fullCrud(), viewAll: true, reassign: true };
 }
 
+function emptyTicketsPermission(): TicketsPermission {
+  return { ...emptyCrud(), viewAll: false, reassign: false };
+}
+
+function fullTicketsPermission(): TicketsPermission {
+  return { ...fullCrud(), viewAll: true, reassign: true };
+}
+
 export function emptyRolePermissions(): RolePermissions {
   return {
     companies: emptyCrud(),
@@ -92,6 +118,9 @@ export function emptyRolePermissions(): RolePermissions {
     marketing: { view: false },
     complaintTypes: emptyCrud(),
     complaintSources: emptyCrud(),
+    tickets: emptyTicketsPermission(),
+    ticketTypes: emptyCrud(),
+    ticketSources: emptyCrud(),
   };
 }
 
@@ -106,6 +135,9 @@ export function fullRolePermissions(): RolePermissions {
     marketing: { view: true },
     complaintTypes: fullCrud(),
     complaintSources: fullCrud(),
+    tickets: fullTicketsPermission(),
+    ticketTypes: fullCrud(),
+    ticketSources: fullCrud(),
   };
 }
 
@@ -126,6 +158,11 @@ export function unionRolePermissions(rolePermissions: Partial<RolePermissions>[]
         const complaintsGrant = grant as Partial<ComplaintsPermission>;
         if (complaintsGrant.viewAll) result.complaints.viewAll = true;
         if (complaintsGrant.reassign) result.complaints.reassign = true;
+      }
+      if (resource === "tickets") {
+        const ticketsGrant = grant as Partial<TicketsPermission>;
+        if (ticketsGrant.viewAll) result.tickets.viewAll = true;
+        if (ticketsGrant.reassign) result.tickets.reassign = true;
       }
     }
     if (perms.marketing?.view) result.marketing.view = true;
@@ -165,6 +202,10 @@ export function normalizeRolePermissionsInput(input: unknown): RolePermissions {
     if (resource === "complaints") {
       if (grantRecord.viewAll === true) result.complaints.viewAll = true;
       if (grantRecord.reassign === true) result.complaints.reassign = true;
+    }
+    if (resource === "tickets") {
+      if (grantRecord.viewAll === true) result.tickets.viewAll = true;
+      if (grantRecord.reassign === true) result.tickets.reassign = true;
     }
   }
 
@@ -388,6 +429,78 @@ export interface Complaint {
 }
 
 export type ComplaintInput = Omit<Complaint, "id" | "createdAt" | "updatedAt" | "history" | "notes">;
+
+// --- Tickets -------------------------------------------------------------
+// A separate, parallel system to Complaints — for internal requests an
+// employee files for themselves (an IT issue, a supply request, etc.)
+// rather than something a customer complained about. Filing one is open to
+// every signed-in employee regardless of role; every ticket is always
+// routed into a single fixed administration (see TICKET_ADMINISTRATION_ID
+// in lib/tickets.ts) — only the department and employee within it are
+// chosen per ticket.
+
+export const TICKET_STATUSES = ["Open", "Assigned", "Processing", "Cancel", "Closed"] as const;
+
+export type TicketStatus = (typeof TICKET_STATUSES)[number];
+
+export interface TicketType {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+}
+
+export interface TicketTypeInput {
+  nameAr: string;
+  nameEn: string;
+}
+
+export interface TicketSource {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+}
+
+export interface TicketSourceInput {
+  nameAr: string;
+  nameEn: string;
+}
+
+export type TicketHistoryEntryType = "created" | "status" | "reassigned";
+
+export interface TicketHistoryEntry {
+  type: TicketHistoryEntryType;
+  status?: TicketStatus;
+  previousStatus?: TicketStatus;
+  note?: string;
+  assignedTo?: string | null;
+  previousAssignedTo?: string | null;
+  reason?: string;
+  at: string; // ISO string
+  byUid: string | null;
+}
+
+export interface Ticket {
+  id: string; // sequential, same scheme as Complaint.id
+  subject: string;
+  description: string;
+  ticketTypeId: string;
+  ticketSourceId: string;
+  // The filing employee's own name, captured at creation time — locked,
+  // never user-editable (there's no "customer" on a ticket, just whoever
+  // filed it, tracked precisely by createdBy anyway).
+  requesterName: string;
+  administrationId: string; // always TICKET_ADMINISTRATION_ID
+  departmentId: string | null;
+  assignedTo: string | null;
+  status: TicketStatus;
+  history: TicketHistoryEntry[];
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null; // UID of the employee who filed it
+}
+
+export type TicketInput = Omit<Ticket, "id" | "createdAt" | "updatedAt" | "history" | "notes">;
 
 export type SignupRequestStatus = "pending" | "approved" | "rejected";
 

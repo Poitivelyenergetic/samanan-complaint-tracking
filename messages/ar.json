@@ -47,7 +47,16 @@
     "requests": "الطلبات",
     "logout": "تسجيل الخروج",
     "signedInAs": "مسجل الدخول باسم",
-    "hideSidebar": "إخفاء"
+    "hideSidebar": "إخفاء",
+    "complaintsGroup": "الشكاوى",
+    "myComplaints": "شكاواي",
+    "ticketsGroup": "التذاكر",
+    "ticketsList": "التذاكر",
+    "myTickets": "تذاكري",
+    "newTicket": "تذكرة جديدة",
+    "ticketInquiry": "استعلام عن تذكرة",
+    "ticketTypes": "أنواع التذاكر",
+    "ticketSources": "مصادر التذاكر"
   },
   "login": {
     "title": "تسجيل دخول الموظفين",
@@ -119,7 +128,12 @@
     "dateFrom": "من",
     "dateTo": "إلى",
     "employeeFilter": "الموظف",
-    "employeeFilterAll": "كل الموظفين"
+    "employeeFilterAll": "كل الموظفين",
+    "ticketsSectionTitle": "التذاكر",
+    "totalTicketsShort": "إجمالي التذاكر",
+    "ticketStatusBreakdown": "التوزيع حسب الحالة",
+    "ticketTypeBreakdown": "حسب النوع",
+    "ticketTopAssignees": "الأكثر تكليفاً"
   },
   "theme": {
     "light": "فاتح",
@@ -152,7 +166,9 @@
   "notifications": {
     "title": "الإشعارات",
     "empty": "لا توجد إشعارات جديدة.",
-    "accountRequestTitle": "طلب حساب جديد: {name}"
+    "accountRequestTitle": "طلب حساب جديد: {name}",
+    "ticketAssignedTitle": "تم إسناد التذكرة #{id} إليك",
+    "ticketStatusTitle": "حالة التذكرة #{id} الآن {status}"
   },
   "dashboard": {
     "title": "الشكاوى",
@@ -376,7 +392,32 @@
   },
   "tickets": {
     "title": "التذاكر",
-    "comingSoon": "قريباً. هذا القسم مخصص لعرض مخصص للتذاكر."
+    "subtitle": "جميع التذاكر المقدمة من الموظفين",
+    "newButton": "تذكرة جديدة",
+    "noAccess": "لا تملك صلاحية الوصول إلى قائمة التذاكر الكاملة.",
+    "goToMyTickets": "الذهاب إلى تذاكري",
+    "searchPlaceholder": "ابحث بالموضوع أو مقدّم الطلب أو الرقم المرجعي...",
+    "statusFilter": "الحالة",
+    "assigneeFilter": "مسندة إلى",
+    "typeFilter": "النوع",
+    "sourceFilter": "المصدر",
+    "noResults": "لا توجد تذاكر.",
+    "stats": {
+      "total": "إجمالي التذاكر",
+      "open": "مفتوحة",
+      "processing": "قيد المعالجة",
+      "closed": "مغلقة"
+    },
+    "table": {
+      "ticketId": "رقم التذكرة",
+      "subject": "الموضوع",
+      "requester": "مقدّم الطلب",
+      "type": "النوع",
+      "source": "المصدر",
+      "assignedTo": "مسندة إلى",
+      "status": "الحالة",
+      "createdAt": "تاريخ الإنشاء"
+    }
   },
   "requests": {
     "title": "الطلبات",
@@ -592,7 +633,10 @@
       "complaintTypes": "أنواع الشكاوى",
       "complaintSources": "مصادر الشكاوى",
       "selectAllShort": "تحديد الكل",
-      "clearAll": "إلغاء الكل"
+      "clearAll": "إلغاء الكل",
+      "tickets": "التذاكر",
+      "ticketTypes": "أنواع التذاكر",
+      "ticketSources": "مصادر التذاكر"
     },
     "actions": {
       "view": "عرض",
@@ -617,6 +661,153 @@
       "submit": "حفظ التغييرات",
       "notFound": "الدور غير موجود.",
       "deleteConfirm": "هل أنت متأكد من حذف هذا الدور؟ الموظفون الذين لا يملكون سوى هذا الدور سيفقدون صلاحياته."
+    }
+  },
+  "ticket": {
+    "fields": {
+      "requester": "مقدّم الطلب",
+      "ticketType": "نوع التذكرة",
+      "selectTicketType": "اختر نوع التذكرة",
+      "source": "مصدر التذكرة",
+      "selectTicketSource": "اختر مصدر التذكرة",
+      "subject": "الموضوع",
+      "description": "الوصف",
+      "assignedTo": "مسندة إلى",
+      "administration": "الإدارة",
+      "department": "القسم",
+      "selectDepartment": "اختر القسم",
+      "status": "الحالة"
+    },
+    "new": {
+      "title": "تذكرة جديدة",
+      "submit": "إنشاء التذكرة"
+    },
+    "detail": {
+      "editTitle": "تعديل التذكرة",
+      "submit": "حفظ التغييرات",
+      "notFound": "التذكرة غير موجودة.",
+      "statusNoteLabel": "ماذا فعلت؟",
+      "statusNotePlaceholder": "صف ما تغيّر أو ما قمت به قبل تحديث الحالة...",
+      "statusNoteRequired": "يرجى وصف ما قمت به قبل تغيير الحالة.",
+      "readOnlyNotice": "لديك صلاحية عرض فقط لهذه التذكرة.",
+      "assignedTo": "مسندة إلى",
+      "reassign": "إعادة الإسناد",
+      "history": "السجل",
+      "historyCreated": "تم الفتح بالحالة \"{status}\"",
+      "historyStatus": "تغيّرت الحالة من \"{previousStatus}\" إلى \"{status}\"",
+      "historyStatusNote": "ما تم عمله: {note}",
+      "historyReassigned": "تمت إعادة الإسناد من {from} إلى {to}",
+      "historyReassignedReason": "السبب: {reason}",
+      "notes": "ملاحظات",
+      "notesPlaceholder": "دوّن أي شيء يستحق التذكر بخصوص هذه التذكرة...",
+      "saveNote": "حفظ الملاحظة",
+      "savingNote": "جارٍ الحفظ...",
+      "noteSaved": "تم الحفظ."
+    },
+    "reassign": {
+      "title": "إعادة إسناد التذكرة",
+      "subtitle": "اختر القسم والموظف الذي ستُسند إليه التذكرة، ووضّح السبب.",
+      "assignToLabel": "إعادة الإسناد إلى",
+      "reasonLabel": "سبب إعادة الإسناد",
+      "reasonPlaceholder": "لماذا يتم إعادة إسناد هذه التذكرة؟",
+      "reasonRequired": "يرجى توضيح سبب إعادة إسناد هذه التذكرة.",
+      "submit": "إعادة الإسناد",
+      "submitting": "جارٍ إعادة الإسناد..."
+    }
+  },
+  "ticketInquiry": {
+    "title": "استعلام عن تذكرة",
+    "subtitle": "ابحث باسم مقدّم الطلب أو رقم التذكرة لعرض كل التذاكر التي قدمها.",
+    "searchPlaceholder": "ابحث باسم مقدّم الطلب أو رقم التذكرة...",
+    "prompt": "ابدأ بكتابة اسم مقدّم الطلب أو رقم التذكرة للبحث.",
+    "noResults": "لا توجد تذاكر مطابقة لهذا البحث.",
+    "table": {
+      "ticketId": "رقم التذكرة",
+      "subject": "الموضوع",
+      "requester": "مقدّم الطلب",
+      "assignedTo": "مسندة إلى",
+      "status": "الحالة",
+      "createdAt": "تاريخ الإنشاء"
+    }
+  },
+  "myTickets": {
+    "title": "تذاكري",
+    "subtitle": "التذاكر التي قدمتها، أو المسندة إليك حالياً.",
+    "newButton": "تذكرة جديدة",
+    "noResults": "لا توجد لديك تذاكر بعد.",
+    "roleAssignee": "مسندة إليك",
+    "roleFiler": "قدّمتها أنت",
+    "table": {
+      "ticketId": "رقم التذكرة",
+      "subject": "الموضوع",
+      "type": "النوع",
+      "role": "دورك",
+      "status": "الحالة",
+      "createdAt": "تاريخ الإنشاء"
+    }
+  },
+  "myComplaints": {
+    "title": "شكاواي",
+    "subtitle": "الشكاوى المسندة إليك حالياً.",
+    "noAccess": "لا تملك صلاحية الوصول إلى الشكاوى.",
+    "noResults": "لا توجد شكاوى مسندة إليك.",
+    "table": {
+      "issueId": "رقم الشكوى",
+      "subject": "الموضوع",
+      "customer": "العميل",
+      "source": "المصدر",
+      "status": "الحالة",
+      "createdAt": "تاريخ الإنشاء"
+    }
+  },
+  "ticketTypes": {
+    "title": "أنواع التذاكر",
+    "subtitle": "إدارة قائمة أنواع التذاكر التي يمكن للموظفين اختيارها",
+    "newButton": "+ نوع تذكرة جديد",
+    "noResults": "لا توجد أنواع تذاكر.",
+    "notFound": "نوع التذكرة غير موجود.",
+    "deleteConfirm": "هل أنت متأكد من حذف نوع التذكرة هذا؟",
+    "table": {
+      "name": "الاسم"
+    },
+    "fields": {
+      "nameAr": "الاسم (عربي)",
+      "nameEn": "الاسم (إنجليزي)"
+    },
+    "new": {
+      "title": "نوع تذكرة جديد",
+      "submit": "إنشاء"
+    },
+    "edit": {
+      "title": "تعديل نوع التذكرة",
+      "submit": "حفظ التغييرات",
+      "notFound": "نوع التذكرة غير موجود.",
+      "deleteConfirm": "هل أنت متأكد من حذف نوع التذكرة هذا؟"
+    }
+  },
+  "ticketSources": {
+    "title": "مصادر التذاكر",
+    "subtitle": "إدارة قائمة مصادر التذاكر التي يمكن للموظفين اختيارها",
+    "newButton": "+ مصدر تذكرة جديد",
+    "noResults": "لا توجد مصادر تذاكر.",
+    "notFound": "مصدر التذكرة غير موجود.",
+    "deleteConfirm": "هل أنت متأكد من حذف مصدر التذكرة هذا؟",
+    "table": {
+      "name": "الاسم"
+    },
+    "fields": {
+      "nameAr": "الاسم (عربي)",
+      "nameEn": "الاسم (إنجليزي)"
+    },
+    "new": {
+      "title": "مصدر تذكرة جديد",
+      "submit": "إنشاء"
+    },
+    "edit": {
+      "title": "تعديل مصدر التذكرة",
+      "submit": "حفظ التغييرات",
+      "notFound": "مصدر التذكرة غير موجود.",
+      "deleteConfirm": "هل أنت متأكد من حذف مصدر التذكرة هذا؟"
     }
   }
 }

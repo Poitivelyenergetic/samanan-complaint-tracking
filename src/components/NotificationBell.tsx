@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { subscribeToPendingSignupRequests } from "@/lib/signupRequests";
+import { subscribeToMyTickets } from "@/lib/tickets";
 import { useAuth } from "@/lib/auth-context";
-import { hasPermission, type SignupRequest } from "@/lib/types";
+import { hasPermission, type SignupRequest, type Ticket } from "@/lib/types";
 
 interface NotificationItem {
   id: string;
@@ -38,10 +39,12 @@ function saveDismissed(uid: string, ids: Set<string>) {
 
 export default function NotificationBell() {
   const t = useTranslations("notifications");
+  const tStatus = useTranslations("status");
   const { user, profile } = useAuth();
   const canReviewAccountRequests = hasPermission(profile, "employees", "update");
 
   const [signupRequests, setSignupRequests] = useState<SignupRequest[]>([]);
+  const [myTickets, setMyTickets] = useState<Ticket[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
 
@@ -54,6 +57,11 @@ export default function NotificationBell() {
     return subscribeToPendingSignupRequests(setSignupRequests);
   }, [canReviewAccountRequests]);
 
+  useEffect(() => {
+    if (!user) return;
+    return subscribeToMyTickets(user.uid, setMyTickets);
+  }, [user]);
+
   const items: NotificationItem[] = [
     ...signupRequests.map((r) => ({
       id: `signup:${r.id}`,
@@ -61,6 +69,25 @@ export default function NotificationBell() {
       title: t("accountRequestTitle", { name: r.name }),
       subtitle: `${r.position} — ${r.administration}`,
     })),
+    // Keyed by the current assignee/status, not just the ticket id — a
+    // reassignment or a further status change is a new, separately
+    // dismissible notification rather than one that's already been seen.
+    ...myTickets
+      .filter((ticket) => ticket.assignedTo === user?.uid)
+      .map((ticket) => ({
+        id: `ticket-assigned:${ticket.id}:${ticket.assignedTo}`,
+        href: `/tickets/${ticket.id}`,
+        title: t("ticketAssignedTitle", { id: ticket.id }),
+        subtitle: ticket.subject,
+      })),
+    ...myTickets
+      .filter((ticket) => ticket.createdBy === user?.uid && ticket.status !== "Open")
+      .map((ticket) => ({
+        id: `ticket-status:${ticket.id}:${ticket.status}`,
+        href: `/tickets/${ticket.id}`,
+        title: t("ticketStatusTitle", { id: ticket.id, status: tStatus(ticket.status) }),
+        subtitle: ticket.subject,
+      })),
   ];
 
   const visible = items.filter((item) => !dismissed.has(item.id));
