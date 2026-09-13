@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   COMPLAINT_STATUSES,
@@ -119,6 +119,10 @@ export default function ComplaintForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAssignHint, setShowAssignHint] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  // Tracks real edits so clicking Cancel with nothing changed just leaves
+  // immediately instead of asking the user to confirm discarding nothing.
+  const isDirtyRef = useRef(false);
 
   // Administration/department are transient UI filters that narrow the
   // employee picker — only companyId and assignedTo actually get submitted.
@@ -152,6 +156,7 @@ export default function ComplaintForm({
   const statusChanged = initialStatus !== null && values.status !== initialStatus;
 
   function update<K extends keyof ComplaintFormValues>(key: K, value: ComplaintFormValues[K]) {
+    isDirtyRef.current = true;
     setValues((prev) => {
       const next = { ...prev, [key]: value };
       if (key === "assignedTo" && prev.assignedTo === "" && value !== "" && prev.status === "Open") {
@@ -225,6 +230,14 @@ export default function ComplaintForm({
       attachmentUrl: values.attachmentUrl,
       createdBy: null,
     };
+  }
+
+  function handleCancelClick() {
+    if (isDirtyRef.current) {
+      setShowDiscardConfirm(true);
+    } else {
+      onCancel?.();
+    }
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -491,7 +504,10 @@ export default function ComplaintForm({
             required
             rows={3}
             value={statusNote}
-            onChange={(e) => setStatusNote(e.target.value)}
+            onChange={(e) => {
+              isDirtyRef.current = true;
+              setStatusNote(e.target.value);
+            }}
             placeholder={tDetail("statusNotePlaceholder")}
             className={textInputClass}
           />
@@ -532,13 +548,38 @@ export default function ComplaintForm({
           {onCancel && (
             <button
               type="button"
-              onClick={onCancel}
+              onClick={handleCancelClick}
               disabled={submitting}
               className="rounded-md border border-border px-5 py-2.5 text-sm font-semibold text-foreground/70 hover:bg-black/5 disabled:opacity-60"
             >
               {tCommon("cancel")}
             </button>
           )}
+        </div>
+      )}
+
+      {showDiscardConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6 shadow-xl">
+            <h3 className="text-sm font-semibold text-foreground">{tDetail("discardTitle")}</h3>
+            <p className="mt-1.5 text-sm text-foreground/60">{tDetail("discardBody")}</p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDiscardConfirm(false)}
+                className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground/70 hover:bg-black/5"
+              >
+                {tDetail("continueEditing")}
+              </button>
+              <button
+                type="button"
+                onClick={() => onCancel?.()}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+              >
+                {tDetail("discardChanges")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </form>

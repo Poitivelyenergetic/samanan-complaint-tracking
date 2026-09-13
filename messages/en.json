@@ -252,7 +252,11 @@
       "saveNote": "Save Note",
       "savingNote": "Saving...",
       "noteSaved": "Saved.",
-      "historyNoteSaved": "Note saved"
+      "historyNoteSaved": "Note saved",
+      "discardTitle": "Discard changes?",
+      "discardBody": "You have unsaved changes. If you leave now, they will be lost.",
+      "continueEditing": "Continue Editing",
+      "discardChanges": "Discard Changes"
     },
     "reassign": {
       "title": "Reassign Complaint",
@@ -704,7 +708,11 @@
       "saveNote": "Save Note",
       "savingNote": "Saving...",
       "noteSaved": "Saved.",
-      "historyNoteSaved": "Note saved"
+      "historyNoteSaved": "Note saved",
+      "discardTitle": "Discard changes?",
+      "discardBody": "You have unsaved changes. If you leave now, they will be lost.",
+      "continueEditing": "Continue Editing",
+      "discardChanges": "Discard Changes"
     },
     "reassign": {
       "title": "Reassign Ticket",
