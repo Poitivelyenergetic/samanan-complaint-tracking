@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 interface SearchableSelectProps<T> {
   items: readonly T[];
@@ -43,16 +43,31 @@ export default function SearchableSelect<T>({
 }: SearchableSelectProps<T>) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
   const blurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selectedItem = useMemo(() => items.find((item) => getId(item) === value) ?? null, [items, value, getId]);
+  const selectedLabel = selectedItem ? getLabel(selectedItem) : "";
 
   // Keep the displayed text in sync with the current selection whenever it
   // changes from outside (a new item chosen, the picker cleared/reset by a
-  // parent cascade change) — but not while the user is actively typing.
-  useEffect(() => {
-    if (!open) Promise.resolve().then(() => setQuery(selectedItem ? getLabel(selectedItem) : ""));
-  }, [selectedItem, open, getLabel]);
+  // parent cascade change) — but not while the field is focused, so it
+  // doesn't fight the user's own typing. Adjusted during render (the
+  // React-recommended way to sync state to a changing external value)
+  // rather than in an effect.
+  //
+  // This used to key off `open` instead of `focused`, which broke editing
+  // after picking an item: selecting sets open=false but the input (by
+  // design — see the option buttons' onMouseDown below) never loses focus,
+  // so the field was stuck showing the selected label with every keystroke
+  // silently overridden, Backspace included, until the user blurred and
+  // refocused it.
+  const syncKey = focused ? null : selectedLabel;
+  const [syncedKey, setSyncedKey] = useState(syncKey);
+  if (syncKey !== null && syncKey !== syncedKey) {
+    setSyncedKey(syncKey);
+    setQuery(syncKey);
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -81,15 +96,23 @@ export default function SearchableSelect<T>({
           aria-label={ariaLabel}
           disabled={disabled}
           placeholder={placeholder}
-          value={open ? query : selectedItem ? getLabel(selectedItem) : query}
+          value={query}
           onFocus={() => {
             // Clear rather than pre-fill with the current selection's label —
             // otherwise typing appends after it instead of searching fresh.
+            setFocused(true);
             setQuery("");
             setOpen(true);
           }}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            // Re-open on every keystroke, not just on focus — editing right
+            // after picking an item (see above) starts with open already
+            // false, and without this the dropdown would never come back.
+            setOpen(true);
+          }}
           onBlur={() => {
+            setFocused(false);
             blurTimeout.current = setTimeout(() => setOpen(false), 150);
           }}
           className={className ?? DEFAULT_INPUT_CLASS}
