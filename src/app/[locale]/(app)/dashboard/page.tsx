@@ -212,6 +212,7 @@ export default function DashboardPage() {
         !c.subject.toLowerCase().includes(term) &&
         !c.customerName.toLowerCase().includes(term) &&
         !c.customerPhone.toLowerCase().includes(term) &&
+        !c.customerOrderNumber.toLowerCase().includes(term) &&
         !c.id.toLowerCase().includes(term)
       ) {
         return false;
@@ -338,6 +339,7 @@ export default function DashboardPage() {
               <th className="px-4 py-3 text-start">{t("table.subject")}</th>
               <th className="px-4 py-3 text-start">{t("table.customer")}</th>
               <th className="px-4 py-3 text-start">{t("table.customerPhone")}</th>
+              <th className="px-4 py-3 text-start">{t("table.orderNumber")}</th>
               <th className="px-4 py-3 text-start">{t("table.source")}</th>
               <th className="px-4 py-3 text-start">{t("table.assignedTo")}</th>
               <th className="px-4 py-3 text-start">{t("table.status")}</th>
@@ -347,13 +349,13 @@ export default function DashboardPage() {
           <tbody>
             {visibleComplaints === null ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={9} className="px-4 py-8 text-center text-foreground/50">
                   {tCommon("loading")}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={9} className="px-4 py-8 text-center text-foreground/50">
                   {t("noResults")}
                 </td>
               </tr>
@@ -378,6 +380,9 @@ export default function DashboardPage() {
                   </td>
                   <td className="px-4 py-3 text-foreground/70" dir="ltr">
                     {c.customerPhone || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-foreground/70" dir="ltr">
+                    {c.customerOrderNumber || "—"}
                   </td>
                   <td className="px-4 py-3 text-foreground/70">
                     {(() => {
