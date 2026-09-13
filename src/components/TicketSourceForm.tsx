@@ -33,6 +33,7 @@ export default function TicketSourceForm({
       await onSubmit({ nameAr: nameAr.trim(), nameEn: nameEn.trim() });
     } catch {
       setError(tCommon("somethingWentWrong"));
+    } finally {
       setSubmitting(false);
     }
   }

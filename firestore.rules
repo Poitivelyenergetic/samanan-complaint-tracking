@@ -128,6 +128,8 @@ service cloud.firestore {
     // permission, changing only the status/history fields.
     function isSelfCreatedTicket() {
       let d = request.resource.data;
+      // Must match TICKET_ADMINISTRATION_ID in src/lib/tickets.ts exactly —
+      // rules can't import that constant, so keep the two in sync by hand.
       return d.createdBy == request.auth.uid && d.administrationId == "leMoMH7aViBh7tSM0UtH";
     }
 
@@ -188,18 +190,17 @@ service cloud.firestore {
     // Public staff-account requests. Deliberately holds no password — an
     // admin reviews it and creates the real Firebase Auth account (with a
     // password of their choosing) via the Employees "New Employee" flow.
-    function isValidSignupRequest() {
-      let d = request.resource.data;
-      return d.status == "pending"
-        && d.name is string && d.name.size() > 0
-        && d.username is string && d.username.size() > 0
-        && d.contact is string && d.contact.size() > 0
-        && d.position is string
-        && d.administration is string;
-    }
-
+    //
+    // Creation goes exclusively through /api/signup/create (Admin SDK,
+    // bypasses these rules) rather than a direct client write, because
+    // contactVerified must never be a client-supplied boolean — that route
+    // independently confirms the contact was actually verified (an
+    // emailVerificationCodes doc marked verified:true, or a real Firebase
+    // Auth ID token proving a confirmed phone sign-in) before ever setting
+    // it true. A direct client create here could otherwise forge
+    // contactVerified: true for a contact nobody ever proved they control.
     match /signupRequests/{requestId} {
-      allow create: if isValidSignupRequest();
+      allow create: if false;
       allow read, update, delete: if hasPermission("employees", "update");
     }
 

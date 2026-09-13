@@ -33,6 +33,7 @@ export default function RoleForm({ initialValues, submitLabel, submittingLabel, 
     } catch (err) {
       const code = err instanceof RolesApiError ? err.code : "request_failed";
       setError(tErrors.has(code) ? tErrors(code) : tErrors("request_failed"));
+    } finally {
       setSubmitting(false);
     }
   }

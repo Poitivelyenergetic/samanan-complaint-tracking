@@ -72,10 +72,15 @@ export default function ComplaintDetailPage({
   async function handleSubmit(values: ComplaintInput, statusNote?: string) {
     // ComplaintForm always sends createdBy: null (it's not an editable
     // field) — restore the complaint's actual creator rather than letting
-    // it get wiped out on every save.
+    // it get wiped out on every save. Likewise assignedTo: this form is
+    // mounted with hideAssignedTo, so its internal value is whatever the
+    // complaint's assignedTo was when the form first mounted — if someone
+    // else reassigns the complaint while this tab stays open, the form's
+    // stale value must not overwrite that reassignment when Save is
+    // clicked.
     await updateComplaint(
       id,
-      { ...values, createdBy: complaint?.createdBy ?? null },
+      { ...values, createdBy: complaint?.createdBy ?? null, assignedTo: complaint?.assignedTo ?? null },
       complaint?.status ?? null,
       user?.uid ?? null,
       statusNote
@@ -197,7 +202,7 @@ export default function ComplaintDetailPage({
           onSubmit={handleSubmit}
           readOnly={!canEdit}
           hideAssignedTo
-          autosave
+          onCancel={() => router.push("/dashboard")}
         />
       </div>
 

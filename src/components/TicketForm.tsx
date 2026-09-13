@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   TICKET_STATUSES,
@@ -52,7 +52,11 @@ interface TicketFormProps {
   // Hides the department/employee assignment box — used on the ticket
   // detail page, where reassignment is a separate, permission-gated action.
   hideAssignedTo?: boolean;
-  autosave?: boolean;
+  // Shows a Cancel button beside Save — used on the ticket detail page, so
+  // opening a ticket to look at it never persists an edit unless Save is
+  // explicitly clicked. Omitted on New Ticket, where there's nothing to
+  // cancel out of yet.
+  onCancel?: () => void;
 }
 
 const DEFAULT_VALUES: TicketFormValues = {
@@ -84,7 +88,7 @@ export default function TicketForm({
   canEditStatus = true,
   hideStatus = false,
   hideAssignedTo = false,
-  autosave = false,
+  onCancel,
 }: TicketFormProps) {
   const t = useTranslations("ticket.fields");
   const tStatus = useTranslations("status");
@@ -115,12 +119,7 @@ export default function TicketForm({
 
   const statusChanged = initialStatus !== null && values.status !== initialStatus;
 
-  // See ComplaintForm's identical hasEditedRef — autosave must never fire
-  // from anything but an actual edit.
-  const hasEditedRef = useRef(false);
-
   function update<K extends keyof TicketFormValues>(key: K, value: TicketFormValues[K]) {
-    hasEditedRef.current = true;
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -163,42 +162,17 @@ export default function TicketForm({
       await onSubmit(buildPayload(), statusChanged ? statusNote.trim() : undefined);
     } catch {
       setError(tCommon("somethingWentWrong"));
+    } finally {
       setSubmitting(false);
     }
   }
 
-  // Autosave — identical shape to ComplaintForm's.
-  const autosaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved">("idle");
-
-  useEffect(() => {
-    if (!autosave || readOnly) return;
-    if (!hasEditedRef.current) return;
-    if (statusChanged && !statusNote.trim()) return;
-
-    if (autosaveTimeout.current) clearTimeout(autosaveTimeout.current);
-    autosaveTimeout.current = setTimeout(async () => {
-      setAutosaveStatus("saving");
-      setError(null);
-      try {
-        await onSubmit(buildPayload(), statusChanged ? statusNote.trim() : undefined);
-        setAutosaveStatus("saved");
-      } catch {
-        setError(tCommon("somethingWentWrong"));
-        setAutosaveStatus("idle");
-      }
-    }, 900);
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autosave, readOnly, values, statusNote]);
-
-  useEffect(() => {
-    return () => {
-      if (autosaveTimeout.current) clearTimeout(autosaveTimeout.current);
-    };
-  }, []);
-
   const statusDisabled = !canEditStatus;
+  // A pure assignee (no tickets.update) gets readOnly=true but
+  // canEditStatus=true — every other field is locked, but they must still
+  // be able to save a status-only change. Gating autosave/submit on bare
+  // readOnly would silently discard that edit.
+  const canSaveAnything = !readOnly || canEditStatus;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -367,10 +341,7 @@ export default function TicketForm({
             required
             rows={3}
             value={statusNote}
-            onChange={(e) => {
-              hasEditedRef.current = true;
-              setStatusNote(e.target.value);
-            }}
+            onChange={(e) => setStatusNote(e.target.value)}
             placeholder={tDetail("statusNotePlaceholder")}
             className={textInputClass}
           />
@@ -383,20 +354,26 @@ export default function TicketForm({
         </p>
       )}
 
-      {!readOnly && !autosave && (
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-        >
-          {submitting ? submittingLabel : submitLabel}
-        </button>
-      )}
-
-      {!readOnly && autosave && autosaveStatus !== "idle" && (
-        <p className="text-sm text-foreground/50">
-          {autosaveStatus === "saving" ? tCommon("autosaving") : tCommon("autosaved")}
-        </p>
+      {canSaveAnything && (
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {submitting ? submittingLabel : submitLabel}
+          </button>
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={submitting}
+              className="rounded-md border border-border px-5 py-2.5 text-sm font-semibold text-foreground/70 hover:bg-black/5 disabled:opacity-60"
+            >
+              {tCommon("cancel")}
+            </button>
+          )}
+        </div>
       )}
     </form>
   );

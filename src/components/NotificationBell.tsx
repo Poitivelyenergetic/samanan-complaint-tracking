@@ -83,7 +83,11 @@ export default function NotificationBell() {
     ...myTickets
       .filter((ticket) => ticket.createdBy === user?.uid && ticket.status !== "Open")
       .map((ticket) => ({
-        id: `ticket-status:${ticket.id}:${ticket.status}`,
+        // updatedAt (not just status) keeps this id unique per transition —
+        // otherwise a status that cycles back to a previously-dismissed
+        // value (e.g. reopened Processing after a Closed in between) would
+        // reuse an id the filer already dismissed and never notify again.
+        id: `ticket-status:${ticket.id}:${ticket.status}:${ticket.updatedAt}`,
         href: `/tickets/${ticket.id}`,
         title: t("ticketStatusTitle", { id: ticket.id, status: tStatus(ticket.status) }),
         subtitle: ticket.subject,
@@ -106,7 +110,7 @@ export default function NotificationBell() {
     <div className="relative">
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => setOpen((o) => !o)}
         aria-label={t("title")}
         className="relative rounded-full p-2 text-foreground/60 hover:bg-black/5 hover:text-foreground"
       >

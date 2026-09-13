@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   COMPLAINT_STATUSES,
@@ -63,12 +63,11 @@ interface ComplaintFormProps {
   // separate, permission-gated action (see the Reassign control) rather
   // than part of the general edit form.
   hideAssignedTo?: boolean;
-  // Saves automatically (debounced) as fields change instead of requiring a
-  // submit click — hides the submit button, replaced by an inline
-  // saving/saved indicator. Used on the complaint detail (edit) page only;
-  // the New Complaint page still submits explicitly since there's nothing
-  // to save until the first submit creates the document.
-  autosave?: boolean;
+  // Shows a Cancel button beside Save — used on the complaint detail (edit)
+  // page, where an employee opening a complaint to look at it should never
+  // have any edit persisted unless they explicitly click Save. Omitted on
+  // New Complaint, where there's nothing to cancel out of yet.
+  onCancel?: () => void;
 }
 
 const DEFAULT_VALUES: ComplaintFormValues = {
@@ -105,7 +104,7 @@ export default function ComplaintForm({
   onSubmit,
   readOnly = false,
   hideAssignedTo = false,
-  autosave = false,
+  onCancel,
 }: ComplaintFormProps) {
   const t = useTranslations("complaint.fields");
   const tStatus = useTranslations("status");
@@ -152,14 +151,7 @@ export default function ComplaintForm({
 
   const statusChanged = initialStatus !== null && values.status !== initialStatus;
 
-  // Autosave only ever fires because of an actual edit — never merely
-  // because the values/statusNote effect happened to re-run (e.g. React
-  // Strict Mode's dev-only double-invoke of effects on mount, which would
-  // otherwise autosave a no-op "change" of the freshly loaded data).
-  const hasEditedRef = useRef(false);
-
   function update<K extends keyof ComplaintFormValues>(key: K, value: ComplaintFormValues[K]) {
-    hasEditedRef.current = true;
     setValues((prev) => {
       const next = { ...prev, [key]: value };
       if (key === "assignedTo" && prev.assignedTo === "" && value !== "" && prev.status === "Open") {
@@ -247,45 +239,10 @@ export default function ComplaintForm({
       await onSubmit(buildPayload(), statusChanged ? statusNote.trim() : undefined);
     } catch {
       setError(tCommon("somethingWentWrong"));
+    } finally {
       setSubmitting(false);
     }
   }
-
-  // Autosave: debounce every change and save automatically instead of
-  // waiting for a submit click. Gated on hasEditedRef so it never fires
-  // before the user has actually touched anything. If the status changed
-  // but the required note hasn't been typed yet, it waits rather than
-  // saving an invalid update — the note field's own onChange (which also
-  // sets hasEditedRef) re-triggers this effect once it is.
-  const autosaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved">("idle");
-
-  useEffect(() => {
-    if (!autosave || readOnly) return;
-    if (!hasEditedRef.current) return;
-    if (statusChanged && !statusNote.trim()) return;
-
-    if (autosaveTimeout.current) clearTimeout(autosaveTimeout.current);
-    autosaveTimeout.current = setTimeout(async () => {
-      setAutosaveStatus("saving");
-      setError(null);
-      try {
-        await onSubmit(buildPayload(), statusChanged ? statusNote.trim() : undefined);
-        setAutosaveStatus("saved");
-      } catch {
-        setError(tCommon("somethingWentWrong"));
-        setAutosaveStatus("idle");
-      }
-    }, 900);
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autosave, readOnly, values, statusNote]);
-
-  useEffect(() => {
-    return () => {
-      if (autosaveTimeout.current) clearTimeout(autosaveTimeout.current);
-    };
-  }, []);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -534,10 +491,7 @@ export default function ComplaintForm({
             required
             rows={3}
             value={statusNote}
-            onChange={(e) => {
-              hasEditedRef.current = true;
-              setStatusNote(e.target.value);
-            }}
+            onChange={(e) => setStatusNote(e.target.value)}
             placeholder={tDetail("statusNotePlaceholder")}
             className={textInputClass}
           />
@@ -566,20 +520,26 @@ export default function ComplaintForm({
         </p>
       )}
 
-      {!readOnly && !autosave && (
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-        >
-          {submitting ? submittingLabel : submitLabel}
-        </button>
-      )}
-
-      {!readOnly && autosave && autosaveStatus !== "idle" && (
-        <p className="text-sm text-foreground/50">
-          {autosaveStatus === "saving" ? tCommon("autosaving") : tCommon("autosaved")}
-        </p>
+      {!readOnly && (
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {submitting ? submittingLabel : submitLabel}
+          </button>
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={submitting}
+              className="rounded-md border border-border px-5 py-2.5 text-sm font-semibold text-foreground/70 hover:bg-black/5 disabled:opacity-60"
+            >
+              {tCommon("cancel")}
+            </button>
+          )}
+        </div>
       )}
     </form>
   );

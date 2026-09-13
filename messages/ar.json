@@ -5,8 +5,6 @@
     "loading": "جارٍ التحميل...",
     "save": "حفظ",
     "saving": "جارٍ الحفظ...",
-    "autosaving": "جارٍ حفظ التغييرات...",
-    "autosaved": "تم حفظ جميع التغييرات.",
     "cancel": "إلغاء",
     "edit": "تعديل",
     "delete": "حذف",
@@ -162,7 +160,8 @@
     "passwordMismatch": "كلمة المرور الجديدة وتأكيدها غير متطابقين.",
     "currentPasswordIncorrect": "كلمة المرور الحالية غير صحيحة.",
     "myRoles": "أدواري",
-    "myPermissions": "صلاحياتي"
+    "myPermissions": "صلاحياتي",
+    "phoneVerifyRequired": "يجب التحقق من رقمك الجديد عبر رسالة نصية قبل الحفظ."
   },
   "notifications": {
     "title": "الإشعارات",

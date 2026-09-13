@@ -36,6 +36,7 @@ export default function CompanyForm({ staff, initialValues, submitLabel, submitt
       await onSubmit({ ...values, number: values.number.trim(), nameAr: values.nameAr.trim(), nameEn: values.nameEn.trim() });
     } catch {
       setError(tCommon("somethingWentWrong"));
+    } finally {
       setSubmitting(false);
     }
   }

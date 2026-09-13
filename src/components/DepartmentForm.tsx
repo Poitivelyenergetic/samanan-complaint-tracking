@@ -44,6 +44,7 @@ export default function DepartmentForm({
       await onSubmit({ ...values, number: values.number.trim(), nameAr: values.nameAr.trim(), nameEn: values.nameEn.trim() });
     } catch {
       setError(tCommon("somethingWentWrong"));
+    } finally {
       setSubmitting(false);
     }
   }

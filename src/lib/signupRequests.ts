@@ -1,5 +1,4 @@
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -8,7 +7,6 @@ import {
   onSnapshot,
   orderBy,
   query,
-  serverTimestamp,
   Timestamp,
   updateDoc,
   where,
@@ -43,22 +41,35 @@ export interface SignupRequestInput {
   name: string;
   username: string;
   contact: string;
-  contactVerified: boolean;
   position: string;
   administration: string;
   note: string | null;
+  // Only for the phone verification path — the ID token from the just-
+  // confirmed Firebase phone sign-in, checked server-side. Omitted for the
+  // email path, which is checked server-side against
+  // emailVerificationCodes instead.
+  phoneIdToken?: string;
 }
 
 // Public — anyone can file a request. It holds no password; an admin turns
 // an approved request into a real account via the Employees "New Employee"
 // form, choosing the password themselves.
+//
+// Goes through /api/signup/create (Admin SDK) rather than a direct
+// Firestore write — see the comment on the signupRequests match block in
+// firestore.rules for why contactVerified can never be trusted from the
+// client.
 export async function createSignupRequest(input: SignupRequestInput): Promise<string> {
-  const ref = await addDoc(collection(db, COLLECTION), {
-    ...input,
-    status: "pending",
-    createdAt: serverTimestamp(),
+  const res = await fetch("/api/signup/create", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
   });
-  return ref.id;
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(typeof data.error === "string" ? data.error : "request_failed");
+  }
+  return data.id as string;
 }
 
 export function subscribeToPendingSignupRequests(

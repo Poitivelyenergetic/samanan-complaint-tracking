@@ -36,13 +36,16 @@ export async function POST(request: Request) {
   }
 
   const code = generateCode();
-  await ref.set({ code, createdAt: now, expiresAt: now + CODE_TTL_MS, attempts: 0, verified: false });
 
+  // Send before persisting: a failed send must not start the resend
+  // cooldown (the applicant never received anything to wait out).
   try {
     await sendSignupVerificationEmail(email, code);
   } catch {
     return NextResponse.json({ error: "send_failed" }, { status: 502 });
   }
+
+  await ref.set({ code, createdAt: now, expiresAt: now + CODE_TTL_MS, attempts: 0, verified: false });
 
   return NextResponse.json({ ok: true });
 }

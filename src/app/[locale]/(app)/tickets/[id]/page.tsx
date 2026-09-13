@@ -64,9 +64,21 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
   const administrationLabel = administration ? localizedName(administration, locale) : "";
 
   async function handleSubmit(values: TicketInput, statusNote?: string) {
+    // TicketForm is mounted with hideAssignedTo, so its internal
+    // assignedTo/departmentId are whatever the ticket's were when the form
+    // first mounted — if someone else reassigns the ticket while this tab
+    // stays open, the form's stale values must not overwrite that
+    // reassignment when Save is clicked (mirrors the createdBy/requesterName
+    // restores below).
     await updateTicket(
       id,
-      { ...values, requesterName: ticket?.requesterName ?? values.requesterName, createdBy: ticket?.createdBy ?? null },
+      {
+        ...values,
+        requesterName: ticket?.requesterName ?? values.requesterName,
+        createdBy: ticket?.createdBy ?? null,
+        assignedTo: ticket?.assignedTo ?? null,
+        departmentId: ticket?.departmentId ?? null,
+      },
       ticket?.status ?? null,
       user?.uid ?? null,
       statusNote
@@ -183,7 +195,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
           readOnly={!canEdit}
           canEditStatus={canEditStatus}
           hideAssignedTo
-          autosave
+          onCancel={() => router.push("/tickets")}
         />
       </div>
 

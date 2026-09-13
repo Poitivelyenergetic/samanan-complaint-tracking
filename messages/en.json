@@ -5,8 +5,6 @@
     "loading": "Loading...",
     "save": "Save",
     "saving": "Saving...",
-    "autosaving": "Saving changes...",
-    "autosaved": "All changes saved.",
     "cancel": "Cancel",
     "edit": "Edit",
     "delete": "Delete",
@@ -162,7 +160,8 @@
     "passwordMismatch": "New password and confirmation don't match.",
     "currentPasswordIncorrect": "Current password is incorrect.",
     "myRoles": "My Roles",
-    "myPermissions": "My Permissions"
+    "myPermissions": "My Permissions",
+    "phoneVerifyRequired": "Verify your new number by SMS before saving."
   },
   "notifications": {
     "title": "Notifications",

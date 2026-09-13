@@ -580,14 +580,16 @@ export default function HomePage() {
       <h1 className="text-xl font-bold text-foreground">{t("welcome", { name })}</h1>
       <p className="mt-0.5 text-sm text-foreground/60">{canViewAll ? t("subtitleAdmin") : t("subtitleEmployee")}</p>
 
-      {!canView ? (
+      {!canView && !canViewAllTickets ? (
         <p className="mt-6 rounded-lg border border-dashed border-border bg-surface px-4 py-8 text-center text-sm text-foreground/50">
           {t("noData")}
         </p>
-      ) : complaints === null ? (
-        <p className="mt-6 text-sm text-foreground/50">{tCommon("loading")}</p>
       ) : (
         <>
+          {canView && (complaints === null ? (
+            <p className="mt-6 text-sm text-foreground/50">{tCommon("loading")}</p>
+          ) : (
+            <>
           <div className="mt-8 flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand/10 text-brand">
               <IconClipboardList />
@@ -1005,6 +1007,8 @@ export default function HomePage() {
               </Reveal>
             )}
           </div>
+            </>
+          ))}
 
           {canViewAllTickets && (
             <>

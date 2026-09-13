@@ -2,9 +2,19 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
+import { deleteApp, type FirebaseApp } from "firebase/app";
+import {
+  EmailAuthProvider,
+  getAuth,
+  RecaptchaVerifier,
+  reauthenticateWithCredential,
+  signInWithPhoneNumber,
+  updatePassword,
+  type ConfirmationResult,
+} from "firebase/auth";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { storage, usernameToEmail } from "@/lib/firebase";
+import { storage, usernameToEmail, createPhoneVerifyApp } from "@/lib/firebase";
+import { toE164SaudiPhone } from "@/lib/phone";
 import { updateOwnProfile } from "@/lib/users";
 import { subscribeToRoles } from "@/lib/roles";
 import { useAuth } from "@/lib/auth-context";
@@ -13,7 +23,8 @@ import { CRUD_ACTIONS, PERMISSION_RESOURCES, localizedName, type Role } from "@/
 type Section = "profile" | "password" | "permissions";
 
 const ALL_RESOURCES = [...PERMISSION_RESOURCES, "marketing" as const];
-const COMPLAINTS_EXTRA_ACTIONS = ["viewAll", "reassign"] as const;
+const RESOURCES_WITH_EXTRA_ACTIONS = ["complaints", "tickets"] as const;
+const EXTRA_ACTIONS = ["viewAll", "reassign"] as const;
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -30,6 +41,10 @@ export default function AccountSettingsPage() {
   const tResources = useTranslations("roles.resources");
   const tActions = useTranslations("roles.actions");
   const tCommon = useTranslations("common");
+  // Reuses the same verification strings as staff signup — same underlying
+  // flow (a throwaway Firebase phone-auth app + SMS code), just triggered
+  // by editing the phone number here instead of filling out the signup form.
+  const tv = useTranslations("staffSignup.verification");
   const locale = useLocale();
   const { user, profile } = useAuth();
 
@@ -42,6 +57,29 @@ export default function AccountSettingsPage() {
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // A changed phone number must be verified by SMS before it can be saved —
+  // otherwise nothing stops saving a number nobody actually confirmed
+  // control of, including one that's just mistyped. The number on file is
+  // implicitly "verified" already (verifiedPhone seeds from it below), so
+  // only an edit away from that value ever requires a fresh code.
+  const [verifiedPhone, setVerifiedPhone] = useState<string | null>(null);
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const phoneAppRef = useRef<FirebaseApp | null>(null);
+  const confirmationRef = useRef<ConfirmationResult | null>(null);
+  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
+  const phoneVerified = verifiedPhone === phone;
+
+  useEffect(() => {
+    return () => {
+      recaptchaRef.current?.clear();
+      if (phoneAppRef.current) deleteApp(phoneAppRef.current).catch(() => undefined);
+    };
+  }, []);
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -53,12 +91,80 @@ export default function AccountSettingsPage() {
   useEffect(() => subscribeToRoles(setRoles), []);
 
   useEffect(() => {
-    if (profile) Promise.resolve().then(() => setPhone(profile.phone));
+    if (profile) {
+      Promise.resolve().then(() => {
+        setPhone(profile.phone);
+        setVerifiedPhone(profile.phone);
+      });
+    }
   }, [profile]);
+
+  function handlePhoneInputChange(value: string) {
+    setPhone(value);
+    setPhoneSaved(false);
+    // Editing after a code was sent (or after verifying a different value)
+    // invalidates it — a fresh number needs its own fresh code.
+    setCodeSent(false);
+    setCode("");
+    setVerifyError(null);
+  }
+
+  function verifyErrorMessage(code: string): string {
+    const key = `errors.${code}`;
+    return tv.has(key) ? tv(key) : tv("errors.sendFailed");
+  }
+
+  async function handleSendPhoneCode() {
+    setVerifyError(null);
+    setSendingCode(true);
+    try {
+      // A prior attempt may have left a reCAPTCHA widget rendered and a
+      // throwaway phone app alive — reusing either throws, silently
+      // breaking resend (see the identical fix in the signup page).
+      if (recaptchaRef.current) {
+        recaptchaRef.current.clear();
+        recaptchaRef.current = null;
+      }
+      confirmationRef.current = null;
+      if (phoneAppRef.current) {
+        await deleteApp(phoneAppRef.current).catch(() => undefined);
+        phoneAppRef.current = null;
+      }
+      const app = createPhoneVerifyApp();
+      phoneAppRef.current = app;
+      const phoneAuth = getAuth(app);
+      const verifier = new RecaptchaVerifier(phoneAuth, "account-phone-recaptcha-container", { size: "invisible" });
+      recaptchaRef.current = verifier;
+      confirmationRef.current = await signInWithPhoneNumber(phoneAuth, toE164SaudiPhone(phone), verifier);
+      setCodeSent(true);
+    } catch {
+      setVerifyError(verifyErrorMessage("sendFailed"));
+    } finally {
+      setSendingCode(false);
+    }
+  }
+
+  async function handleVerifyPhoneCode() {
+    setVerifyError(null);
+    setVerifyingCode(true);
+    try {
+      if (!confirmationRef.current) throw new Error("missing confirmation");
+      await confirmationRef.current.confirm(code.trim());
+      if (phoneAppRef.current) {
+        await deleteApp(phoneAppRef.current).catch(() => undefined);
+        phoneAppRef.current = null;
+      }
+      setVerifiedPhone(phone);
+    } catch {
+      setVerifyError(verifyErrorMessage("invalid_code"));
+    } finally {
+      setVerifyingCode(false);
+    }
+  }
 
   async function handleSavePhone(e: FormEvent) {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !phoneVerified) return;
     setPhoneSaving(true);
     setPhoneSaved(false);
     try {
@@ -130,7 +236,9 @@ export default function AccountSettingsPage() {
 
   function actionsFor(resource: (typeof ALL_RESOURCES)[number]) {
     if (resource === "marketing") return ["view"] as const;
-    if (resource === "complaints") return [...CRUD_ACTIONS, ...COMPLAINTS_EXTRA_ACTIONS] as const;
+    if ((RESOURCES_WITH_EXTRA_ACTIONS as readonly string[]).includes(resource)) {
+      return [...CRUD_ACTIONS, ...EXTRA_ACTIONS] as const;
+    }
     return CRUD_ACTIONS;
   }
 
@@ -220,16 +328,56 @@ export default function AccountSettingsPage() {
                   id="phone"
                   dir="ltr"
                   value={phone}
-                  onChange={(e) => {
-                    setPhone(e.target.value);
-                    setPhoneSaved(false);
-                  }}
+                  onChange={(e) => handlePhoneInputChange(e.target.value)}
                   className={inputClass}
                 />
+
+                {!phoneVerified && (
+                  <div className="mt-2">
+                    {!codeSent ? (
+                      <button
+                        type="button"
+                        onClick={handleSendPhoneCode}
+                        disabled={sendingCode || !phone.trim()}
+                        className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground/80 hover:bg-black/5 disabled:opacity-60"
+                      >
+                        {sendingCode ? tv("sending") : tv("sendCode")}
+                      </button>
+                    ) : (
+                      <div className="flex items-end gap-2">
+                        <div className="flex-1">
+                          <label htmlFor="phoneCode" className="block text-xs font-medium text-foreground/70">
+                            {tv("codeLabel")}
+                          </label>
+                          <input
+                            id="phoneCode"
+                            dir="ltr"
+                            autoComplete="one-time-code"
+                            value={code}
+                            onChange={(e) => setCode(e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleVerifyPhoneCode}
+                          disabled={verifyingCode || !code.trim()}
+                          className="shrink-0 rounded-md bg-brand px-3 py-2 text-sm font-semibold text-brand-foreground hover:opacity-90 disabled:opacity-60"
+                        >
+                          {verifyingCode ? tv("verifying") : tv("verify")}
+                        </button>
+                      </div>
+                    )}
+                    {codeSent && <p className="mt-1 text-xs text-foreground/50">{tv("codeSentPhone")}</p>}
+                    {verifyError && <p className="mt-1 text-xs text-red-600">{verifyError}</p>}
+                    <p className="mt-1 text-xs text-foreground/50">{t("phoneVerifyRequired")}</p>
+                  </div>
+                )}
+
                 <div className="mt-3 flex items-center gap-3">
                   <button
                     type="submit"
-                    disabled={phoneSaving}
+                    disabled={phoneSaving || !phoneVerified}
                     className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-foreground disabled:opacity-50"
                   >
                     {phoneSaving ? tCommon("saving") : tCommon("save")}
@@ -237,6 +385,8 @@ export default function AccountSettingsPage() {
                   {phoneSaved && <span className="text-sm text-green-600">{t("saved")}</span>}
                 </div>
               </form>
+
+              <div id="account-phone-recaptcha-container" />
             </div>
           )}
 

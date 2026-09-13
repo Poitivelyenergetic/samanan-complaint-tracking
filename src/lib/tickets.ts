@@ -24,7 +24,9 @@ const COUNTER_REF = () => doc(db, "counters", "tickets");
 // The single Administration every ticket is locked to — the existing "IT
 // Administartion" record (Firestore ID, not a name match, so a later rename
 // of that record doesn't silently break routing). To point tickets at a
-// different administration, replace this ID.
+// different administration, replace this ID — and the identical literal
+// hard-coded in firestore.rules' isSelfCreatedTicket(), which can't import
+// this constant and must be kept in sync by hand.
 export const TICKET_ADMINISTRATION_ID = "leMoMH7aViBh7tSM0UtH";
 
 function toIso(value: unknown): string {

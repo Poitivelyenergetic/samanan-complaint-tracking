@@ -122,6 +122,18 @@ export default function SearchableSelect<T>({
             setFocused(false);
             blurTimeout.current = setTimeout(() => setOpen(false), 150);
           }}
+          onKeyDown={(e) => {
+            // Every instance of this component lives inside a <form> —
+            // without this, Enter (the natural "confirm my choice" key
+            // while typing to filter) submits/autosaves the whole form
+            // instead of picking the highlighted match.
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (open && filtered.length > 0) selectItem(filtered[0]);
+            } else if (e.key === "Escape") {
+              setOpen(false);
+            }
+          }}
           className={className ?? DEFAULT_INPUT_CLASS}
         />
         {selectedItem && !disabled && allowClear && (

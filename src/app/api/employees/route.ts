@@ -62,20 +62,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "auth_create_failed" }, { status: 500 });
   }
 
-  await getAdminDb().collection("users").doc(uid).set({
-    id: uid,
-    nameAr,
-    nameEn,
-    username,
-    number,
-    phone,
-    jobTitle,
-    companyId,
-    administrationId,
-    departmentId,
-    roleIds,
-    permissions,
-  });
+  try {
+    await getAdminDb().collection("users").doc(uid).set({
+      id: uid,
+      nameAr,
+      nameEn,
+      username,
+      number,
+      phone,
+      jobTitle,
+      companyId,
+      administrationId,
+      departmentId,
+      roleIds,
+      permissions,
+    });
+  } catch (err) {
+    // The Auth account already exists at this point — leaving it behind
+    // with no matching Firestore profile would make it invisible in the
+    // Employees list, unmanageable, and permanently block this username
+    // (auth/email-already-exists on any retry). Roll it back.
+    await getAdminAuth().deleteUser(uid).catch(() => undefined);
+    throw err;
+  }
 
   return NextResponse.json({ id: uid }, { status: 201 });
 }

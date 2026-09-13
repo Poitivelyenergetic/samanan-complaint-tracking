@@ -65,6 +65,11 @@ export default function StaffSignupPage() {
   const phoneAppRef = useRef<FirebaseApp | null>(null);
   const confirmationRef = useRef<ConfirmationResult | null>(null);
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
+  // Captured right after a successful phone confirm, before the throwaway
+  // app (and the signed-in user it holds) is torn down — sent to
+  // /api/signup/create so the server can independently verify this contact
+  // was really confirmed, rather than trusting a client-supplied boolean.
+  const phoneIdTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -84,6 +89,7 @@ export default function StaffSignupPage() {
       setCodeSent(false);
       setCode("");
       setVerifyError(null);
+      phoneIdTokenRef.current = null;
     }
   }
 
@@ -100,6 +106,22 @@ export default function StaffSignupPage() {
     }
     setSendingCode(true);
     try {
+      // A prior attempt (a different contact value, a switch between
+      // email/phone, or a plain resend) may have left a reCAPTCHA widget
+      // rendered into #signup-recaptcha-container and a throwaway phone
+      // Firebase app alive — reusing either here throws ("reCAPTCHA has
+      // already been rendered in this element"), silently breaking resend.
+      // Always tear down before starting a fresh attempt.
+      if (recaptchaRef.current) {
+        recaptchaRef.current.clear();
+        recaptchaRef.current = null;
+      }
+      confirmationRef.current = null;
+      if (phoneAppRef.current) {
+        await deleteApp(phoneAppRef.current).catch(() => undefined);
+        phoneAppRef.current = null;
+      }
+
       if (contactKind === "email") {
         const res = await fetch("/api/signup/send-email-code", {
           method: "POST",
@@ -144,7 +166,10 @@ export default function StaffSignupPage() {
         }
       } else {
         if (!confirmationRef.current) throw new Error("missing confirmation");
-        await confirmationRef.current.confirm(code.trim());
+        const result = await confirmationRef.current.confirm(code.trim());
+        // Capture the ID token before tearing down the app that holds this
+        // signed-in user — the server checks it later, at final submit.
+        phoneIdTokenRef.current = await result.user.getIdToken();
         if (phoneAppRef.current) {
           await deleteApp(phoneAppRef.current).catch(() => undefined);
           phoneAppRef.current = null;
@@ -184,14 +209,15 @@ export default function StaffSignupPage() {
         name: values.name.trim(),
         username: values.username.trim().toLowerCase(),
         contact: values.contact.trim(),
-        contactVerified: true,
         position: values.position.trim(),
         administration: values.administration.trim(),
         note: values.note.trim() || null,
+        phoneIdToken: contactKind === "phone" ? phoneIdTokenRef.current ?? undefined : undefined,
       });
       setSubmitted(true);
-    } catch {
-      setSubmitError(tCommon("somethingWentWrong"));
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "request_failed";
+      setSubmitError(code === "not_verified" ? tv("mustVerify") : tCommon("somethingWentWrong"));
     } finally {
       setSubmitting(false);
     }
