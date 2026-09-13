@@ -170,7 +170,7 @@ export default function TicketForm({
   const statusDisabled = !canEditStatus;
   // A pure assignee (no tickets.update) gets readOnly=true but
   // canEditStatus=true — every other field is locked, but they must still
-  // be able to save a status-only change. Gating autosave/submit on bare
+  // be able to save a status-only change. Gating the Save button on bare
   // readOnly would silently discard that edit.
   const canSaveAnything = !readOnly || canEditStatus;
 
