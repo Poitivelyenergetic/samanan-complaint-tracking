@@ -41,7 +41,14 @@ export default function SearchableSelect<T>({
   allowClear = true,
   className,
 }: SearchableSelectProps<T>) {
-  const [query, setQuery] = useState("");
+  // Lazily computed straight from props (not the selectedItem/selectedLabel
+  // below) so the field shows the right text — the current selection's
+  // label, "All statuses" and the like included — from its very first
+  // render, rather than blank until something later changes the selection.
+  const [query, setQuery] = useState(() => {
+    const initialItem = items.find((item) => getId(item) === value);
+    return initialItem ? getLabel(initialItem) : "";
+  });
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
   const blurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
