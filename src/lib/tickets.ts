@@ -206,10 +206,16 @@ export async function reassignTicket(
 }
 
 // Same scratchpad-notes model as complaints — see updateComplaintNotes.
-export async function updateTicketNotes(id: string, notes: string): Promise<void> {
+export async function updateTicketNotes(id: string, notes: string, byUid: string | null): Promise<void> {
   await updateDoc(doc(db, COLLECTION, id), {
     notes,
     updatedAt: serverTimestamp(),
+    history: arrayUnion({
+      type: "note",
+      note: notes,
+      at: new Date().toISOString(),
+      byUid,
+    }),
   });
 }
 

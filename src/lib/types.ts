@@ -387,13 +387,14 @@ export type ComplaintHistoryEntryType =
   | "reassigned"
   | "reassignRequested"
   | "reassignAccepted"
-  | "reassignRejected";
+  | "reassignRejected"
+  | "note";
 
 export interface ComplaintHistoryEntry {
   type: ComplaintHistoryEntryType;
   status?: ComplaintStatus; // set when type is "created" or "status" — the new status
   previousStatus?: ComplaintStatus; // set when type === "status" — the status it changed from
-  note?: string; // set when type === "status" — what the employee did, required on every status change
+  note?: string; // set when type === "status" (what the employee did, required on every status change) or type === "note" (the scratchpad's full text at the time it was saved)
   assignedTo?: string | null; // set on every reassign* type — the proposed/new assignee
   previousAssignedTo?: string | null; // set on every reassign* type — who it was (or would be) reassigned from
   reason?: string; // set on every reassign* type — why the complaint was proposed for reassignment
@@ -465,7 +466,7 @@ export interface TicketSourceInput {
   nameEn: string;
 }
 
-export type TicketHistoryEntryType = "created" | "status" | "reassigned";
+export type TicketHistoryEntryType = "created" | "status" | "reassigned" | "note";
 
 export interface TicketHistoryEntry {
   type: TicketHistoryEntryType;

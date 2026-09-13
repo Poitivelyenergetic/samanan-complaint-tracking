@@ -110,7 +110,7 @@
     "subtitleEmployee": "هذه المهام الموكلة إليك.",
     "overview": "نظرة عامة",
     "analytics": "التحليلات",
-    "totalTickets": "إجمالي الشكاوى",
+    "totalComplaints": "إجمالي الشكاوى",
     "totalShort": "الإجمالي",
     "statusBreakdown": "التوزيع حسب الحالة",
     "categoryBreakdown": "حسب الفئة",
@@ -129,6 +129,7 @@
     "dateTo": "إلى",
     "employeeFilter": "الموظف",
     "employeeFilterAll": "كل الموظفين",
+    "complaintsSectionTitle": "الشكاوى",
     "ticketsSectionTitle": "التذاكر",
     "totalTicketsShort": "إجمالي التذاكر",
     "ticketStatusBreakdown": "التوزيع حسب الحالة",
@@ -251,7 +252,8 @@
       "notesPlaceholder": "دوّن أي شيء يستحق التذكر بخصوص هذه الشكوى...",
       "saveNote": "حفظ الملاحظة",
       "savingNote": "جارٍ الحفظ...",
-      "noteSaved": "تم الحفظ."
+      "noteSaved": "تم الحفظ.",
+      "historyNoteSaved": "تم حفظ ملاحظة"
     },
     "reassign": {
       "title": "إعادة إسناد الشكوى",
@@ -702,7 +704,8 @@
       "notesPlaceholder": "دوّن أي شيء يستحق التذكر بخصوص هذه التذكرة...",
       "saveNote": "حفظ الملاحظة",
       "savingNote": "جارٍ الحفظ...",
-      "noteSaved": "تم الحفظ."
+      "noteSaved": "تم الحفظ.",
+      "historyNoteSaved": "تم حفظ ملاحظة"
     },
     "reassign": {
       "title": "إعادة إسناد التذكرة",

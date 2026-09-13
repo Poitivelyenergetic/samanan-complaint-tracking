@@ -110,7 +110,7 @@
     "subtitleEmployee": "Here's what's on your plate.",
     "overview": "Overview",
     "analytics": "Analytics",
-    "totalTickets": "Total Tickets",
+    "totalComplaints": "Total Complaints",
     "totalShort": "Total",
     "statusBreakdown": "Status Breakdown",
     "categoryBreakdown": "By Category",
@@ -129,6 +129,7 @@
     "dateTo": "To",
     "employeeFilter": "Employee",
     "employeeFilterAll": "All employees",
+    "complaintsSectionTitle": "Complaints",
     "ticketsSectionTitle": "Tickets",
     "totalTicketsShort": "Total Tickets",
     "ticketStatusBreakdown": "Status Breakdown",
@@ -251,7 +252,8 @@
       "notesPlaceholder": "Jot down anything worth remembering about this complaint...",
       "saveNote": "Save Note",
       "savingNote": "Saving...",
-      "noteSaved": "Saved."
+      "noteSaved": "Saved.",
+      "historyNoteSaved": "Note saved"
     },
     "reassign": {
       "title": "Reassign Complaint",
@@ -702,7 +704,8 @@
       "notesPlaceholder": "Jot down anything worth remembering about this ticket...",
       "saveNote": "Save Note",
       "savingNote": "Saving...",
-      "noteSaved": "Saved."
+      "noteSaved": "Saved.",
+      "historyNoteSaved": "Note saved"
     },
     "reassign": {
       "title": "Reassign Ticket",

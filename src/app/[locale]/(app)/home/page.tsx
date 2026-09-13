@@ -53,6 +53,7 @@ import {
   IconInbox,
   IconRefreshCw,
   IconShieldCheck,
+  IconTicket,
   IconUsers,
   IconXCircle,
 } from "@/components/icons";
@@ -587,8 +588,15 @@ export default function HomePage() {
         <p className="mt-6 text-sm text-foreground/50">{tCommon("loading")}</p>
       ) : (
         <>
+          <div className="mt-8 flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand/10 text-brand">
+              <IconClipboardList />
+            </span>
+            <h2 className="text-lg font-bold text-foreground">{t("complaintsSectionTitle")}</h2>
+          </div>
+
           {canViewAll && (
-            <div className="mt-6 flex flex-wrap items-center gap-3">
+            <div className="mt-4 flex flex-wrap items-center gap-3">
               <div className="w-[220px]">
                 <SearchableSelect
                   items={employeeFilterOptions}
@@ -603,12 +611,12 @@ export default function HomePage() {
             </div>
           )}
 
-          <h2 className="mt-8 text-xs font-semibold uppercase tracking-wide text-foreground/40">{t("overview")}</h2>
+          <h2 className="mt-6 text-xs font-semibold uppercase tracking-wide text-foreground/40">{t("overview")}</h2>
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <Reveal>
               <StatCard
                 icon={<IconClipboardList />}
-                label={t("totalTickets")}
+                label={t("totalComplaints")}
                 value={list.length}
                 color="#475569"
                 href="/dashboard"
@@ -1000,8 +1008,15 @@ export default function HomePage() {
 
           {canViewAllTickets && (
             <>
-              <h2 className="mt-10 text-xs font-semibold uppercase tracking-wide text-foreground/40">
-                {t("ticketsSectionTitle")}
+              <div className="mt-12 flex items-center gap-2.5 border-t border-border pt-8">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                  <IconTicket />
+                </span>
+                <h2 className="text-lg font-bold text-foreground">{t("ticketsSectionTitle")}</h2>
+              </div>
+
+              <h2 className="mt-6 text-xs font-semibold uppercase tracking-wide text-foreground/40">
+                {t("overview")}
               </h2>
               <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 <Reveal>
@@ -1026,42 +1041,53 @@ export default function HomePage() {
                 ))}
               </div>
 
+              <h2 className="mt-10 text-xs font-semibold uppercase tracking-wide text-foreground/40">
+                {t("analytics")}
+              </h2>
               <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <Reveal>
                   <ChartCard title={t("ticketStatusBreakdown")}>
                     {ticketStatusPieData.length === 0 ? (
                       <EmptyChart text={t("noData")} />
                     ) : (
-                      <ResponsiveContainer width="100%" height="100%" debounce={200}>
-                        <PieChart>
-                          <Pie
-                            data={ticketStatusPieData}
-                            dataKey="count"
-                            nameKey="label"
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={55}
-                            outerRadius={85}
-                            isAnimationActive={false}
-                          >
-                            {ticketStatusPieData.map((row) => (
-                              <Cell
-                                key={row.status}
-                                fill={STATUS_COLORS[row.status]}
-                                stroke="none"
-                                cursor="pointer"
-                                onClick={() => router.push(ticketsHref({ status: row.status }))}
-                              />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            contentStyle={TOOLTIP_CONTENT_STYLE}
-                            labelStyle={TOOLTIP_LABEL_STYLE}
-                            itemStyle={TOOLTIP_ITEM_STYLE}
-                          />
-                          <Legend verticalAlign="bottom" height={36} />
-                        </PieChart>
-                      </ResponsiveContainer>
+                      <div className="relative h-full">
+                        <ResponsiveContainer width="100%" height="100%" debounce={200}>
+                          <PieChart>
+                            <Pie
+                              data={ticketStatusPieData}
+                              dataKey="count"
+                              nameKey="label"
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={55}
+                              outerRadius={85}
+                              isAnimationActive={false}
+                            >
+                              {ticketStatusPieData.map((row) => (
+                                <Cell
+                                  key={row.status}
+                                  fill={STATUS_COLORS[row.status]}
+                                  stroke="none"
+                                  cursor="pointer"
+                                  onClick={() => router.push(ticketsHref({ status: row.status }))}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              contentStyle={TOOLTIP_CONTENT_STYLE}
+                              labelStyle={TOOLTIP_LABEL_STYLE}
+                              itemStyle={TOOLTIP_ITEM_STYLE}
+                            />
+                            <Legend verticalAlign="bottom" height={36} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="pointer-events-none absolute inset-0 flex -translate-y-[18px] flex-col items-center justify-center">
+                          <span className="text-2xl font-bold text-foreground">{ticketList.length}</span>
+                          <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/40">
+                            {t("totalShort")}
+                          </span>
+                        </div>
+                      </div>
                     )}
                   </ChartCard>
                 </Reveal>

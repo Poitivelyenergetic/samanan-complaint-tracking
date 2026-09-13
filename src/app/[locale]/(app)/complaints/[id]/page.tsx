@@ -86,7 +86,7 @@ export default function ComplaintDetailPage({
     setSavingNotes(true);
     setNotesSaved(false);
     try {
-      await updateComplaintNotes(id, notes);
+      await updateComplaintNotes(id, notes, user?.uid ?? null);
       setNotesSaved(true);
     } finally {
       setSavingNotes(false);
@@ -272,12 +272,16 @@ export default function ComplaintDetailPage({
                           from: assigneeName(entry.previousAssignedTo),
                           to: assigneeName(entry.assignedTo),
                         })}
+                      {entry.type === "note" && t("historyNoteSaved")}
                     </p>
                     {isReassignEntry && entry.reason && (
                       <p className="text-foreground/60">{t("historyReassignedReason", { reason: entry.reason })}</p>
                     )}
                     {entry.type === "status" && entry.note && (
                       <p className="text-foreground/60">{t("historyStatusNote", { note: entry.note })}</p>
+                    )}
+                    {entry.type === "note" && entry.note && (
+                      <p className="whitespace-pre-wrap text-foreground/60">{entry.note}</p>
                     )}
                     <p className="text-xs text-foreground/50">
                       {actorName} ·{" "}

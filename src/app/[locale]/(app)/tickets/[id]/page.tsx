@@ -77,7 +77,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
     setSavingNotes(true);
     setNotesSaved(false);
     try {
-      await updateTicketNotes(id, notes);
+      await updateTicketNotes(id, notes, user?.uid ?? null);
       setNotesSaved(true);
     } finally {
       setSavingNotes(false);
@@ -236,12 +236,16 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
                           from: assigneeName(entry.previousAssignedTo),
                           to: assigneeName(entry.assignedTo),
                         })}
+                      {entry.type === "note" && t("historyNoteSaved")}
                     </p>
                     {entry.type === "reassigned" && entry.reason && (
                       <p className="text-foreground/60">{t("historyReassignedReason", { reason: entry.reason })}</p>
                     )}
                     {entry.type === "status" && entry.note && (
                       <p className="text-foreground/60">{t("historyStatusNote", { note: entry.note })}</p>
+                    )}
+                    {entry.type === "note" && entry.note && (
+                      <p className="whitespace-pre-wrap text-foreground/60">{entry.note}</p>
                     )}
                     <p className="text-xs text-foreground/50">
                       {actorName} ·{" "}

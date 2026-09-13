@@ -174,15 +174,23 @@ export async function reassignComplaint(
   });
 }
 
-// A lightweight scratchpad field, separate from the formal edit form and
-// history log — saving a note only requires complaints.view (or viewAll),
-// not complaints.update, since it's meant to be usable by any staff member
+// A lightweight scratchpad field, separate from the formal edit form —
+// saving a note only requires complaints.view (or viewAll), not
+// complaints.update, since it's meant to be usable by any staff member
 // working a complaint even if they can't otherwise edit it. See
-// isNotesOnlyWrite() in firestore.rules.
-export async function updateComplaintNotes(id: string, notes: string): Promise<void> {
+// isNotesOnlyWrite() in firestore.rules. Every save also appends a "note"
+// history entry so there's a record of what was jotted down and when, not
+// just the latest text.
+export async function updateComplaintNotes(id: string, notes: string, byUid: string | null): Promise<void> {
   await updateDoc(doc(db, COLLECTION, id), {
     notes,
     updatedAt: serverTimestamp(),
+    history: arrayUnion({
+      type: "note",
+      note: notes,
+      at: new Date().toISOString(),
+      byUid,
+    }),
   });
 }
 
