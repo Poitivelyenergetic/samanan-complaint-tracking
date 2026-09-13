@@ -267,6 +267,28 @@
     "success": {
       "title": "Request submitted",
       "subtitle": "An admin will review your request and set up your account. You'll be contacted once it's ready."
+    },
+    "verification": {
+      "sendCode": "Send code",
+      "sending": "Sending...",
+      "resend": "Resend code",
+      "codeLabel": "Verification code",
+      "verify": "Verify",
+      "verifying": "Verifying...",
+      "verified": "Verified",
+      "codeSentEmail": "We sent a code to this email.",
+      "codeSentPhone": "We sent a code by SMS.",
+      "mustVerify": "Verify your contact info before submitting.",
+      "errors": {
+        "invalid_email": "Enter a valid email first.",
+        "too_soon": "Please wait a moment before requesting another code.",
+        "send_failed": "Couldn't send the code. Try again.",
+        "invalid_code": "Incorrect code.",
+        "expired": "This code expired — request a new one.",
+        "too_many_attempts": "Too many attempts — request a new code.",
+        "not_found": "Request a code first.",
+        "sendFailed": "Couldn't send the code. Try again."
+      }
     }
   },
   "marketing": {
@@ -413,7 +435,9 @@
       "noResults": "No pending requests.",
       "approve": "Approve",
       "reject": "Reject",
-      "confirmReject": "Are you sure you want to reject this request?"
+      "confirmReject": "Are you sure you want to reject this request?",
+      "verified": "Verified",
+      "unverified": "Not verified"
     },
     "edit": {
       "title": "Edit Employee",

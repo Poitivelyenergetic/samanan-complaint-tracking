@@ -2,10 +2,14 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
+import { deleteApp, type FirebaseApp } from "firebase/app";
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
 import { Link } from "@/i18n/navigation";
 import { createSignupRequest } from "@/lib/signupRequests";
+import { createPhoneVerifyApp } from "@/lib/firebase";
+import { toE164SaudiPhone } from "@/lib/phone";
 import PublicShell, { BrandHeader } from "@/components/PublicShell";
 
 interface FormValues {
@@ -26,8 +30,17 @@ const DEFAULT_VALUES: FormValues = {
   note: "",
 };
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type ContactKind = "email" | "phone";
+
+function contactKindOf(contact: string): ContactKind {
+  return contact.includes("@") ? "email" : "phone";
+}
+
 export default function StaffSignupPage() {
   const t = useTranslations("staffSignup");
+  const tv = useTranslations("staffSignup.verification");
   const tCommon = useTranslations("common");
 
   const [values, setValues] = useState<FormValues>(DEFAULT_VALUES);
@@ -36,8 +49,113 @@ export default function StaffSignupPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
+  // Contact verification — a one-time code sent to the email/phone the
+  // applicant entered, confirmed before the request can be submitted, so an
+  // admin reviewing it knows the contact info is actually reachable.
+  const [verifiedContact, setVerifiedContact] = useState<string | null>(null);
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  // Only used for the phone path — a throwaway secondary Firebase app + its
+  // own phone-auth session, torn down on success or unmount. Mirrors
+  // login/staff/reset-password's approach.
+  const phoneAppRef = useRef<FirebaseApp | null>(null);
+  const confirmationRef = useRef<ConfirmationResult | null>(null);
+  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
+
+  useEffect(() => {
+    return () => {
+      recaptchaRef.current?.clear();
+      if (phoneAppRef.current) deleteApp(phoneAppRef.current).catch(() => undefined);
+    };
+  }, []);
+
+  const contactKind = contactKindOf(values.contact);
+  const contactVerified = verifiedContact !== null && verifiedContact === values.contact;
+
   function update<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
+    if (key === "contact") {
+      // Editing the contact after verifying (or mid-flow) invalidates
+      // whatever code was sent for the previous value.
+      setCodeSent(false);
+      setCode("");
+      setVerifyError(null);
+    }
+  }
+
+  function verifyErrorMessage(code: string): string {
+    const key = `errors.${code}`;
+    return tv.has(key) ? tv(key) : tv("errors.sendFailed");
+  }
+
+  async function handleSendCode() {
+    setVerifyError(null);
+    if (contactKind === "email" && !EMAIL_RE.test(values.contact.trim())) {
+      setVerifyError(verifyErrorMessage("invalid_email"));
+      return;
+    }
+    setSendingCode(true);
+    try {
+      if (contactKind === "email") {
+        const res = await fetch("/api/signup/send-email-code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: values.contact.trim() }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setVerifyError(verifyErrorMessage(typeof data.error === "string" ? data.error : "sendFailed"));
+          return;
+        }
+      } else {
+        const app = createPhoneVerifyApp();
+        phoneAppRef.current = app;
+        const phoneAuth = getAuth(app);
+        const verifier = new RecaptchaVerifier(phoneAuth, "signup-recaptcha-container", { size: "invisible" });
+        recaptchaRef.current = verifier;
+        confirmationRef.current = await signInWithPhoneNumber(phoneAuth, toE164SaudiPhone(values.contact), verifier);
+      }
+      setCodeSent(true);
+    } catch {
+      setVerifyError(verifyErrorMessage("sendFailed"));
+    } finally {
+      setSendingCode(false);
+    }
+  }
+
+  async function handleVerifyCode() {
+    setVerifyError(null);
+    setVerifyingCode(true);
+    try {
+      if (contactKind === "email") {
+        const res = await fetch("/api/signup/verify-email-code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: values.contact.trim(), code: code.trim() }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setVerifyError(verifyErrorMessage(typeof data.error === "string" ? data.error : "sendFailed"));
+          return;
+        }
+      } else {
+        if (!confirmationRef.current) throw new Error("missing confirmation");
+        await confirmationRef.current.confirm(code.trim());
+        if (phoneAppRef.current) {
+          await deleteApp(phoneAppRef.current).catch(() => undefined);
+          phoneAppRef.current = null;
+        }
+      }
+      setVerifiedContact(values.contact);
+    } catch {
+      setVerifyError(verifyErrorMessage("invalid_code"));
+    } finally {
+      setVerifyingCode(false);
+    }
   }
 
   function validate(): boolean {
@@ -55,6 +173,10 @@ export default function StaffSignupPage() {
     e.preventDefault();
     setSubmitError(null);
     if (!validate()) return;
+    if (!contactVerified) {
+      setSubmitError(tv("mustVerify"));
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -62,6 +184,7 @@ export default function StaffSignupPage() {
         name: values.name.trim(),
         username: values.username.trim().toLowerCase(),
         contact: values.contact.trim(),
+        contactVerified: true,
         position: values.position.trim(),
         administration: values.administration.trim(),
         note: values.note.trim() || null,
@@ -134,14 +257,66 @@ export default function StaffSignupPage() {
             <label htmlFor="contact" className="block text-sm font-medium text-foreground">
               {t("fields.contact")}
             </label>
-            <input
-              id="contact"
-              value={values.contact}
-              onChange={(e) => update("contact", e.target.value)}
-              placeholder={t("fields.contactPlaceholder")}
-              className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-            />
+            <div className="mt-1 flex gap-2">
+              <input
+                id="contact"
+                value={values.contact}
+                onChange={(e) => update("contact", e.target.value)}
+                placeholder={t("fields.contactPlaceholder")}
+                readOnly={contactVerified}
+                dir="ltr"
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-60"
+              />
+              {!contactVerified && (
+                <button
+                  type="button"
+                  onClick={handleSendCode}
+                  disabled={sendingCode || !values.contact.trim()}
+                  className="shrink-0 rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-black/5 disabled:opacity-60"
+                >
+                  {sendingCode ? tv("sending") : codeSent ? tv("resend") : tv("sendCode")}
+                </button>
+              )}
+            </div>
             {errors.contact && <p className="mt-1 text-xs text-red-600">{errors.contact}</p>}
+
+            {contactVerified ? (
+              <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-green-700">
+                <span aria-hidden>✓</span> {tv("verified")}
+              </p>
+            ) : (
+              codeSent && (
+                <div className="mt-2 flex items-end gap-2">
+                  <div className="flex-1">
+                    <label htmlFor="code" className="block text-xs font-medium text-foreground/70">
+                      {tv("codeLabel")}
+                    </label>
+                    <input
+                      id="code"
+                      dir="ltr"
+                      autoComplete="one-time-code"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                      className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleVerifyCode}
+                    disabled={verifyingCode || !code.trim()}
+                    className="shrink-0 rounded-md bg-brand px-3 py-2 text-sm font-semibold text-brand-foreground hover:opacity-90 disabled:opacity-60"
+                  >
+                    {verifyingCode ? tv("verifying") : tv("verify")}
+                  </button>
+                </div>
+              )
+            )}
+            {codeSent && !contactVerified && (
+              <p className="mt-1 text-xs text-foreground/50">
+                {contactKind === "email" ? tv("codeSentEmail") : tv("codeSentPhone")}
+              </p>
+            )}
+            {verifyError && <p className="mt-1 text-xs text-red-600">{verifyError}</p>}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -202,6 +377,8 @@ export default function StaffSignupPage() {
           </button>
         </form>
       </div>
+
+      <div id="signup-recaptcha-container" />
     </PublicShell>
   );
 }

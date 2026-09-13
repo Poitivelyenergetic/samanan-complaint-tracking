@@ -399,6 +399,9 @@ export interface SignupRequest {
   name: string;
   username: string;
   contact: string; // email or phone, however the requester prefers to be reached
+  // Whether `contact` was confirmed via a one-time code before this request
+  // was submitted — lets an admin reviewing the request trust it's reachable.
+  contactVerified: boolean;
   position: string;
   administration: string;
   note: string | null;

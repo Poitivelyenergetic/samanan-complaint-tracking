@@ -185,5 +185,13 @@ service cloud.firestore {
     match /passwordResetAttempts/{userId} {
       allow read, write: if false;
     }
+
+    // Staff-signup email verification codes, written only by the Admin SDK
+    // from /api/signup/send-email-code and /api/signup/verify-email-code
+    // (both unauthenticated by design — no client should read or write a
+    // code directly, since that would let anyone self-verify).
+    match /emailVerificationCodes/{email} {
+      allow read, write: if false;
+    }
   }
 }

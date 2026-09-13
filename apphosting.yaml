@@ -34,6 +34,8 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: RESEND_API_KEY
+    secret: RESEND_API_KEY
 
 # No FIREBASE_PROJECT_ID/CLIENT_EMAIL/PRIVATE_KEY here — that prefix is
 # reserved by App Hosting and can't be set via this file. The Admin SDK

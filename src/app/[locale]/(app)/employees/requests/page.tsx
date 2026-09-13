@@ -64,8 +64,19 @@ export default function PendingRequestsPage() {
             <div key={req.id} className="rounded-lg border border-border bg-surface p-4 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p className="font-medium text-foreground">{req.name}</p>
-                <p className="mt-0.5 text-sm text-foreground/60">
-                  {req.username} · {req.contact}
+                <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-foreground/60">
+                  <span>
+                    {req.username} · {req.contact}
+                  </span>
+                  {req.contactVerified ? (
+                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                      {t("verified")}
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-medium text-foreground/50">
+                      {t("unverified")}
+                    </span>
+                  )}
                 </p>
                 <p className="mt-0.5 text-sm text-foreground/60">
                   {req.position} — {req.administration}
