@@ -33,7 +33,7 @@
     "receivables": "حساب المقبوضات",
     "payables": "حساب المدفوعات",
     "salesOpportunities": "الفرص البيعية",
-    "tickets": "التذاكر",
+    "tickets": "التذاكر IT",
     "settings": "الإعدادات",
     "companies": "الشركات",
     "administrations": "الإدارات",
@@ -48,13 +48,13 @@
     "hideSidebar": "إخفاء",
     "complaintsGroup": "الشكاوى",
     "myComplaints": "شكاواي",
-    "ticketsGroup": "التذاكر",
-    "ticketsList": "التذاكر",
-    "myTickets": "تذاكري",
-    "newTicket": "تذكرة جديدة",
-    "ticketInquiry": "استعلام عن تذكرة",
-    "ticketTypes": "أنواع التذاكر",
-    "ticketSources": "مصادر التذاكر"
+    "ticketsGroup": "التذاكر IT",
+    "ticketsList": "التذاكر IT",
+    "myTickets": "تذاكري IT",
+    "newTicket": "تذكرة IT جديدة",
+    "ticketInquiry": "استعلام عن تذكرة IT",
+    "ticketTypes": "أنواع التذاكر IT",
+    "ticketSources": "مصادر التذاكر IT"
   },
   "login": {
     "title": "تسجيل دخول الموظفين",
@@ -128,8 +128,8 @@
     "employeeFilter": "الموظف",
     "employeeFilterAll": "كل الموظفين",
     "complaintsSectionTitle": "الشكاوى",
-    "ticketsSectionTitle": "التذاكر",
-    "totalTicketsShort": "إجمالي التذاكر",
+    "ticketsSectionTitle": "التذاكر IT",
+    "totalTicketsShort": "إجمالي التذاكر IT",
     "ticketStatusBreakdown": "التوزيع حسب الحالة",
     "ticketTypeBreakdown": "حسب النوع",
     "ticketTopAssignees": "الأكثر تكليفاً"
@@ -167,8 +167,8 @@
     "title": "الإشعارات",
     "empty": "لا توجد إشعارات جديدة.",
     "accountRequestTitle": "طلب حساب جديد: {name}",
-    "ticketAssignedTitle": "تم إسناد التذكرة #{id} إليك",
-    "ticketStatusTitle": "حالة التذكرة #{id} الآن {status}"
+    "ticketAssignedTitle": "تم إسناد التذكرة IT #{id} إليك",
+    "ticketStatusTitle": "حالة التذكرة IT #{id} الآن {status}"
   },
   "dashboard": {
     "title": "الشكاوى",
@@ -396,25 +396,25 @@
     "comingSoon": "قريباً. هذا القسم مخصص لمتابعة المبالغ المستحقة على الشركة."
   },
   "tickets": {
-    "title": "التذاكر",
-    "subtitle": "جميع التذاكر المقدمة من الموظفين",
-    "newButton": "تذكرة جديدة",
-    "noAccess": "لا تملك صلاحية الوصول إلى قائمة التذاكر الكاملة.",
-    "goToMyTickets": "الذهاب إلى تذاكري",
+    "title": "التذاكر IT",
+    "subtitle": "جميع التذاكر IT المقدمة من الموظفين",
+    "newButton": "تذكرة IT جديدة",
+    "noAccess": "لا تملك صلاحية الوصول إلى قائمة التذاكر IT الكاملة.",
+    "goToMyTickets": "الذهاب إلى تذاكري IT",
     "searchPlaceholder": "ابحث بالموضوع أو مقدّم الطلب أو الرقم المرجعي...",
     "statusFilter": "الحالة",
     "assigneeFilter": "مسندة إلى",
     "typeFilter": "النوع",
     "sourceFilter": "المصدر",
-    "noResults": "لا توجد تذاكر.",
+    "noResults": "لا توجد تذاكر IT.",
     "stats": {
-      "total": "إجمالي التذاكر",
+      "total": "إجمالي التذاكر IT",
       "open": "مفتوحة",
       "processing": "قيد المعالجة",
       "closed": "مغلقة"
     },
     "table": {
-      "ticketId": "رقم التذكرة",
+      "ticketId": "رقم التذكرة IT",
       "subject": "الموضوع",
       "requester": "مقدّم الطلب",
       "type": "النوع",
@@ -684,13 +684,13 @@
       "status": "الحالة"
     },
     "new": {
-      "title": "تذكرة جديدة",
-      "submit": "إنشاء التذكرة"
+      "title": "تذكرة IT جديدة",
+      "submit": "إنشاء التذكرة IT"
     },
     "detail": {
-      "editTitle": "تعديل التذكرة",
+      "editTitle": "تعديل التذكرة IT",
       "submit": "حفظ التغييرات",
-      "notFound": "التذكرة غير موجودة.",
+      "notFound": "التذكرة IT غير موجودة.",
       "statusNoteLabel": "ماذا فعلت؟",
       "statusNotePlaceholder": "صف ما تغيّر أو ما قمت به قبل تحديث الحالة...",
       "statusNoteRequired": "يرجى وصف ما قمت به قبل تغيير الحالة.",
@@ -715,7 +715,7 @@
       "discardChanges": "تجاهل التغييرات"
     },
     "reassign": {
-      "title": "إعادة إسناد التذكرة",
+      "title": "إعادة إسناد التذكرة IT",
       "subtitle": "اختر القسم والموظف الذي ستُسند إليه التذكرة، ووضّح السبب.",
       "assignToLabel": "إعادة الإسناد إلى",
       "reasonLabel": "سبب إعادة الإسناد",
@@ -726,13 +726,13 @@
     }
   },
   "ticketInquiry": {
-    "title": "استعلام عن تذكرة",
+    "title": "استعلام عن تذكرة IT",
     "subtitle": "ابحث باسم مقدّم الطلب أو رقم التذكرة لعرض كل التذاكر التي قدمها.",
     "searchPlaceholder": "ابحث باسم مقدّم الطلب أو رقم التذكرة...",
     "prompt": "ابدأ بكتابة اسم مقدّم الطلب أو رقم التذكرة للبحث.",
-    "noResults": "لا توجد تذاكر مطابقة لهذا البحث.",
+    "noResults": "لا توجد تذاكر IT مطابقة لهذا البحث.",
     "table": {
-      "ticketId": "رقم التذكرة",
+      "ticketId": "رقم التذكرة IT",
       "subject": "الموضوع",
       "requester": "مقدّم الطلب",
       "assignedTo": "مسندة إلى",
@@ -741,14 +741,14 @@
     }
   },
   "myTickets": {
-    "title": "تذاكري",
-    "subtitle": "التذاكر التي قدمتها، أو المسندة إليك حالياً.",
-    "newButton": "تذكرة جديدة",
-    "noResults": "لا توجد لديك تذاكر بعد.",
+    "title": "تذاكري IT",
+    "subtitle": "التذاكر IT التي قدمتها، أو المسندة إليك حالياً.",
+    "newButton": "تذكرة IT جديدة",
+    "noResults": "لا توجد لديك تذاكر IT بعد.",
     "roleAssignee": "مسندة إليك",
     "roleFiler": "قدّمتها أنت",
     "table": {
-      "ticketId": "رقم التذكرة",
+      "ticketId": "رقم التذكرة IT",
       "subject": "الموضوع",
       "type": "النوع",
       "role": "دورك",
@@ -771,12 +771,12 @@
     }
   },
   "ticketTypes": {
-    "title": "أنواع التذاكر",
-    "subtitle": "إدارة قائمة أنواع التذاكر التي يمكن للموظفين اختيارها",
-    "newButton": "+ نوع تذكرة جديد",
-    "noResults": "لا توجد أنواع تذاكر.",
-    "notFound": "نوع التذكرة غير موجود.",
-    "deleteConfirm": "هل أنت متأكد من حذف نوع التذكرة هذا؟",
+    "title": "أنواع التذاكر IT",
+    "subtitle": "إدارة قائمة أنواع التذاكر IT التي يمكن للموظفين اختيارها",
+    "newButton": "+ نوع تذكرة IT جديد",
+    "noResults": "لا توجد أنواع تذاكر IT.",
+    "notFound": "نوع التذكرة IT غير موجود.",
+    "deleteConfirm": "هل أنت متأكد من حذف نوع التذكرة IT هذا؟",
     "table": {
       "name": "الاسم"
     },
@@ -785,23 +785,23 @@
       "nameEn": "الاسم (إنجليزي)"
     },
     "new": {
-      "title": "نوع تذكرة جديد",
+      "title": "نوع تذكرة IT جديد",
       "submit": "إنشاء"
     },
     "edit": {
-      "title": "تعديل نوع التذكرة",
+      "title": "تعديل نوع التذكرة IT",
       "submit": "حفظ التغييرات",
-      "notFound": "نوع التذكرة غير موجود.",
-      "deleteConfirm": "هل أنت متأكد من حذف نوع التذكرة هذا؟"
+      "notFound": "نوع التذكرة IT غير موجود.",
+      "deleteConfirm": "هل أنت متأكد من حذف نوع التذكرة IT هذا؟"
     }
   },
   "ticketSources": {
-    "title": "مصادر التذاكر",
-    "subtitle": "إدارة قائمة مصادر التذاكر التي يمكن للموظفين اختيارها",
-    "newButton": "+ مصدر تذكرة جديد",
-    "noResults": "لا توجد مصادر تذاكر.",
-    "notFound": "مصدر التذكرة غير موجود.",
-    "deleteConfirm": "هل أنت متأكد من حذف مصدر التذكرة هذا؟",
+    "title": "مصادر التذاكر IT",
+    "subtitle": "إدارة قائمة مصادر التذاكر IT التي يمكن للموظفين اختيارها",
+    "newButton": "+ مصدر تذكرة IT جديد",
+    "noResults": "لا توجد مصادر تذاكر IT.",
+    "notFound": "مصدر التذكرة IT غير موجود.",
+    "deleteConfirm": "هل أنت متأكد من حذف مصدر التذكرة IT هذا؟",
     "table": {
       "name": "الاسم"
     },
@@ -810,14 +810,14 @@
       "nameEn": "الاسم (إنجليزي)"
     },
     "new": {
-      "title": "مصدر تذكرة جديد",
+      "title": "مصدر تذكرة IT جديد",
       "submit": "إنشاء"
     },
     "edit": {
-      "title": "تعديل مصدر التذكرة",
+      "title": "تعديل مصدر التذكرة IT",
       "submit": "حفظ التغييرات",
-      "notFound": "مصدر التذكرة غير موجود.",
-      "deleteConfirm": "هل أنت متأكد من حذف مصدر التذكرة هذا؟"
+      "notFound": "مصدر التذكرة IT غير موجود.",
+      "deleteConfirm": "هل أنت متأكد من حذف مصدر التذكرة IT هذا؟"
     }
   }
 }

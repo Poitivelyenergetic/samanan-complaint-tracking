@@ -33,7 +33,7 @@
     "receivables": "Receivables",
     "payables": "Payables",
     "salesOpportunities": "Sales Opportunities",
-    "tickets": "Tickets",
+    "tickets": "IT Tickets",
     "settings": "Settings",
     "companies": "Companies",
     "administrations": "Administrations",
@@ -48,13 +48,13 @@
     "hideSidebar": "Hide",
     "complaintsGroup": "Complaints",
     "myComplaints": "My Complaints",
-    "ticketsGroup": "Tickets",
-    "ticketsList": "Tickets",
-    "myTickets": "My Tickets",
-    "newTicket": "New Ticket",
-    "ticketInquiry": "Ticket Inquiry",
-    "ticketTypes": "Ticket Types",
-    "ticketSources": "Ticket Sources"
+    "ticketsGroup": "IT Tickets",
+    "ticketsList": "IT Tickets",
+    "myTickets": "My IT Tickets",
+    "newTicket": "New IT Ticket",
+    "ticketInquiry": "IT Ticket Inquiry",
+    "ticketTypes": "IT Ticket Types",
+    "ticketSources": "IT Ticket Sources"
   },
   "login": {
     "title": "Staff Login",
@@ -128,8 +128,8 @@
     "employeeFilter": "Employee",
     "employeeFilterAll": "All employees",
     "complaintsSectionTitle": "Complaints",
-    "ticketsSectionTitle": "Tickets",
-    "totalTicketsShort": "Total Tickets",
+    "ticketsSectionTitle": "IT Tickets",
+    "totalTicketsShort": "Total IT Tickets",
     "ticketStatusBreakdown": "Status Breakdown",
     "ticketTypeBreakdown": "By Type",
     "ticketTopAssignees": "Top Assignees"
@@ -167,8 +167,8 @@
     "title": "Notifications",
     "empty": "You're all caught up.",
     "accountRequestTitle": "New account request: {name}",
-    "ticketAssignedTitle": "You were assigned ticket #{id}",
-    "ticketStatusTitle": "Ticket #{id} is now {status}"
+    "ticketAssignedTitle": "You were assigned IT ticket #{id}",
+    "ticketStatusTitle": "IT Ticket #{id} is now {status}"
   },
   "dashboard": {
     "title": "Complaints",
@@ -396,25 +396,25 @@
     "comingSoon": "Coming soon. This section is a placeholder for tracking money the company owes."
   },
   "tickets": {
-    "title": "Tickets",
-    "subtitle": "All tickets filed by employees",
-    "newButton": "New Ticket",
-    "noAccess": "You don't have access to the full ticket queue.",
-    "goToMyTickets": "Go to My Tickets",
+    "title": "IT Tickets",
+    "subtitle": "All IT tickets filed by employees",
+    "newButton": "New IT Ticket",
+    "noAccess": "You don't have access to the full IT ticket queue.",
+    "goToMyTickets": "Go to My IT Tickets",
     "searchPlaceholder": "Search by subject, requester, or reference number...",
     "statusFilter": "Status",
     "assigneeFilter": "Assigned to",
     "typeFilter": "Type",
     "sourceFilter": "Source",
-    "noResults": "No tickets found.",
+    "noResults": "No IT tickets found.",
     "stats": {
-      "total": "Total Tickets",
+      "total": "Total IT Tickets",
       "open": "Open",
       "processing": "Processing",
       "closed": "Closed"
     },
     "table": {
-      "ticketId": "Ticket ID",
+      "ticketId": "IT Ticket ID",
       "subject": "Subject",
       "requester": "Requester",
       "type": "Type",
@@ -684,13 +684,13 @@
       "status": "Status"
     },
     "new": {
-      "title": "New Ticket",
-      "submit": "Create Ticket"
+      "title": "New IT Ticket",
+      "submit": "Create IT Ticket"
     },
     "detail": {
-      "editTitle": "Edit Ticket",
+      "editTitle": "Edit IT Ticket",
       "submit": "Save Changes",
-      "notFound": "Ticket not found.",
+      "notFound": "IT Ticket not found.",
       "statusNoteLabel": "What did you do?",
       "statusNotePlaceholder": "Describe what changed or what you did before updating the status...",
       "statusNoteRequired": "Please describe what you did before changing the status.",
@@ -715,7 +715,7 @@
       "discardChanges": "Discard Changes"
     },
     "reassign": {
-      "title": "Reassign Ticket",
+      "title": "Reassign IT Ticket",
       "subtitle": "Choose which department and employee this should go to, and explain why.",
       "assignToLabel": "Reassign To",
       "reasonLabel": "Reason for reassignment",
@@ -726,13 +726,13 @@
     }
   },
   "ticketInquiry": {
-    "title": "Ticket Inquiry",
+    "title": "IT Ticket Inquiry",
     "subtitle": "Search a requester's name or ticket ID to see every ticket they've filed.",
     "searchPlaceholder": "Search by requester name or ticket ID...",
     "prompt": "Start typing a requester's name or ticket ID to search.",
-    "noResults": "No tickets found for that search.",
+    "noResults": "No IT tickets found for that search.",
     "table": {
-      "ticketId": "Ticket ID",
+      "ticketId": "IT Ticket ID",
       "subject": "Subject",
       "requester": "Requester",
       "assignedTo": "Assigned To",
@@ -741,14 +741,14 @@
     }
   },
   "myTickets": {
-    "title": "My Tickets",
-    "subtitle": "Tickets you filed, or are currently assigned to handle.",
-    "newButton": "New Ticket",
-    "noResults": "You have no tickets yet.",
+    "title": "My IT Tickets",
+    "subtitle": "IT Tickets you filed, or are currently assigned to handle.",
+    "newButton": "New IT Ticket",
+    "noResults": "You have no IT tickets yet.",
     "roleAssignee": "Assigned to you",
     "roleFiler": "Filed by you",
     "table": {
-      "ticketId": "Ticket ID",
+      "ticketId": "IT Ticket ID",
       "subject": "Subject",
       "type": "Type",
       "role": "Your role",
@@ -771,12 +771,12 @@
     }
   },
   "ticketTypes": {
-    "title": "Ticket Types",
-    "subtitle": "Manage the list of ticket types employees can choose from",
-    "newButton": "+ New ticket type",
-    "noResults": "No ticket types found.",
-    "notFound": "Ticket type not found.",
-    "deleteConfirm": "Are you sure you want to delete this ticket type?",
+    "title": "IT Ticket Types",
+    "subtitle": "Manage the list of IT ticket types employees can choose from",
+    "newButton": "+ New IT ticket type",
+    "noResults": "No IT ticket types found.",
+    "notFound": "IT ticket type not found.",
+    "deleteConfirm": "Are you sure you want to delete this IT ticket type?",
     "table": {
       "name": "Name"
     },
@@ -785,23 +785,23 @@
       "nameEn": "Name (English)"
     },
     "new": {
-      "title": "New Ticket Type",
+      "title": "New IT Ticket Type",
       "submit": "Create"
     },
     "edit": {
-      "title": "Edit Ticket Type",
+      "title": "Edit IT Ticket Type",
       "submit": "Save Changes",
-      "notFound": "Ticket type not found.",
-      "deleteConfirm": "Are you sure you want to delete this ticket type?"
+      "notFound": "IT ticket type not found.",
+      "deleteConfirm": "Are you sure you want to delete this IT ticket type?"
     }
   },
   "ticketSources": {
-    "title": "Ticket Sources",
-    "subtitle": "Manage the list of ticket sources employees can choose from",
-    "newButton": "+ New ticket source",
-    "noResults": "No ticket sources found.",
-    "notFound": "Ticket source not found.",
-    "deleteConfirm": "Are you sure you want to delete this ticket source?",
+    "title": "IT Ticket Sources",
+    "subtitle": "Manage the list of IT ticket sources employees can choose from",
+    "newButton": "+ New IT ticket source",
+    "noResults": "No IT ticket sources found.",
+    "notFound": "IT ticket source not found.",
+    "deleteConfirm": "Are you sure you want to delete this IT ticket source?",
     "table": {
       "name": "Name"
     },
@@ -810,14 +810,14 @@
       "nameEn": "Name (English)"
     },
     "new": {
-      "title": "New Ticket Source",
+      "title": "New IT Ticket Source",
       "submit": "Create"
     },
     "edit": {
-      "title": "Edit Ticket Source",
+      "title": "Edit IT Ticket Source",
       "submit": "Save Changes",
-      "notFound": "Ticket source not found.",
-      "deleteConfirm": "Are you sure you want to delete this ticket source?"
+      "notFound": "IT ticket source not found.",
+      "deleteConfirm": "Are you sure you want to delete this IT ticket source?"
     }
   }
 }
