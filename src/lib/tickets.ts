@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { resolveServerNowIso } from "./serverTime";
+import { notifyByEmail } from "./notify";
 import type { Ticket, TicketHistoryEntry, TicketInput } from "./types";
 
 const COLLECTION = "tickets";
@@ -159,6 +160,16 @@ export async function createTicket(input: TicketInput): Promise<string> {
   await updateDoc(doc(db, COLLECTION, id), {
     history: arrayUnion({ type: "created", status: input.status, at, byUid: input.createdBy }),
   });
+
+  if (input.assignedTo) {
+    notifyByEmail(
+      input.assignedTo,
+      `You were assigned IT ticket #${id}`,
+      "New IT ticket assigned to you",
+      `A new IT ticket, #${id}, has been assigned to you.`,
+      `/tickets/${id}`
+    );
+  }
   return id;
 }
 
@@ -190,6 +201,16 @@ export async function updateTicket(
     updatedAt: serverTimestamp(),
     ...(historyAppend.length ? { history: arrayUnion(...historyAppend) } : {}),
   });
+
+  if (historyAppend.length && updates.createdBy) {
+    notifyByEmail(
+      updates.createdBy,
+      `IT Ticket #${id} is now ${updates.status}`,
+      "IT ticket status updated",
+      `IT ticket #${id} is now ${updates.status}.`,
+      `/tickets/${id}`
+    );
+  }
 }
 
 // Reassignment (department/employee — administrationId is never part of
@@ -218,6 +239,16 @@ export async function reassignTicket(
       byUid,
     }),
   });
+
+  if (assignedTo && assignedTo !== previousAssignedTo) {
+    notifyByEmail(
+      assignedTo,
+      `You were assigned IT ticket #${id}`,
+      "IT ticket reassigned to you",
+      `IT ticket #${id} has been assigned to you. Reason: ${reason}`,
+      `/tickets/${id}`
+    );
+  }
 }
 
 // A lightweight scratchpad field, separate from the formal edit form — see

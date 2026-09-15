@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { resolveServerNowIso } from "./serverTime";
+import { notifyByEmail } from "./notify";
 import type { Complaint, ComplaintHistoryEntry, ComplaintInput } from "./types";
 
 const COLLECTION = "complaints";
@@ -119,6 +120,16 @@ export async function createComplaint(input: ComplaintInput): Promise<string> {
   await updateDoc(doc(db, COLLECTION, id), {
     history: arrayUnion({ type: "created", status: input.status, at, byUid: input.createdBy }),
   });
+
+  if (input.assignedTo) {
+    notifyByEmail(
+      input.assignedTo,
+      `You were assigned complaint #${id}`,
+      "New complaint assigned to you",
+      `A new complaint, #${id}, has been assigned to you.`,
+      `/complaints/${id}`
+    );
+  }
   return id;
 }
 
@@ -154,6 +165,16 @@ export async function updateComplaint(
     updatedAt: serverTimestamp(),
     ...(historyAppend.length ? { history: arrayUnion(...historyAppend) } : {}),
   });
+
+  if (historyAppend.length && updates.assignedTo) {
+    notifyByEmail(
+      updates.assignedTo,
+      `Complaint #${id} is now ${updates.status}`,
+      "Complaint status updated",
+      `Complaint #${id} is now ${updates.status}.`,
+      `/complaints/${id}`
+    );
+  }
 }
 
 // Reassignment is direct — complaints.reassign moves the complaint
@@ -183,6 +204,16 @@ export async function reassignComplaint(
       byUid,
     }),
   });
+
+  if (assignedTo && assignedTo !== previousAssignedTo) {
+    notifyByEmail(
+      assignedTo,
+      `You were assigned complaint #${id}`,
+      "New complaint assigned to you",
+      `Complaint #${id} has been assigned to you. Reason: ${reason}`,
+      `/complaints/${id}`
+    );
+  }
 }
 
 // "My Complaints" — every complaint the given employee has ever been
