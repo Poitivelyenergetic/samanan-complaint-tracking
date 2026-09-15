@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState, type FormEvent } from "react";
+import { use, useEffect, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { reassignComplaint, subscribeToComplaint } from "@/lib/complaints";
@@ -8,6 +8,8 @@ import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, localizedName, type Complaint, type StaffUser } from "@/lib/types";
 import SearchableSelect from "@/components/SearchableSelect";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/lib/firebase";
 
 export default function ReassignComplaintPage({
   params,
@@ -28,6 +30,11 @@ export default function ReassignComplaintPage({
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
+  const [attachmentUploading, setAttachmentUploading] = useState(false);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
 
   const canReassign = hasPermission(profile, "complaints", "reassign");
 
@@ -56,12 +63,48 @@ export default function ReassignComplaintPage({
     setError(null);
     setSubmitting(true);
     try {
-      await reassignComplaint(id, assignTo || null, complaint?.assignedTo ?? null, user?.uid ?? null, reason.trim());
+      await reassignComplaint(
+        id,
+        assignTo || null,
+        complaint?.assignedTo ?? null,
+        user?.uid ?? null,
+        reason.trim(),
+        attachmentUrl
+      );
       router.push(`/complaints/${id}`);
     } catch {
       setError(tCommon("somethingWentWrong"));
       setSubmitting(false);
     }
+  }
+
+  async function uploadAttachment(file: File) {
+    setAttachmentError(null);
+    setAttachmentUploading(true);
+    try {
+      const path = `complaints/${Date.now()}-${file.name}`;
+      const fileRef = ref(storage, path);
+      await uploadBytes(fileRef, file, { contentType: file.type });
+      const url = await getDownloadURL(fileRef);
+      setAttachmentUrl(url);
+    } catch {
+      setAttachmentError(tDetail("attachmentUploadFailed"));
+    } finally {
+      setAttachmentUploading(false);
+    }
+  }
+
+  function handleAttachmentInputChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) uploadAttachment(file);
+  }
+
+  function handleAttachmentDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) uploadAttachment(file);
   }
 
   if (complaint === undefined || loading || !profile || !canReassign) {
@@ -118,6 +161,56 @@ export default function ReassignComplaintPage({
             placeholder={t("reasonPlaceholder")}
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
           />
+        </div>
+
+        <div>
+          <span className="block text-sm font-medium text-foreground">{t("attachment")}</span>
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleAttachmentDrop}
+            className={`mt-1 flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed px-4 py-6 text-center text-sm transition-colors ${
+              dragOver ? "border-brand bg-brand/5" : "border-border"
+            }`}
+          >
+            {attachmentUrl ? (
+              <>
+                <a
+                  href={attachmentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-brand hover:underline"
+                >
+                  {tDetail("viewAttachment")}
+                </a>
+                <button
+                  type="button"
+                  onClick={() => attachmentInputRef.current?.click()}
+                  disabled={attachmentUploading}
+                  className="text-xs text-foreground/60 hover:text-foreground disabled:opacity-50"
+                >
+                  {attachmentUploading ? tCommon("saving") : t("replaceAttachment")}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-foreground/60">{t("attachmentDropHint")}</p>
+                <button
+                  type="button"
+                  onClick={() => attachmentInputRef.current?.click()}
+                  disabled={attachmentUploading}
+                  className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground/80 hover:bg-black/5 disabled:opacity-50"
+                >
+                  {attachmentUploading ? tCommon("saving") : t("chooseFile")}
+                </button>
+              </>
+            )}
+            <input ref={attachmentInputRef} type="file" onChange={handleAttachmentInputChange} className="hidden" />
+          </div>
+          {attachmentError && <p className="mt-1 text-xs text-red-600">{attachmentError}</p>}
         </div>
 
         {error && (

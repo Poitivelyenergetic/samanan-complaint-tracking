@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   COMPLAINT_STATUSES,
@@ -16,10 +16,11 @@ import {
   type StaffUser,
 } from "@/lib/types";
 import { toLatinDigits } from "@/lib/phone";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/lib/firebase";
 import SearchableSelect from "./SearchableSelect";
 
 export interface ComplaintFormValues {
-  subject: string;
   description: string;
   complaintTypeId: string;
   complaintSourceId: string;
@@ -31,6 +32,10 @@ export interface ComplaintFormValues {
   status: ComplaintStatus;
   // Not edited by this form, but carried through unchanged on update so
   // editing a customer-submitted complaint doesn't wipe their contact info.
+  // subject is a legacy field with no input of its own anymore (Complaint
+  // Type replaced it in every list/table) — kept only so an existing
+  // complaint's old subject text isn't wiped out by a later save.
+  subject: string;
   channel: ComplaintChannel;
   complainantName: string | null;
   contactEmail: string | null;
@@ -58,6 +63,10 @@ interface ComplaintFormProps {
   // roles that can view but not edit/reassign/change the status of a
   // complaint.
   readOnly?: boolean;
+  // Independent of `readOnly` — the current assignee can move the status
+  // even without complaints.update, so the status field's own disabled
+  // state is computed separately from the rest of the form.
+  canEditStatus?: boolean;
   // Hides the "assigned to" box entirely and excludes it from the submit
   // payload. Used on the complaint detail page, where reassignment is a
   // separate, permission-gated action (see the Reassign control) rather
@@ -103,6 +112,7 @@ export default function ComplaintForm({
   submittingLabel,
   onSubmit,
   readOnly = false,
+  canEditStatus = true,
   hideAssignedTo = false,
   onCancel,
 }: ComplaintFormProps) {
@@ -120,6 +130,10 @@ export default function ComplaintForm({
   const [error, setError] = useState<string | null>(null);
   const [showAssignHint, setShowAssignHint] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [attachmentUploading, setAttachmentUploading] = useState(false);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
   // Tracks real edits so clicking Cancel with nothing changed just leaves
   // immediately instead of asking the user to confirm discarding nothing.
   const isDirtyRef = useRef(false);
@@ -154,6 +168,12 @@ export default function ComplaintForm({
   );
 
   const statusChanged = initialStatus !== null && values.status !== initialStatus;
+  const statusDisabled = !canEditStatus;
+  // A pure assignee (no complaints.update) gets readOnly=true but
+  // canEditStatus=true — every other field is locked, but they must still
+  // be able to save a status-only change. Gating the Save button on bare
+  // readOnly would silently discard that edit.
+  const canSaveAnything = !readOnly || canEditStatus;
 
   function update<K extends keyof ComplaintFormValues>(key: K, value: ComplaintFormValues[K]) {
     isDirtyRef.current = true;
@@ -238,6 +258,35 @@ export default function ComplaintForm({
     } else {
       onCancel?.();
     }
+  }
+
+  async function uploadAttachment(file: File) {
+    setAttachmentError(null);
+    setAttachmentUploading(true);
+    try {
+      const path = `complaints/${Date.now()}-${file.name}`;
+      const fileRef = ref(storage, path);
+      await uploadBytes(fileRef, file, { contentType: file.type });
+      const url = await getDownloadURL(fileRef);
+      update("attachmentUrl", url);
+    } catch {
+      setAttachmentError(tDetail("attachmentUploadFailed"));
+    } finally {
+      setAttachmentUploading(false);
+    }
+  }
+
+  function handleAttachmentInputChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) uploadAttachment(file);
+  }
+
+  function handleAttachmentDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) uploadAttachment(file);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -388,20 +437,6 @@ export default function ComplaintForm({
         </div>
 
         <div>
-          <label htmlFor="subject" className="block text-sm font-medium text-foreground">
-            {t("subject")}
-          </label>
-          <input
-            id="subject"
-            required
-            disabled={readOnly}
-            value={values.subject}
-            onChange={(e) => update("subject", e.target.value)}
-            className="mt-1 w-full border-0 border-b border-border bg-transparent px-1 py-2 text-sm text-foreground outline-none focus:border-brand disabled:opacity-60"
-          />
-        </div>
-
-        <div>
           <label htmlFor="description" className="block text-sm font-medium text-foreground">
             {t("description")}
           </label>
@@ -415,6 +450,63 @@ export default function ComplaintForm({
             className={textInputClass}
           />
         </div>
+
+        {!readOnly && (
+          <div>
+            <span className="block text-sm font-medium text-foreground">{t("attachment")}</span>
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleAttachmentDrop}
+              className={`mt-1 flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed px-4 py-6 text-center text-sm transition-colors ${
+                dragOver ? "border-brand bg-brand/5" : "border-border"
+              }`}
+            >
+              {values.attachmentUrl ? (
+                <>
+                  <a
+                    href={values.attachmentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-brand hover:underline"
+                  >
+                    {tDetail("viewAttachment")}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => attachmentInputRef.current?.click()}
+                    disabled={attachmentUploading}
+                    className="text-xs text-foreground/60 hover:text-foreground disabled:opacity-50"
+                  >
+                    {attachmentUploading ? tCommon("saving") : t("replaceAttachment")}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-foreground/60">{t("attachmentDropHint")}</p>
+                  <button
+                    type="button"
+                    onClick={() => attachmentInputRef.current?.click()}
+                    disabled={attachmentUploading}
+                    className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground/80 hover:bg-black/5 disabled:opacity-50"
+                  >
+                    {attachmentUploading ? tCommon("saving") : t("chooseFile")}
+                  </button>
+                </>
+              )}
+              <input
+                ref={attachmentInputRef}
+                type="file"
+                onChange={handleAttachmentInputChange}
+                className="hidden"
+              />
+            </div>
+            {attachmentError && <p className="mt-1 text-xs text-red-600">{attachmentError}</p>}
+          </div>
+        )}
       </div>
 
       {!hideAssignedTo && (
@@ -476,14 +568,14 @@ export default function ComplaintForm({
         </div>
       )}
 
-      <div>
+      <div className="rounded-lg border border-tint-status-border bg-tint-status-bg p-5">
         <label htmlFor="status" className="block text-sm font-medium text-foreground">
           {t("status")}
         </label>
         <div className="mt-1 max-w-xs">
           <SearchableSelect
             id="status"
-            disabled={readOnly}
+            disabled={statusDisabled}
             allowClear={false}
             items={COMPLAINT_STATUSES}
             value={values.status}
@@ -494,7 +586,7 @@ export default function ComplaintForm({
         </div>
       </div>
 
-      {statusChanged && !readOnly && (
+      {statusChanged && !statusDisabled && (
         <div>
           <label htmlFor="statusNote" className="block text-sm font-medium text-foreground">
             {tDetail("statusNoteLabel")}
@@ -536,7 +628,7 @@ export default function ComplaintForm({
         </p>
       )}
 
-      {!readOnly && (
+      {canSaveAnything && (
         <div className="flex items-center gap-3">
           <button
             type="submit"

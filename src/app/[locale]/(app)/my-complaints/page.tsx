@@ -5,8 +5,9 @@ import { useLocale, useTranslations, useFormatter } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { subscribeToComplaints } from "@/lib/complaints";
 import { subscribeToComplaintSources } from "@/lib/complaintSources";
+import { subscribeToComplaintTypes } from "@/lib/complaintTypes";
 import { useAuth } from "@/lib/auth-context";
-import { hasPermission, localizedName, type Complaint, type ComplaintSource } from "@/lib/types";
+import { hasPermission, localizedName, type Complaint, type ComplaintSource, type ComplaintType } from "@/lib/types";
 import StatusBadge from "@/components/StatusBadge";
 
 export default function MyComplaintsPage() {
@@ -19,14 +20,17 @@ export default function MyComplaintsPage() {
 
   const [complaints, setComplaints] = useState<Complaint[] | null>(null);
   const [complaintSources, setComplaintSources] = useState<ComplaintSource[]>([]);
+  const [complaintTypes, setComplaintTypes] = useState<ComplaintType[]>([]);
 
   useEffect(() => {
     if (!user || !canView) return;
     return subscribeToComplaints(setComplaints, undefined, user.uid);
   }, [user, canView]);
   useEffect(() => subscribeToComplaintSources(setComplaintSources), []);
+  useEffect(() => subscribeToComplaintTypes(setComplaintTypes), []);
 
   const sourcesById = useMemo(() => new Map(complaintSources.map((s) => [s.id, s])), [complaintSources]);
+  const typesById = useMemo(() => new Map(complaintTypes.map((ct) => [ct.id, ct])), [complaintTypes]);
 
   if (loading || !profile) {
     return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
@@ -51,7 +55,7 @@ export default function MyComplaintsPage() {
           <thead>
             <tr className="border-b border-border bg-black/[0.02] text-start text-xs font-semibold uppercase tracking-wide text-foreground/50">
               <th className="px-4 py-3 text-start">{t("table.issueId")}</th>
-              <th className="px-4 py-3 text-start">{t("table.subject")}</th>
+              <th className="px-4 py-3 text-start">{t("table.type")}</th>
               <th className="px-4 py-3 text-start">{t("table.customer")}</th>
               <th className="px-4 py-3 text-start">{t("table.source")}</th>
               <th className="px-4 py-3 text-start">{t("table.status")}</th>
@@ -81,7 +85,7 @@ export default function MyComplaintsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <Link href={`/complaints/${c.id}`} className="font-medium text-foreground hover:text-brand">
-                      {c.subject}
+                      {localizedName(typesById.get(c.complaintTypeId), locale) || "—"}
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-foreground/70">{c.customerName || "—"}</td>

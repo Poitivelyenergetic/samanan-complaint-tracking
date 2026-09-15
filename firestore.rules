@@ -87,15 +87,11 @@ service cloud.firestore {
       return affected.hasOnly(["assignedTo", "updatedAt", "history"]);
     }
 
-    // The Notes scratchpad is deliberately available to anyone who can see
-    // the complaint (view-only staff included) — it isn't part of the
-    // formal edit form, just a place to jot something down about a
-    // complaint they're handling. Every save also appends one "note" entry
-    // to history (hence history being allowed here too), so there's a
-    // record of what was jotted down and when.
-    function isNotesOnlyWrite() {
+    // The current assignee can move a complaint's status even without
+    // complaints.update — mirrors tickets' isTicketStatusOnlyWrite().
+    function isComplaintStatusOnlyWrite() {
       let affected = request.resource.data.diff(resource.data).affectedKeys();
-      return affected.hasOnly(["notes", "updatedAt", "history"]);
+      return affected.hasOnly(["status", "updatedAt", "history"]);
     }
 
     // Without complaints.viewAll, a staff member only sees complaints
@@ -113,7 +109,7 @@ service cloud.firestore {
       allow list: if canReadComplaint();
       allow update: if hasPermission("complaints", "update")
         || (hasPermission("complaints", "reassign") && isReassignWrite())
-        || (canReadComplaint() && isNotesOnlyWrite());
+        || (isSignedIn() && resource.data.assignedTo == request.auth.uid && isComplaintStatusOnlyWrite());
       allow delete: if hasPermission("complaints", "delete");
       allow create: if isSignedIn() && hasPermission("complaints", "create") && isSelfCreatedComplaint();
     }

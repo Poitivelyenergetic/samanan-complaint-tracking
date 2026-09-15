@@ -69,9 +69,25 @@ export default function SearchableSelect<T>({
   // so the field was stuck showing the selected label with every keystroke
   // silently overridden, Backspace included, until the user blurred and
   // refocused it.
+  //
+  // Restoring also has to happen on every focus->blur transition, not just
+  // when selectedLabel itself changes: onFocus clears `query` to "" so the
+  // user can type, and if they click away without picking anything,
+  // selectedLabel is back to whatever it already was — comparing it
+  // against a stale cached string (the old approach) saw no change and
+  // skipped the restore, leaving the field permanently blank instead of
+  // showing "All"/whatever was selected. Tracking `focused` itself instead
+  // catches that transition unconditionally.
   const syncKey = focused ? null : selectedLabel;
   const [syncedKey, setSyncedKey] = useState(syncKey);
-  if (syncKey !== null && syncKey !== syncedKey) {
+  const [wasFocused, setWasFocused] = useState(focused);
+  if (wasFocused !== focused) {
+    setWasFocused(focused);
+    if (!focused) {
+      setSyncedKey(selectedLabel);
+      setQuery(selectedLabel);
+    }
+  } else if (syncKey !== null && syncKey !== syncedKey) {
     setSyncedKey(syncKey);
     setQuery(syncKey);
   }

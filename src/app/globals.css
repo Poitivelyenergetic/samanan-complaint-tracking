@@ -17,6 +17,8 @@
   --tint-assign-border: #fde68a;
   --tint-history-bg: #f0fdfa;
   --tint-history-border: #99f6e4;
+  --tint-status-bg: #faf5ff;
+  --tint-status-border: #e9d5ff;
 }
 
 /* Dark palette: applied when the system prefers dark and the user hasn't
@@ -35,6 +37,8 @@
     --tint-assign-border: #4d4222;
     --tint-history-bg: #16302c;
     --tint-history-border: #235852;
+    --tint-status-bg: #271f33;
+    --tint-status-border: #47365c;
   }
 }
 
@@ -49,6 +53,8 @@
   --tint-assign-border: #4d4222;
   --tint-history-bg: #16302c;
   --tint-history-border: #235852;
+  --tint-status-bg: #271f33;
+  --tint-status-border: #47365c;
 }
 
 @theme inline {
@@ -64,6 +70,8 @@
   --color-tint-assign-border: var(--tint-assign-border);
   --color-tint-history-bg: var(--tint-history-bg);
   --color-tint-history-border: var(--tint-history-border);
+  --color-tint-status-bg: var(--tint-status-bg);
+  --color-tint-status-border: var(--tint-status-border);
   --font-sans: var(--font-cairo);
 }
 

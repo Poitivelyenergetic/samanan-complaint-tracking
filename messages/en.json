@@ -176,7 +176,7 @@
     "tasksTitle": "Tasks",
     "tasksSubtitle": "Complaints assigned to you",
     "newButton": "New Complaint",
-    "searchPlaceholder": "Search by subject, customer name/phone, order number, or reference number...",
+    "searchPlaceholder": "Search by customer name/phone, order number, or reference number...",
     "statusFilter": "Status",
     "assigneeFilter": "Assigned to",
     "typeFilter": "Type",
@@ -190,19 +190,18 @@
     },
     "table": {
       "issueId": "Issue ID",
-      "subject": "Subject",
       "customer": "Customer",
       "customerPhone": "Customer Phone",
       "orderNumber": "Order Number",
       "source": "Source",
       "assignedTo": "Assigned To",
       "status": "Status",
-      "createdAt": "Created"
+      "createdAt": "Created",
+      "type": "Type"
     }
   },
   "complaint": {
     "fields": {
-      "subject": "Subject",
       "description": "Description",
       "complaintType": "Complaint Type",
       "selectComplaintType": "Select a complaint type",
@@ -214,7 +213,11 @@
       "company": "Company",
       "selectCompany": "Select a company",
       "assignedTo": "Assigned To",
-      "status": "Status"
+      "status": "Status",
+      "attachment": "Attachment",
+      "attachmentDropHint": "Drag and drop a file here, or",
+      "chooseFile": "Choose File",
+      "replaceAttachment": "Replace file"
     },
     "new": {
       "title": "New Complaint",
@@ -247,16 +250,12 @@
       "historyReassignAccepted": "Reassignment accepted: {from} to {to}",
       "historyReassignRejected": "Reassignment rejected: {from} to {to} was not made",
       "historyActorPublic": "Public",
-      "notes": "Notes",
-      "notesPlaceholder": "Jot down anything worth remembering about this complaint...",
-      "saveNote": "Save Note",
-      "savingNote": "Saving...",
-      "noteSaved": "Saved.",
       "historyNoteSaved": "Note saved",
       "discardTitle": "Discard changes?",
       "discardBody": "You have unsaved changes. If you leave now, they will be lost.",
       "continueEditing": "Continue Editing",
-      "discardChanges": "Discard Changes"
+      "discardChanges": "Discard Changes",
+      "attachmentUploadFailed": "Could not upload that file. Please try again."
     },
     "reassign": {
       "title": "Reassign Complaint",
@@ -266,7 +265,11 @@
       "reasonPlaceholder": "Why is this complaint being reassigned?",
       "reasonRequired": "Please explain why this complaint is being reassigned.",
       "submit": "Reassign",
-      "submitting": "Reassigning..."
+      "submitting": "Reassigning...",
+      "attachment": "Attachment",
+      "attachmentDropHint": "Drag and drop a file here, or",
+      "chooseFile": "Choose File",
+      "replaceAttachment": "Replace file"
     }
   },
   "staffSignup": {
@@ -375,12 +378,12 @@
     "noResults": "No complaints found for that search.",
     "table": {
       "issueId": "Issue ID",
-      "subject": "Subject",
       "customerName": "Customer Name",
       "customerPhone": "Customer Phone",
       "assignedTo": "Assigned To",
       "status": "Status",
-      "createdAt": "Created"
+      "createdAt": "Created",
+      "type": "Type"
     }
   },
   "salesOpportunities": {
@@ -763,11 +766,11 @@
     "noResults": "You have no complaints assigned to you.",
     "table": {
       "issueId": "Issue ID",
-      "subject": "Subject",
       "customer": "Customer",
       "source": "Source",
       "status": "Status",
-      "createdAt": "Created"
+      "createdAt": "Created",
+      "type": "Type"
     }
   },
   "ticketTypes": {

@@ -5,8 +5,9 @@ import { useLocale, useTranslations, useFormatter } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { subscribeToComplaints } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
+import { subscribeToComplaintTypes } from "@/lib/complaintTypes";
 import { useAuth } from "@/lib/auth-context";
-import { hasPermission, localizedName, type Complaint, type StaffUser } from "@/lib/types";
+import { hasPermission, localizedName, type Complaint, type ComplaintType, type StaffUser } from "@/lib/types";
 import { phoneDigitsOnly, toLatinDigits } from "@/lib/phone";
 import StatusBadge from "@/components/StatusBadge";
 
@@ -21,6 +22,7 @@ export default function ComplaintInquiryPage() {
 
   const [complaints, setComplaints] = useState<Complaint[] | null>(null);
   const [staff, setStaff] = useState<StaffUser[]>([]);
+  const [complaintTypes, setComplaintTypes] = useState<ComplaintType[]>([]);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -28,6 +30,7 @@ export default function ComplaintInquiryPage() {
     return subscribeToComplaints(setComplaints);
   }, [canView]);
   useEffect(() => subscribeToStaff(setStaff), []);
+  useEffect(() => subscribeToComplaintTypes(setComplaintTypes), []);
 
   useEffect(() => {
     if (!loading && profile && !canView) {
@@ -36,6 +39,7 @@ export default function ComplaintInquiryPage() {
   }, [loading, profile, canView, router]);
 
   const staffById = useMemo(() => new Map(staff.map((s) => [s.id, s])), [staff]);
+  const typesById = useMemo(() => new Map(complaintTypes.map((ct) => [ct.id, ct])), [complaintTypes]);
 
   const term = search.trim();
   const digitsTerm = phoneDigitsOnly(term);
@@ -72,7 +76,7 @@ export default function ComplaintInquiryPage() {
           <thead>
             <tr className="border-b border-border bg-black/[0.02] text-start text-xs font-semibold uppercase tracking-wide text-foreground/50">
               <th className="px-4 py-3 text-start">{t("table.issueId")}</th>
-              <th className="px-4 py-3 text-start">{t("table.subject")}</th>
+              <th className="px-4 py-3 text-start">{t("table.type")}</th>
               <th className="px-4 py-3 text-start">{t("table.customerName")}</th>
               <th className="px-4 py-3 text-start">{t("table.customerPhone")}</th>
               <th className="px-4 py-3 text-start">{t("table.assignedTo")}</th>
@@ -109,7 +113,10 @@ export default function ComplaintInquiryPage() {
                   </td>
                   <td className="px-4 py-3">
                     <Link href={`/complaints/${c.id}`} className="font-medium text-foreground hover:text-brand">
-                      {c.subject}
+                      {(() => {
+                        const type = typesById.get(c.complaintTypeId);
+                        return type ? localizedName(type, locale) : "—";
+                      })()}
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-foreground/70">

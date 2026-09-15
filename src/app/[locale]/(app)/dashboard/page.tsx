@@ -153,6 +153,7 @@ export default function DashboardPage() {
     return map;
   }, [staff]);
   const sourcesById = useMemo(() => new Map(complaintSources.map((s) => [s.id, s])), [complaintSources]);
+  const typesById = useMemo(() => new Map(complaintTypes.map((ct) => [ct.id, ct])), [complaintTypes]);
   const typeFilterOptions = useMemo(
     () => [
       { id: "", label: `${t("typeFilter")}: ${tCommon("all")}` },
@@ -209,7 +210,6 @@ export default function DashboardPage() {
       }
       if (
         term &&
-        !c.subject.toLowerCase().includes(term) &&
         !c.customerName.toLowerCase().includes(term) &&
         !c.customerPhone.toLowerCase().includes(term) &&
         !c.customerOrderNumber.toLowerCase().includes(term) &&
@@ -336,7 +336,7 @@ export default function DashboardPage() {
           <thead>
             <tr className="border-b border-border bg-black/[0.02] text-start text-xs font-semibold uppercase tracking-wide text-foreground/50">
               <th className="px-4 py-3 text-start">{t("table.issueId")}</th>
-              <th className="px-4 py-3 text-start">{t("table.subject")}</th>
+              <th className="px-4 py-3 text-start">{t("table.type")}</th>
               <th className="px-4 py-3 text-start">{t("table.customer")}</th>
               <th className="px-4 py-3 text-start">{t("table.customerPhone")}</th>
               <th className="px-4 py-3 text-start">{t("table.orderNumber")}</th>
@@ -372,7 +372,10 @@ export default function DashboardPage() {
                   </td>
                   <td className="px-4 py-3">
                     <Link href={`/complaints/${c.id}`} className="font-medium text-foreground hover:text-brand">
-                      {c.subject}
+                      {(() => {
+                        const type = typesById.get(c.complaintTypeId);
+                        return type ? localizedName(type, locale) : "—";
+                      })()}
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-foreground/70">

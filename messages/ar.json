@@ -176,7 +176,7 @@
     "tasksTitle": "المهام",
     "tasksSubtitle": "الشكاوى المسندة إليك",
     "newButton": "شكوى جديدة",
-    "searchPlaceholder": "ابحث بالموضوع أو اسم/هاتف العميل أو رقم الطلب أو الرقم المرجعي...",
+    "searchPlaceholder": "ابحث باسم/هاتف العميل أو رقم الطلب أو الرقم المرجعي...",
     "statusFilter": "الحالة",
     "assigneeFilter": "المسندة إلى",
     "typeFilter": "النوع",
@@ -190,19 +190,18 @@
     },
     "table": {
       "issueId": "رقم الشكوى",
-      "subject": "الموضوع",
       "customer": "العميل",
       "customerPhone": "هاتف العميل",
       "orderNumber": "رقم الطلب",
       "source": "المصدر",
       "assignedTo": "مسندة إلى",
       "status": "الحالة",
-      "createdAt": "تاريخ الإنشاء"
+      "createdAt": "تاريخ الإنشاء",
+      "type": "النوع"
     }
   },
   "complaint": {
     "fields": {
-      "subject": "الموضوع",
       "description": "الوصف",
       "complaintType": "نوع الشكوى",
       "selectComplaintType": "اختر نوع الشكوى",
@@ -214,7 +213,11 @@
       "company": "الشركة",
       "selectCompany": "اختر شركة",
       "assignedTo": "مسندة إلى",
-      "status": "الحالة"
+      "status": "الحالة",
+      "attachment": "المرفق",
+      "attachmentDropHint": "اسحب وأفلت ملفاً هنا، أو",
+      "chooseFile": "اختر ملفاً",
+      "replaceAttachment": "استبدال الملف"
     },
     "new": {
       "title": "شكوى جديدة",
@@ -247,16 +250,12 @@
       "historyReassignAccepted": "تم قبول إعادة الإسناد: من {from} إلى {to}",
       "historyReassignRejected": "تم رفض إعادة الإسناد: لم يتم النقل من {from} إلى {to}",
       "historyActorPublic": "عام",
-      "notes": "ملاحظات",
-      "notesPlaceholder": "دوّن أي شيء يستحق التذكر بخصوص هذه الشكوى...",
-      "saveNote": "حفظ الملاحظة",
-      "savingNote": "جارٍ الحفظ...",
-      "noteSaved": "تم الحفظ.",
       "historyNoteSaved": "تم حفظ ملاحظة",
       "discardTitle": "تجاهل التغييرات؟",
       "discardBody": "لديك تغييرات غير محفوظة. إذا غادرت الآن، ستفقد هذه التغييرات.",
       "continueEditing": "متابعة التعديل",
-      "discardChanges": "تجاهل التغييرات"
+      "discardChanges": "تجاهل التغييرات",
+      "attachmentUploadFailed": "تعذر رفع هذا الملف. حاول مرة أخرى."
     },
     "reassign": {
       "title": "إعادة إسناد الشكوى",
@@ -266,7 +265,11 @@
       "reasonPlaceholder": "لماذا يتم إعادة إسناد هذه الشكوى؟",
       "reasonRequired": "يرجى توضيح سبب إعادة إسناد هذه الشكوى.",
       "submit": "إعادة الإسناد",
-      "submitting": "جارٍ إعادة الإسناد..."
+      "submitting": "جارٍ إعادة الإسناد...",
+      "attachment": "المرفق",
+      "attachmentDropHint": "اسحب وأفلت ملفاً هنا، أو",
+      "chooseFile": "اختر ملفاً",
+      "replaceAttachment": "استبدال الملف"
     }
   },
   "staffSignup": {
@@ -375,12 +378,12 @@
     "noResults": "لم يتم العثور على شكاوى لهذا البحث.",
     "table": {
       "issueId": "رقم الشكوى",
-      "subject": "الموضوع",
       "customerName": "اسم العميل",
       "customerPhone": "هاتف العميل",
       "assignedTo": "مسندة إلى",
       "status": "الحالة",
-      "createdAt": "تاريخ الإنشاء"
+      "createdAt": "تاريخ الإنشاء",
+      "type": "النوع"
     }
   },
   "salesOpportunities": {
@@ -763,11 +766,11 @@
     "noResults": "لا توجد شكاوى مسندة إليك.",
     "table": {
       "issueId": "رقم الشكوى",
-      "subject": "الموضوع",
       "customer": "العميل",
       "source": "المصدر",
       "status": "الحالة",
-      "createdAt": "تاريخ الإنشاء"
+      "createdAt": "تاريخ الإنشاء",
+      "type": "النوع"
     }
   },
   "ticketTypes": {

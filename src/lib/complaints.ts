@@ -15,6 +15,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { resolveServerNowIso } from "./serverTime";
 import type { Complaint, ComplaintHistoryEntry, ComplaintInput } from "./types";
 
 const COLLECTION = "complaints";
@@ -96,23 +97,27 @@ export async function getComplaint(id: string): Promise<Complaint | null> {
 }
 
 export async function createComplaint(input: ComplaintInput): Promise<string> {
-  const initialHistory: ComplaintHistoryEntry[] = [
-    { type: "created", status: input.status, at: new Date().toISOString(), byUid: input.createdBy },
-  ];
   const newId = await runTransaction(db, async (transaction) => {
     const counterSnap = await transaction.get(COUNTER_REF());
     const next = (counterSnap.exists() ? (counterSnap.data().value as number) : 0) + 1;
     transaction.set(COUNTER_REF(), { value: next });
     transaction.set(doc(db, COLLECTION, String(next)), {
       ...input,
-      history: initialHistory,
+      history: [],
       notes: "",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
     return next;
   });
-  return String(newId);
+  const id = String(newId);
+  // history can't hold serverTimestamp() directly (see serverTime.ts) —
+  // resolve one now that the doc exists, then append the "created" entry.
+  const at = await resolveServerNowIso(COLLECTION, id);
+  await updateDoc(doc(db, COLLECTION, id), {
+    history: arrayUnion({ type: "created", status: input.status, at, byUid: input.createdBy }),
+  });
+  return id;
 }
 
 // `previousStatus` is whatever the caller already has loaded (the complaint
@@ -136,7 +141,7 @@ export async function updateComplaint(
             status: updates.status,
             ...(previousStatus ? { previousStatus: previousStatus as Complaint["status"] } : {}),
             ...(statusNote ? { note: statusNote } : {}),
-            at: new Date().toISOString(),
+            at: await resolveServerNowIso(COLLECTION, id),
             byUid,
           },
         ]
@@ -158,8 +163,10 @@ export async function reassignComplaint(
   assignedTo: string | null,
   previousAssignedTo: string | null,
   byUid: string | null,
-  reason: string
+  reason: string,
+  attachmentUrl?: string | null
 ): Promise<void> {
+  const at = await resolveServerNowIso(COLLECTION, id);
   await updateDoc(doc(db, COLLECTION, id), {
     assignedTo,
     updatedAt: serverTimestamp(),
@@ -168,27 +175,8 @@ export async function reassignComplaint(
       assignedTo,
       previousAssignedTo,
       reason,
-      at: new Date().toISOString(),
-      byUid,
-    }),
-  });
-}
-
-// A lightweight scratchpad field, separate from the formal edit form —
-// saving a note only requires complaints.view (or viewAll), not
-// complaints.update, since it's meant to be usable by any staff member
-// working a complaint even if they can't otherwise edit it. See
-// isNotesOnlyWrite() in firestore.rules. Every save also appends a "note"
-// history entry so there's a record of what was jotted down and when, not
-// just the latest text.
-export async function updateComplaintNotes(id: string, notes: string, byUid: string | null): Promise<void> {
-  await updateDoc(doc(db, COLLECTION, id), {
-    notes,
-    updatedAt: serverTimestamp(),
-    history: arrayUnion({
-      type: "note",
-      note: notes,
-      at: new Date().toISOString(),
+      ...(attachmentUrl ? { attachmentUrl } : {}),
+      at,
       byUid,
     }),
   });

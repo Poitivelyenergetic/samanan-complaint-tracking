@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { useLocale, useTranslations, useFormatter } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { deleteComplaint, subscribeToComplaint, updateComplaint, updateComplaintNotes } from "@/lib/complaints";
+import { deleteComplaint, subscribeToComplaint, updateComplaint } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { subscribeToCompanies } from "@/lib/companies";
 import { subscribeToComplaintTypes } from "@/lib/complaintTypes";
@@ -41,9 +41,6 @@ export default function ComplaintDetailPage({
   const [complaintTypes, setComplaintTypes] = useState<ComplaintType[]>([]);
   const [complaintSources, setComplaintSources] = useState<ComplaintSource[]>([]);
   const [deleting, setDeleting] = useState(false);
-  const [notes, setNotes] = useState("");
-  const [savingNotes, setSavingNotes] = useState(false);
-  const [notesSaved, setNotesSaved] = useState(false);
 
   // Without complaints.update, an account gets a read-only view. Default to
   // read-only (rather than editable) if the profile hasn't loaded yet,
@@ -51,6 +48,8 @@ export default function ComplaintDetailPage({
   const canEdit = hasPermission(profile, "complaints", "update");
   const canDelete = hasPermission(profile, "complaints", "delete");
   const canReassign = hasPermission(profile, "complaints", "reassign");
+  const isAssignee = !!complaint && !!user && complaint.assignedTo === user.uid;
+  const canEditStatus = canEdit || isAssignee;
 
   useEffect(
     () =>
@@ -65,9 +64,6 @@ export default function ComplaintDetailPage({
   useEffect(() => subscribeToCompanies(setCompanies), []);
   useEffect(() => subscribeToComplaintTypes(setComplaintTypes), []);
   useEffect(() => subscribeToComplaintSources(setComplaintSources), []);
-  useEffect(() => {
-    if (complaint) Promise.resolve().then(() => setNotes(complaint.notes));
-  }, [complaint]);
 
   async function handleSubmit(values: ComplaintInput, statusNote?: string) {
     // ComplaintForm always sends createdBy: null (it's not an editable
@@ -85,17 +81,6 @@ export default function ComplaintDetailPage({
       user?.uid ?? null,
       statusNote
     );
-  }
-
-  async function handleSaveNotes() {
-    setSavingNotes(true);
-    setNotesSaved(false);
-    try {
-      await updateComplaintNotes(id, notes, user?.uid ?? null);
-      setNotesSaved(true);
-    } finally {
-      setSavingNotes(false);
-    }
   }
 
   async function handleDelete() {
@@ -201,34 +186,10 @@ export default function ComplaintDetailPage({
           submittingLabel={tCommon("saving")}
           onSubmit={handleSubmit}
           readOnly={!canEdit}
+          canEditStatus={canEditStatus}
           hideAssignedTo
           onCancel={() => router.push("/dashboard")}
         />
-      </div>
-
-      <div className="mt-6 rounded-lg border border-border bg-surface p-6">
-        <h2 className="text-sm font-semibold text-foreground">{t("notes")}</h2>
-        <textarea
-          rows={4}
-          value={notes}
-          onChange={(e) => {
-            setNotes(e.target.value);
-            setNotesSaved(false);
-          }}
-          placeholder={t("notesPlaceholder")}
-          className="mt-3 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-        />
-        <div className="mt-2 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleSaveNotes}
-            disabled={savingNotes || notes === complaint.notes}
-            className="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-brand-foreground hover:opacity-90 disabled:opacity-60"
-          >
-            {savingNotes ? t("savingNote") : t("saveNote")}
-          </button>
-          {notesSaved && <span className="text-xs text-foreground/50">{t("noteSaved")}</span>}
-        </div>
       </div>
 
       {complaint.history.length > 0 && (
@@ -282,11 +243,18 @@ export default function ComplaintDetailPage({
                     {isReassignEntry && entry.reason && (
                       <p className="text-foreground/60">{t("historyReassignedReason", { reason: entry.reason })}</p>
                     )}
+                    {isReassignEntry && entry.attachmentUrl && (
+                      <a
+                        href={entry.attachmentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-brand hover:underline"
+                      >
+                        {t("viewAttachment")}
+                      </a>
+                    )}
                     {entry.type === "status" && entry.note && (
                       <p className="text-foreground/60">{t("historyStatusNote", { note: entry.note })}</p>
-                    )}
-                    {entry.type === "note" && entry.note && (
-                      <p className="whitespace-pre-wrap text-foreground/60">{entry.note}</p>
                     )}
                     <p className="text-xs text-foreground/50">
                       {actorName} ·{" "}

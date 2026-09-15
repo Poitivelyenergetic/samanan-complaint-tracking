@@ -15,6 +15,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { resolveServerNowIso } from "./serverTime";
 import type { Ticket, TicketHistoryEntry, TicketInput } from "./types";
 
 const COLLECTION = "tickets";
@@ -132,23 +133,27 @@ export async function getTicket(id: string): Promise<Ticket | null> {
 }
 
 export async function createTicket(input: TicketInput): Promise<string> {
-  const initialHistory: TicketHistoryEntry[] = [
-    { type: "created", status: input.status, at: new Date().toISOString(), byUid: input.createdBy },
-  ];
   const newId = await runTransaction(db, async (transaction) => {
     const counterSnap = await transaction.get(COUNTER_REF());
     const next = (counterSnap.exists() ? (counterSnap.data().value as number) : 0) + 1;
     transaction.set(COUNTER_REF(), { value: next });
     transaction.set(doc(db, COLLECTION, String(next)), {
       ...input,
-      history: initialHistory,
+      history: [],
       notes: "",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
     return next;
   });
-  return String(newId);
+  const id = String(newId);
+  // history can't hold serverTimestamp() directly (see serverTime.ts) —
+  // resolve one now that the doc exists, then append the "created" entry.
+  const at = await resolveServerNowIso(COLLECTION, id);
+  await updateDoc(doc(db, COLLECTION, id), {
+    history: arrayUnion({ type: "created", status: input.status, at, byUid: input.createdBy }),
+  });
+  return id;
 }
 
 // `previousStatus` / `statusNote` — see updateComplaint's equivalent
@@ -168,7 +173,7 @@ export async function updateTicket(
             status: updates.status,
             ...(previousStatus ? { previousStatus: previousStatus as Ticket["status"] } : {}),
             ...(statusNote ? { note: statusNote } : {}),
-            at: new Date().toISOString(),
+            at: await resolveServerNowIso(COLLECTION, id),
             byUid,
           },
         ]
@@ -192,6 +197,7 @@ export async function reassignTicket(
   byUid: string | null,
   reason: string
 ): Promise<void> {
+  const at = await resolveServerNowIso(COLLECTION, id);
   await updateDoc(doc(db, COLLECTION, id), {
     departmentId,
     assignedTo,
@@ -201,21 +207,24 @@ export async function reassignTicket(
       assignedTo,
       previousAssignedTo,
       reason,
-      at: new Date().toISOString(),
+      at,
       byUid,
     }),
   });
 }
 
-// Same scratchpad-notes model as complaints — see updateComplaintNotes.
+// A lightweight scratchpad field, separate from the formal edit form — see
+// isTicketNotesOnlyWrite() in firestore.rules. (Complaints used to have an
+// identical Notes feature; it was removed there, but stays on Tickets.)
 export async function updateTicketNotes(id: string, notes: string, byUid: string | null): Promise<void> {
+  const at = await resolveServerNowIso(COLLECTION, id);
   await updateDoc(doc(db, COLLECTION, id), {
     notes,
     updatedAt: serverTimestamp(),
     history: arrayUnion({
       type: "note",
       note: notes,
-      at: new Date().toISOString(),
+      at,
       byUid,
     }),
   });

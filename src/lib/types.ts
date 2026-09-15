@@ -398,7 +398,8 @@ export interface ComplaintHistoryEntry {
   assignedTo?: string | null; // set on every reassign* type — the proposed/new assignee
   previousAssignedTo?: string | null; // set on every reassign* type — who it was (or would be) reassigned from
   reason?: string; // set on every reassign* type — why the complaint was proposed for reassignment
-  at: string; // ISO string (client clock — Firestore's arrayUnion can't hold serverTimestamp() inside array elements)
+  attachmentUrl?: string; // set when a file was attached to a "reassigned" entry's reason
+  at: string; // ISO string, resolved server-side via resolveServerNowIso() — Firestore's arrayUnion can't hold serverTimestamp() inside array elements, so this can't use that sentinel directly, but it's still server time, not the caller's device clock
   // Firebase Auth UID of the staff member who performed the action, or null
   // for a public complaint's own initial "created" entry (nothing else in
   // this app produces a null actor — the UI renders that case as "Public").
