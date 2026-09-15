@@ -47,7 +47,7 @@ import {
 } from "@/lib/types";
 import { computeManagerScope, scopeStaff } from "@/lib/orgScope";
 import SearchableSelect from "@/components/SearchableSelect";
-import DatePicker from "@/components/DatePicker";
+import DateRangeFilter from "@/components/DateRangeFilter";
 import {
   IconClipboardList,
   IconInbox,
@@ -351,6 +351,12 @@ export default function HomePage() {
   // Status Breakdown chart's own axis, so it gets a date-range filter like
   // the page-level one used to be; the other charts get a status filter.
   const [employeeFilter, setEmployeeFilter] = useState("");
+  // Sits next to the employee filter and, like it, narrows the top stat row
+  // and every chart below — separate from the Status Breakdown card's own
+  // date filter, which only ever affects that one card.
+  const [employeeDateFilter, setEmployeeDateFilter] = useState<DateFilter>("all");
+  const [employeeDateFrom, setEmployeeDateFrom] = useState("");
+  const [employeeDateTo, setEmployeeDateTo] = useState("");
   const [statusBreakdownDateFilter, setStatusBreakdownDateFilter] = useState<DateFilter>("all");
   const [statusBreakdownFrom, setStatusBreakdownFrom] = useState("");
   const [statusBreakdownTo, setStatusBreakdownTo] = useState("");
@@ -404,28 +410,23 @@ export default function HomePage() {
     ],
     [tCommon, tStatus]
   );
-  const dateFilterOptions = useMemo(
-    () => [
-      { id: "all", label: t("dateFilterAll") },
-      { id: "today", label: t("dateFilterToday") },
-      { id: "7d", label: t("dateFilterLast7") },
-      { id: "30d", label: t("dateFilterLast30") },
-      { id: "month", label: t("dateFilterThisMonth") },
-      { id: "custom", label: t("dateFilterCustom") },
-    ],
-    [t]
-  );
-
   // Scoped by "who" (the employee filter) and, for a General Manager, by
   // their org branch — the top stat row's basis, and the starting point
   // every card further narrows with its own filter.
   const list = useMemo(() => {
     const base = complaints ?? [];
+    const { from, to } = dateRangeFor(employeeDateFilter, employeeDateFrom, employeeDateTo);
     return base.filter((c) => {
       if (managerScope && (!c.assignedTo || !scopedStaffIds.has(c.assignedTo))) return false;
-      return !employeeFilter || c.assignedTo === employeeFilter;
+      if (employeeFilter && c.assignedTo !== employeeFilter) return false;
+      if (from || to) {
+        const created = new Date(c.createdAt);
+        if (from && created < from) return false;
+        if (to && created > to) return false;
+      }
+      return true;
     });
-  }, [complaints, employeeFilter, managerScope, scopedStaffIds]);
+  }, [complaints, employeeFilter, managerScope, scopedStaffIds, employeeDateFilter, employeeDateFrom, employeeDateTo]);
 
   // Drives the top stat row (Total + one card per status) — always
   // all-time, since date filtering now lives on the Status Breakdown card
@@ -610,6 +611,14 @@ export default function HomePage() {
                   ariaLabel={t("employeeFilter")}
                 />
               </div>
+              <DateRangeFilter
+                preset={employeeDateFilter}
+                onPresetChange={setEmployeeDateFilter}
+                from={employeeDateFrom}
+                to={employeeDateTo}
+                onFromChange={setEmployeeDateFrom}
+                onToChange={setEmployeeDateTo}
+              />
             </div>
           )}
 
@@ -643,61 +652,17 @@ export default function HomePage() {
               <ChartCard
                 title={t("statusBreakdown")}
                 filter={
-                  <div className="relative flex flex-col items-end">
-                    <div className="w-[150px]">
-                      <SearchableSelect
-                        items={dateFilterOptions}
-                        value={statusBreakdownDateFilter}
-                        onChange={(id) => setStatusBreakdownDateFilter(id as DateFilter)}
-                        getId={(option) => option.id}
-                        getLabel={(option) => option.label}
-                        allowClear={false}
-                        className={compactSelectClass}
-                        ariaLabel={t("dateFilter")}
-                      />
-                    </div>
-                    {statusBreakdownDateFilter === "custom" && (
-                      <div className="absolute end-0 top-full z-10 mt-1 flex items-end gap-2 rounded-lg border border-border bg-surface p-3 shadow-lg">
-                        <div className="flex flex-col gap-1">
-                          <label
-                            htmlFor="statusBreakdownFrom"
-                            className="text-[10px] font-semibold uppercase tracking-wide text-foreground/40"
-                          >
-                            {t("dateFrom")}
-                          </label>
-                          <div className="w-[136px]">
-                            <DatePicker
-                              id="statusBreakdownFrom"
-                              value={statusBreakdownFrom}
-                              onChange={setStatusBreakdownFrom}
-                              ariaLabel={t("dateFrom")}
-                              placeholder={t("dateFrom")}
-                              className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-start text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-                            />
-                          </div>
-                        </div>
-                        <span className="pb-2 text-foreground/30">→</span>
-                        <div className="flex flex-col gap-1">
-                          <label
-                            htmlFor="statusBreakdownTo"
-                            className="text-[10px] font-semibold uppercase tracking-wide text-foreground/40"
-                          >
-                            {t("dateTo")}
-                          </label>
-                          <div className="w-[136px]">
-                            <DatePicker
-                              id="statusBreakdownTo"
-                              value={statusBreakdownTo}
-                              onChange={setStatusBreakdownTo}
-                              ariaLabel={t("dateTo")}
-                              placeholder={t("dateTo")}
-                              align="end"
-                              className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-start text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                  <div className="w-[150px]">
+                    <DateRangeFilter
+                      preset={statusBreakdownDateFilter}
+                      onPresetChange={setStatusBreakdownDateFilter}
+                      from={statusBreakdownFrom}
+                      to={statusBreakdownTo}
+                      onFromChange={setStatusBreakdownFrom}
+                      onToChange={setStatusBreakdownTo}
+                      fullWidth={false}
+                      selectClassName={compactSelectClass}
+                    />
                   </div>
                 }
               >

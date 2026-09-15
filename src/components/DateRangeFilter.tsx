@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { DateFilter } from "@/lib/dateRange";
 import SearchableSelect from "./SearchableSelect";
@@ -16,6 +17,10 @@ interface DateRangeFilterProps {
   // in a page's filter row — pass false to size to content instead (e.g.
   // a chart card's own compact corner filter).
   fullWidth?: boolean;
+  // Overrides the preset dropdown's styling — for compact/inline filter
+  // spots (e.g. a chart card's corner control) that need a quieter look
+  // than the standard full-size form field.
+  selectClassName?: string;
 }
 
 // A preset dropdown (All time / Today / Last 7 days / Last 30 days / This
@@ -31,8 +36,27 @@ export default function DateRangeFilter({
   onFromChange,
   onToChange,
   fullWidth = true,
+  selectClassName,
 }: DateRangeFilterProps) {
   const t = useTranslations("home");
+
+  // The From/To pickers edit this local draft, not the applied from/to
+  // directly — otherwise picking just "From" would immediately (re-)filter
+  // the page on a half-finished range. Committed to the parent only when
+  // "Apply" is clicked, and re-synced from props whenever they change
+  // externally (preset switched away and back, a link landed with its own
+  // from/to, etc.) — adjusted during render, same pattern the Dashboard
+  // page uses to sync its own filter state to changing URL params.
+  const [draftFrom, setDraftFrom] = useState(from);
+  const [draftTo, setDraftTo] = useState(to);
+  const [syncedFrom, setSyncedFrom] = useState(from);
+  const [syncedTo, setSyncedTo] = useState(to);
+  if (from !== syncedFrom || to !== syncedTo) {
+    setSyncedFrom(from);
+    setSyncedTo(to);
+    setDraftFrom(from);
+    setDraftTo(to);
+  }
 
   const options = [
     { id: "all", label: t("dateFilterAll") },
@@ -53,42 +77,55 @@ export default function DateRangeFilter({
         getLabel={(o) => o.label}
         allowClear={false}
         ariaLabel={t("dateFilter")}
+        className={selectClassName}
       />
 
       {preset === "custom" && (
-        <div className="absolute end-0 top-full z-10 mt-1 flex items-end gap-2 rounded-lg border border-border bg-surface p-3 shadow-lg">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="dateRangeFrom" className="text-[10px] font-semibold uppercase tracking-wide text-foreground/40">
-              {t("dateFrom")}
-            </label>
-            <div className="w-[136px]">
-              <DatePicker
-                id="dateRangeFrom"
-                value={from}
-                onChange={onFromChange}
-                ariaLabel={t("dateFrom")}
-                placeholder={t("dateFrom")}
-                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-start text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-              />
+        <div className="absolute end-0 top-full z-10 mt-1 flex flex-col gap-2 rounded-lg border border-border bg-surface p-3 shadow-lg">
+          <div className="flex items-end gap-2">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="dateRangeFrom" className="text-[10px] font-semibold uppercase tracking-wide text-foreground/40">
+                {t("dateFrom")}
+              </label>
+              <div className="w-[136px]">
+                <DatePicker
+                  id="dateRangeFrom"
+                  value={draftFrom}
+                  onChange={setDraftFrom}
+                  ariaLabel={t("dateFrom")}
+                  placeholder={t("dateFrom")}
+                  className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-start text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                />
+              </div>
+            </div>
+            <span className="pb-2 text-foreground/30">→</span>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="dateRangeTo" className="text-[10px] font-semibold uppercase tracking-wide text-foreground/40">
+                {t("dateTo")}
+              </label>
+              <div className="w-[136px]">
+                <DatePicker
+                  id="dateRangeTo"
+                  value={draftTo}
+                  onChange={setDraftTo}
+                  ariaLabel={t("dateTo")}
+                  placeholder={t("dateTo")}
+                  align="end"
+                  className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-start text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                />
+              </div>
             </div>
           </div>
-          <span className="pb-2 text-foreground/30">→</span>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="dateRangeTo" className="text-[10px] font-semibold uppercase tracking-wide text-foreground/40">
-              {t("dateTo")}
-            </label>
-            <div className="w-[136px]">
-              <DatePicker
-                id="dateRangeTo"
-                value={to}
-                onChange={onToChange}
-                ariaLabel={t("dateTo")}
-                placeholder={t("dateTo")}
-                align="end"
-                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-start text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-              />
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              onFromChange(draftFrom);
+              onToChange(draftTo);
+            }}
+            className="rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground hover:opacity-90"
+          >
+            {t("apply")}
+          </button>
         </div>
       )}
     </div>
