@@ -13,6 +13,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # actions/checkout persists its own scoped GITHUB_TOKEN as a
+          # credential override for github.com by default, which silently
+          # takes precedence over any other credential (URL-embedded PAT
+          # included) for later git commands targeting github.com — even a
+          # different repo — causing pushes there to fail as "not found"
+          # since that token has no access to it. Disabling it so our own
+          # BACKUP_PUSH_TOKEN is actually used below.
+          persist-credentials: false
 
       - name: Push mirror to backup repo
         run: |
