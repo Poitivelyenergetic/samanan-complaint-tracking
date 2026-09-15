@@ -395,6 +395,7 @@ export default function HomePage() {
   const [sourceStatusFilter, setSourceStatusFilter] = useState<ComplaintStatus | "">("");
   const [trendStatusFilter, setTrendStatusFilter] = useState<ComplaintStatus | "">("");
   const [topAssigneesStatusFilter, setTopAssigneesStatusFilter] = useState<ComplaintStatus | "">("");
+  const [topRecordersStatusFilter, setTopRecordersStatusFilter] = useState<ComplaintStatus | "">("");
 
   useEffect(() => {
     if (!profile || !canView) return;
@@ -572,6 +573,22 @@ export default function HomePage() {
       .slice(0, 5)
       .map(([uid, count]) => ({ id: uid, name: localizedName(staffById.get(uid), locale) || uid, count }));
   }, [list, topAssigneesStatusFilter, staffById, locale]);
+
+  // Who logged the complaint (createdBy) rather than who's handling it
+  // (assignedTo) — e.g. call-center staff who record complaints on a
+  // customer's behalf but don't necessarily end up assigned to them.
+  const topRecorders = useMemo(() => {
+    const scoped = topRecordersStatusFilter ? list.filter((c) => c.status === topRecordersStatusFilter) : list;
+    const counts = new Map<string, number>();
+    scoped.forEach((c) => {
+      if (!c.createdBy) return;
+      counts.set(c.createdBy, (counts.get(c.createdBy) ?? 0) + 1);
+    });
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([uid, count]) => ({ id: uid, name: localizedName(staffById.get(uid), locale) || uid, count }));
+  }, [list, topRecordersStatusFilter, staffById, locale]);
 
   // Tickets get a smaller, unfiltered mirror of the Complaints analytics
   // above — same status palette/icons, same chart types — rather than a
@@ -1076,6 +1093,55 @@ export default function HomePage() {
                             );
                           }}
                         />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </ChartCard>
+              </Reveal>
+            )}
+
+            {canViewAll && (
+              <Reveal delay={300}>
+                <ChartCard
+                  title={t("topRecorders")}
+                  filter={
+                    <div className="w-[130px]">
+                      <SearchableSelect
+                        items={statusFilterOptions}
+                        value={topRecordersStatusFilter}
+                        onChange={(id) => setTopRecordersStatusFilter(id as ComplaintStatus | "")}
+                        getId={(option) => option.id}
+                        getLabel={(option) => option.label}
+                        allowClear={false}
+                        className={compactSelectClass}
+                        ariaLabel={tCommon("filter")}
+                      />
+                    </div>
+                  }
+                >
+                  {topRecorders.length === 0 ? (
+                    <EmptyChart text={t("noData")} />
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={topRecorders} layout="vertical" margin={{ left: 8, right: 16 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                        <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          width={110}
+                          stroke="var(--foreground)"
+                          opacity={0.7}
+                          fontSize={12}
+                          tick={renderCategoryTick110}
+                        />
+                        <Tooltip
+                          contentStyle={TOOLTIP_CONTENT_STYLE}
+                          labelStyle={TOOLTIP_LABEL_STYLE}
+                          itemStyle={TOOLTIP_ITEM_STYLE}
+                          cursor={BAR_CURSOR}
+                        />
+                        <Bar dataKey="count" fill="#14b8a6" radius={[0, 4, 4, 0]} barSize={28} />
                       </BarChart>
                     </ResponsiveContainer>
                   )}

@@ -117,6 +117,7 @@
     "sourceBreakdown": "By Source",
     "trend": "New Tickets (Last 14 Days)",
     "topAssignees": "Top Assignees",
+    "topRecorders": "Top Recorders",
     "noData": "No data yet.",
     "dateFilter": "Date range",
     "dateFilterAll": "All time",
