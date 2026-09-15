@@ -8,6 +8,7 @@ import { deleteRole, updateRole } from "@/lib/roles-api";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, type Role, type RoleInput } from "@/lib/types";
 import RoleForm from "@/components/RoleForm";
+import Spinner from "@/components/Spinner";
 
 export default function EditRolePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -37,7 +38,7 @@ export default function EditRolePage({ params }: { params: Promise<{ id: string 
   }
 
   if (loading || !profile || !canUpdate || role === undefined) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (role === null) {

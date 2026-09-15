@@ -6,6 +6,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { rejectSignupRequest, subscribeToPendingSignupRequests } from "@/lib/signupRequests";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, type SignupRequest } from "@/lib/types";
+import Spinner from "@/components/Spinner";
 
 export default function PendingRequestsPage() {
   const t = useTranslations("employees.requests");
@@ -37,7 +38,7 @@ export default function PendingRequestsPage() {
   }
 
   if (loading || !profile || !canReview) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   return (

@@ -2,14 +2,14 @@
 
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth-context";
+import Spinner from "@/components/Spinner";
 
 export default function PayablesPage() {
   const t = useTranslations("payables");
-  const tCommon = useTranslations("common");
   const { profile, loading } = useAuth();
 
   if (loading || !profile) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   return (

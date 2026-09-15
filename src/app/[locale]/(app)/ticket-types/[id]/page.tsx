@@ -7,6 +7,7 @@ import { getTicketType, updateTicketType, deleteTicketType } from "@/lib/ticketT
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, type TicketType, type TicketTypeInput } from "@/lib/types";
 import TicketTypeForm from "@/components/TicketTypeForm";
+import Spinner from "@/components/Spinner";
 
 export default function EditTicketTypePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -36,7 +37,7 @@ export default function EditTicketTypePage({ params }: { params: Promise<{ id: s
   }
 
   if (loading || !profile || !canUpdate || type === undefined) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (type === null) {

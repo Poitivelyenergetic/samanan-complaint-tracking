@@ -7,6 +7,7 @@ import { getTicketSource, updateTicketSource, deleteTicketSource } from "@/lib/t
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, type TicketSource, type TicketSourceInput } from "@/lib/types";
 import TicketSourceForm from "@/components/TicketSourceForm";
+import Spinner from "@/components/Spinner";
 
 export default function EditTicketSourcePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -36,7 +37,7 @@ export default function EditTicketSourcePage({ params }: { params: Promise<{ id:
   }
 
   if (loading || !profile || !canUpdate || source === undefined) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (source === null) {

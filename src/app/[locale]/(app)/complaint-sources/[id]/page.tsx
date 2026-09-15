@@ -7,6 +7,7 @@ import { getComplaintSource, updateComplaintSource, deleteComplaintSource } from
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, type ComplaintSource, type ComplaintSourceInput } from "@/lib/types";
 import ComplaintSourceForm from "@/components/ComplaintSourceForm";
+import Spinner from "@/components/Spinner";
 
 export default function EditComplaintSourcePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -36,7 +37,7 @@ export default function EditComplaintSourcePage({ params }: { params: Promise<{ 
   }
 
   if (loading || !profile || !canUpdate || source === undefined) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (source === null) {

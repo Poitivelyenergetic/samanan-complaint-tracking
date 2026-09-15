@@ -8,6 +8,7 @@ import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, type Company, type CompanyInput, type StaffUser } from "@/lib/types";
 import CompanyForm from "@/components/CompanyForm";
+import Spinner from "@/components/Spinner";
 
 export default function EditCompanyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -29,7 +30,7 @@ export default function EditCompanyPage({ params }: { params: Promise<{ id: stri
   }
 
   if (loading || !profile || !canUpdate || company === undefined) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (company === null) {

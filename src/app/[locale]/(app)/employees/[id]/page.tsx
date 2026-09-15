@@ -19,6 +19,7 @@ import {
   type Role,
   type StaffUser,
 } from "@/lib/types";
+import Spinner from "@/components/Spinner";
 
 export default function ViewEmployeePage({
   params,
@@ -70,7 +71,7 @@ export default function ViewEmployeePage({
   }
 
   if (loading || !profile || !canView || staff === undefined) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (staff === null) {

@@ -9,6 +9,7 @@ import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, type Administration, type Department, type DepartmentInput, type StaffUser } from "@/lib/types";
 import DepartmentForm from "@/components/DepartmentForm";
+import Spinner from "@/components/Spinner";
 
 export default function EditDepartmentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -32,7 +33,7 @@ export default function EditDepartmentPage({ params }: { params: Promise<{ id: s
   }
 
   if (loading || !profile || !canUpdate || department === undefined) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (department === null) {

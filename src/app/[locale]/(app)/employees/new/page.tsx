@@ -24,6 +24,7 @@ import {
   type Role,
   type SignupRequest,
 } from "@/lib/types";
+import Spinner from "@/components/Spinner";
 import EmployeeForm from "@/components/EmployeeForm";
 
 export default function NewEmployeePage() {
@@ -68,7 +69,7 @@ export default function NewEmployeePage() {
   }
 
   if (loading || !profile || !canCreate) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (fromRequestId && request === undefined) {

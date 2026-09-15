@@ -12,6 +12,7 @@ import { dateRangeFor, type DateFilter } from "@/lib/dateRange";
 import StatusBadge from "@/components/StatusBadge";
 import DateRangeFilter from "@/components/DateRangeFilter";
 import { IconClipboardList, IconInbox, IconRefreshCw, IconShieldCheck } from "@/components/icons";
+import Spinner from "@/components/Spinner";
 
 type Bucket = "" | "assigned" | "closed" | "reassignedTo" | "reassignedFrom";
 
@@ -117,7 +118,7 @@ export default function MyTicketsPage() {
   }, [dateFiltered, bucket, user]);
 
   if (loading || !profile) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   return (

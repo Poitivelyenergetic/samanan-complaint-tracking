@@ -6,6 +6,7 @@ import { createRole } from "@/lib/roles-api";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, type RoleInput } from "@/lib/types";
 import RoleForm from "@/components/RoleForm";
+import Spinner from "@/components/Spinner";
 
 export default function NewRolePage() {
   const t = useTranslations("roles.new");
@@ -19,7 +20,7 @@ export default function NewRolePage() {
   }
 
   if (loading || !profile || !hasPermission(profile, "roles", "create")) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   return (

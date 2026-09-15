@@ -9,6 +9,7 @@ import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, type Administration, type DepartmentInput, type StaffUser } from "@/lib/types";
 import DepartmentForm from "@/components/DepartmentForm";
+import Spinner from "@/components/Spinner";
 
 export default function NewDepartmentPage() {
   const t = useTranslations("departments.new");
@@ -27,7 +28,7 @@ export default function NewDepartmentPage() {
   }
 
   if (loading || !profile || !hasPermission(profile, "departments", "create")) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   return (

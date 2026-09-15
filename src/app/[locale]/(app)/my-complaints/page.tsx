@@ -16,6 +16,7 @@ import {
   type ComplaintType,
   type StaffUser,
 } from "@/lib/types";
+import Spinner from "@/components/Spinner";
 import { dateRangeFor, type DateFilter } from "@/lib/dateRange";
 import StatusBadge from "@/components/StatusBadge";
 import DateRangeFilter from "@/components/DateRangeFilter";
@@ -134,7 +135,7 @@ export default function MyComplaintsPage() {
   }, [dateFiltered, bucket, user]);
 
   if (loading || !profile) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (!canView) {

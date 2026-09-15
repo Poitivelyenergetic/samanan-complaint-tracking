@@ -86,3 +86,38 @@ body {
 [dir="rtl"] input[type="number"] {
   text-align: right;
 }
+
+/* Route-change fade-in for PageTransition — a 250ms delay before it starts
+   gives content a beat before appearing, so navigating somewhere already
+   fully rendered doesn't just snap into place. */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-page-enter {
+    animation: page-enter 300ms 250ms ease-out both;
+  }
+}
+
+/* A small universal press-down on every button — most buttons in this app
+   already have their own hover color/shadow transitions, but none had any
+   feedback for the actual click/tap itself. Scoped to :not(:disabled) so a
+   disabled button (mid-save, etc.) doesn't visually "press". */
+@media (prefers-reduced-motion: no-preference) {
+  button:not(:disabled) {
+    transition:
+      transform 150ms ease,
+      opacity 150ms ease;
+  }
+  button:not(:disabled):active {
+    transform: scale(0.97);
+  }
+}

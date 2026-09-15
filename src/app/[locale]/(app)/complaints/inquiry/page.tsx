@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth-context";
 import { hasPermission, localizedName, type Complaint, type ComplaintType, type StaffUser } from "@/lib/types";
 import { phoneDigitsOnly, toLatinDigits } from "@/lib/phone";
 import StatusBadge from "@/components/StatusBadge";
+import Spinner from "@/components/Spinner";
 
 export default function ComplaintInquiryPage() {
   const t = useTranslations("complaintInquiry");
@@ -54,7 +55,7 @@ export default function ComplaintInquiryPage() {
   }, [complaints, term, digitsTerm]);
 
   if (loading || !profile || !canView) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   return (

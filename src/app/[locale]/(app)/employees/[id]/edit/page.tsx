@@ -19,6 +19,7 @@ import {
   type Role,
   type StaffUser,
 } from "@/lib/types";
+import Spinner from "@/components/Spinner";
 import EmployeeForm from "@/components/EmployeeForm";
 
 export default function EditEmployeePage({
@@ -56,7 +57,7 @@ export default function EditEmployeePage({
   }
 
   if (loading || !profile || !canUpdate || staff === undefined) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (staff === null) {

@@ -16,6 +16,7 @@ import {
   type Department,
   type StaffUser,
 } from "@/lib/types";
+import Spinner from "@/components/Spinner";
 
 export default function ViewAdministrationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -64,7 +65,7 @@ export default function ViewAdministrationPage({ params }: { params: Promise<{ i
   }
 
   if (loading || !profile || !canView || administration === undefined) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (administration === null) {

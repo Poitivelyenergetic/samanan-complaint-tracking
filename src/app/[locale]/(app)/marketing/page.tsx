@@ -5,10 +5,10 @@ import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission } from "@/lib/types";
 import { useRouter } from "@/i18n/navigation";
+import Spinner from "@/components/Spinner";
 
 export default function MarketingPage() {
   const t = useTranslations("marketing");
-  const tCommon = useTranslations("common");
   const { profile, loading } = useAuth();
   const router = useRouter();
   const canView = hasPermission(profile, "marketing", "view");
@@ -20,7 +20,7 @@ export default function MarketingPage() {
   }, [loading, profile, canView, router]);
 
   if (loading || !profile || !canView) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   return (

@@ -243,17 +243,27 @@ function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: nu
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    let showTimer: ReturnType<typeof setTimeout> | null = null;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setVisible(true);
+          // A card that's already on screen the instant the page mounts
+          // (arriving via nav link rather than scrolling into view) would
+          // otherwise fire this on the very first frame — too fast to read
+          // as an animation at all. This beat makes it visible regardless
+          // of whether the reveal was triggered by a scroll or a fresh
+          // page load.
+          showTimer = setTimeout(() => setVisible(true), 250);
           observer.disconnect();
         }
       },
       { threshold: 0.15, rootMargin: "0px 0px -40px 0px" }
     );
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (showTimer) clearTimeout(showTimer);
+    };
   }, []);
 
   return (

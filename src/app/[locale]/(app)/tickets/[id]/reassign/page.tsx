@@ -9,6 +9,7 @@ import { subscribeToDepartments } from "@/lib/departments";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, localizedName, type Department, type StaffUser, type Ticket } from "@/lib/types";
 import SearchableSelect from "@/components/SearchableSelect";
+import Spinner from "@/components/Spinner";
 
 export default function ReassignTicketPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -96,7 +97,7 @@ export default function ReassignTicketPage({ params }: { params: Promise<{ id: s
   }
 
   if (ticket === undefined || loading || !profile || !canReassign) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (ticket === null) {

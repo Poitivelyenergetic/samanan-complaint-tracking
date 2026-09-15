@@ -21,6 +21,7 @@ import {
   type Department,
   type StaffUser,
 } from "@/lib/types";
+import Spinner from "@/components/Spinner";
 import ComplaintForm from "@/components/ComplaintForm";
 
 export default function NewComplaintPage() {
@@ -55,7 +56,7 @@ export default function NewComplaintPage() {
   }
 
   if (loading || !profile || !hasPermission(profile, "complaints", "create")) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   return (

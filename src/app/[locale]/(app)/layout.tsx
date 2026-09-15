@@ -5,14 +5,14 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect } from "react";
-import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "@/i18n/navigation";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
+import PageTransition from "@/components/PageTransition";
+import Spinner from "@/components/Spinner";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const t = useTranslations("common");
   const { user, loading } = useAuth();
   const router = useRouter();
 
@@ -28,7 +28,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <p className="text-sm text-foreground/50">{t("loading")}</p>
+        <Spinner />
       </div>
     );
   }
@@ -38,7 +38,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex min-h-screen flex-1 flex-col">
         <TopBar />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+          <PageTransition>{children}</PageTransition>
+        </main>
       </div>
     </div>
   );

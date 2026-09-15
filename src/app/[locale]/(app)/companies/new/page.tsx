@@ -8,6 +8,7 @@ import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, type CompanyInput, type StaffUser } from "@/lib/types";
 import CompanyForm from "@/components/CompanyForm";
+import Spinner from "@/components/Spinner";
 
 export default function NewCompanyPage() {
   const t = useTranslations("companies.new");
@@ -24,7 +25,7 @@ export default function NewCompanyPage() {
   }
 
   if (loading || !profile || !hasPermission(profile, "companies", "create")) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   return (

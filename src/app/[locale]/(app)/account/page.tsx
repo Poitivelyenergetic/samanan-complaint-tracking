@@ -12,6 +12,7 @@ import {
   updatePassword,
   type ConfirmationResult,
 } from "firebase/auth";
+import Spinner from "@/components/Spinner";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { storage, usernameToEmail, createPhoneVerifyApp } from "@/lib/firebase";
 import { toE164SaudiPhone } from "@/lib/phone";
@@ -240,7 +241,7 @@ export default function AccountSettingsPage() {
   }
 
   if (!profile) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   const name = localizedName(profile, locale) || profile.username;

@@ -19,6 +19,7 @@ import {
   type ComplaintType,
   type StaffUser,
 } from "@/lib/types";
+import Spinner from "@/components/Spinner";
 import ComplaintForm from "@/components/ComplaintForm";
 
 export default function ComplaintDetailPage({
@@ -91,7 +92,7 @@ export default function ComplaintDetailPage({
   }
 
   if (complaint === undefined) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (complaint === null) {

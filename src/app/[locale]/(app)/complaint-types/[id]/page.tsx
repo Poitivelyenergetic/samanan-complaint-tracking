@@ -7,6 +7,7 @@ import { getComplaintType, updateComplaintType, deleteComplaintType } from "@/li
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, type ComplaintType, type ComplaintTypeInput } from "@/lib/types";
 import ComplaintTypeForm from "@/components/ComplaintTypeForm";
+import Spinner from "@/components/Spinner";
 
 export default function EditComplaintTypePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -36,7 +37,7 @@ export default function EditComplaintTypePage({ params }: { params: Promise<{ id
   }
 
   if (loading || !profile || !canUpdate || type === undefined) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (type === null) {

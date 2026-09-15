@@ -9,6 +9,7 @@ import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, type Administration, type AdministrationInput, type Company, type StaffUser } from "@/lib/types";
 import AdministrationForm from "@/components/AdministrationForm";
+import Spinner from "@/components/Spinner";
 
 export default function EditAdministrationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -32,7 +33,7 @@ export default function EditAdministrationPage({ params }: { params: Promise<{ i
   }
 
   if (loading || !profile || !canUpdate || administration === undefined) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (administration === null) {

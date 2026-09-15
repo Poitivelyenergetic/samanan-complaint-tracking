@@ -6,6 +6,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { subscribeToPendingSignupRequests } from "@/lib/signupRequests";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission } from "@/lib/types";
+import Spinner from "@/components/Spinner";
 
 function RequestTypeCard({
   href,
@@ -38,7 +39,6 @@ function RequestTypeCard({
 
 export default function RequestsHubPage() {
   const t = useTranslations("requests");
-  const tCommon = useTranslations("common");
   const router = useRouter();
   const { profile, loading } = useAuth();
 
@@ -58,7 +58,7 @@ export default function RequestsHubPage() {
   }, [loading, profile, canReviewAccountRequests, router]);
 
   if (loading || !profile || !canReviewAccountRequests) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   return (

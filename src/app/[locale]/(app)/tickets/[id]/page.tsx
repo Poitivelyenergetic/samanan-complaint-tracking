@@ -21,6 +21,7 @@ import {
   type TicketSource,
   type TicketType,
 } from "@/lib/types";
+import Spinner from "@/components/Spinner";
 import TicketForm from "@/components/TicketForm";
 
 export default function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -104,7 +105,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
   }
 
   if (ticket === undefined) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (ticket === null) {

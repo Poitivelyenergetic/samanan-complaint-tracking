@@ -8,6 +8,7 @@ import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, localizedName, type StaffUser, type Ticket } from "@/lib/types";
 import StatusBadge from "@/components/StatusBadge";
+import Spinner from "@/components/Spinner";
 
 export default function TicketInquiryPage() {
   const t = useTranslations("ticketInquiry");
@@ -43,7 +44,7 @@ export default function TicketInquiryPage() {
   }, [tickets, term]);
 
   if (loading || !profile || !canView) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   return (

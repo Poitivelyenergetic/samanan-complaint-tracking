@@ -10,6 +10,7 @@ import { hasPermission, localizedName, type Complaint, type StaffUser } from "@/
 import SearchableSelect from "@/components/SearchableSelect";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase";
+import Spinner from "@/components/Spinner";
 
 export default function ReassignComplaintPage({
   params,
@@ -108,7 +109,7 @@ export default function ReassignComplaintPage({
   }
 
   if (complaint === undefined || loading || !profile || !canReassign) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (complaint === null) {

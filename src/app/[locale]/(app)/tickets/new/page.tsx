@@ -19,6 +19,7 @@ import {
   type TicketSource,
   type TicketType,
 } from "@/lib/types";
+import Spinner from "@/components/Spinner";
 import TicketForm from "@/components/TicketForm";
 
 export default function NewTicketPage() {
@@ -52,7 +53,7 @@ export default function NewTicketPage() {
   // Filing a ticket is open to every signed-in employee — no permission
   // check beyond being signed in at all.
   if (loading || !profile) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   return (

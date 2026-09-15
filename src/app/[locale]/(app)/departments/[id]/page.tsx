@@ -8,6 +8,7 @@ import { subscribeToAdministrations } from "@/lib/administrations";
 import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
 import { hasPermission, localizedName, type Administration, type Department, type StaffUser } from "@/lib/types";
+import Spinner from "@/components/Spinner";
 
 export default function ViewDepartmentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -53,7 +54,7 @@ export default function ViewDepartmentPage({ params }: { params: Promise<{ id: s
   }
 
   if (loading || !profile || !canView || department === undefined) {
-    return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
+    return <Spinner />;
   }
 
   if (department === null) {
