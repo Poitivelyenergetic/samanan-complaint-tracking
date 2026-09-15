@@ -22,12 +22,23 @@ jobs:
         with:
           node-version: 20
 
-      - run: npm install firebase-admin --no-save
+      - name: Set up backup tool
+        # Installed in its own throwaway folder, isolated from the app's
+        # own package.json/lockfile — installing firebase-admin directly
+        # into the checked-out repo left @google-cloud/firestore (one of
+        # its own dependencies) missing, apparently due to npm reconciling
+        # against the app's unrelated lockfile even with --no-save.
+        run: |
+          mkdir -p "$RUNNER_TEMP/backup-tool"
+          cp scripts/backup-firestore.mjs "$RUNNER_TEMP/backup-tool/"
+          cd "$RUNNER_TEMP/backup-tool"
+          npm install firebase-admin
 
       - name: Dump Firestore to JSON
         env:
           FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
-        run: node scripts/backup-firestore.mjs "$RUNNER_TEMP/firestore-dump"
+        working-directory: ${{ runner.temp }}/backup-tool
+        run: node backup-firestore.mjs "$RUNNER_TEMP/firestore-dump"
 
       - name: Push dump to backup repo
         env:
