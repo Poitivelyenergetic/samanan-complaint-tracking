@@ -110,20 +110,14 @@ export default function TicketsPage() {
     [ticketSources, locale, t, tCommon]
   );
 
-  const statusCounts = useMemo(() => {
-    const counts: Record<TicketStatus, number> = { Open: 0, Assigned: 0, Processing: 0, Cancel: 0, Closed: 0 };
-    (tickets ?? []).forEach((tk) => {
-      counts[tk.status] += 1;
-    });
-    return counts;
-  }, [tickets]);
-
-  const filtered = useMemo(() => {
+  // Every filter except status — feeds the stat cards, so their counts
+  // track whichever assignee/type/source/date/search filters are active
+  // instead of staying fixed at the unfiltered total.
+  const filteredExceptStatus = useMemo(() => {
     if (!tickets) return [];
     const term = search.trim().toLowerCase();
     const { from, to } = dateRangeFor(datePreset, dateFrom, dateTo);
     return tickets.filter((tk) => {
-      if (statusFilter && tk.status !== statusFilter) return false;
       if (assigneeFilter && tk.assignedTo !== assigneeFilter) return false;
       if (typeFilter && tk.ticketTypeId !== typeFilter) return false;
       if (sourceFilter && tk.ticketSourceId !== sourceFilter) return false;
@@ -142,7 +136,20 @@ export default function TicketsPage() {
       }
       return true;
     });
-  }, [tickets, search, statusFilter, assigneeFilter, typeFilter, sourceFilter, datePreset, dateFrom, dateTo]);
+  }, [tickets, search, assigneeFilter, typeFilter, sourceFilter, datePreset, dateFrom, dateTo]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<TicketStatus, number> = { Open: 0, Assigned: 0, Processing: 0, Cancel: 0, Closed: 0 };
+    filteredExceptStatus.forEach((tk) => {
+      counts[tk.status] += 1;
+    });
+    return counts;
+  }, [filteredExceptStatus]);
+
+  const filtered = useMemo(
+    () => filteredExceptStatus.filter((tk) => !statusFilter || tk.status === statusFilter),
+    [filteredExceptStatus, statusFilter]
+  );
 
   if (!canView) {
     return (
@@ -172,15 +179,6 @@ export default function TicketsPage() {
           </Link>
         )}
       </div>
-
-      {tickets !== null && (
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatCard icon={<IconClipboardList />} color="#475569" label={t("stats.total")} value={tickets.length} />
-          <StatCard icon={<IconInbox />} color="#3b82f6" label={t("stats.open")} value={statusCounts.Open} />
-          <StatCard icon={<IconRefreshCw />} color="#d97706" label={t("stats.processing")} value={statusCounts.Processing} />
-          <StatCard icon={<IconShieldCheck />} color="#16a34a" label={t("stats.closed")} value={statusCounts.Closed} />
-        </div>
-      )}
 
       <div className="mt-6 flex flex-wrap gap-3">
         <input
@@ -243,6 +241,15 @@ export default function TicketsPage() {
           onToChange={setDateTo}
         />
       </div>
+
+      {tickets !== null && (
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <StatCard icon={<IconClipboardList />} color="#475569" label={t("stats.total")} value={filteredExceptStatus.length} />
+          <StatCard icon={<IconInbox />} color="#3b82f6" label={t("stats.open")} value={statusCounts.Open} />
+          <StatCard icon={<IconRefreshCw />} color="#d97706" label={t("stats.processing")} value={statusCounts.Processing} />
+          <StatCard icon={<IconShieldCheck />} color="#16a34a" label={t("stats.closed")} value={statusCounts.Closed} />
+        </div>
+      )}
 
       <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
         <table className="w-full min-w-[860px] text-start text-sm">

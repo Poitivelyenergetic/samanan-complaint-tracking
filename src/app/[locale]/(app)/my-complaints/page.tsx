@@ -84,33 +84,45 @@ export default function MyComplaintsPage() {
   const assigneeName = (uid: string | null) =>
     uid ? localizedName(staffById.get(uid), locale) || uid : tCommon("unassigned");
 
+  // Date filter applies before the bucket split, so every stat card's count
+  // — not just the table below — tracks whichever date range is active.
+  const dateFiltered = useMemo(() => {
+    const list = complaints ?? [];
+    const { from, to } = dateRangeFor(datePreset, dateFrom, dateTo);
+    if (!from && !to) return list;
+    return list.filter((c) => {
+      const created = new Date(c.createdAt);
+      if (from && created < from) return false;
+      if (to && created > to) return false;
+      return true;
+    });
+  }, [complaints, datePreset, dateFrom, dateTo]);
+
   const assignedToMe = useMemo(
-    () => (complaints ?? []).filter((c) => c.assignedTo === user?.uid),
-    [complaints, user]
+    () => dateFiltered.filter((c) => c.assignedTo === user?.uid),
+    [dateFiltered, user]
   );
-  const closedByMe = useMemo(() => (complaints ?? []).filter((c) => c.status === "Closed"), [complaints]);
+  const closedByMe = useMemo(() => dateFiltered.filter((c) => c.status === "Closed"), [dateFiltered]);
   // Distinct from "Assigned to Me": that includes complaints assigned to
   // you from the moment they were created. These two instead look at the
   // actual "reassigned" history entries to tell reassignment direction —
   // received via a reassignment (regardless of who holds it now) vs. moved
   // away from you to someone else.
   const reassignedToMe = useMemo(
-    () =>
-      (complaints ?? []).filter((c) => c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid)),
-    [complaints, user]
+    () => dateFiltered.filter((c) => c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid)),
+    [dateFiltered, user]
   );
   const reassignedFromMe = useMemo(
     () =>
-      (complaints ?? []).filter((c) =>
+      dateFiltered.filter((c) =>
         c.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid)
       ),
-    [complaints, user]
+    [dateFiltered, user]
   );
 
   const filtered = useMemo(() => {
-    const list = complaints ?? [];
-    const sorted = [...list].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-    const byBucket = sorted.filter((c) => {
+    const sorted = [...dateFiltered].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return sorted.filter((c) => {
       if (bucket === "assigned") return c.assignedTo === user?.uid;
       if (bucket === "closed") return c.status === "Closed";
       if (bucket === "reassignedTo")
@@ -119,15 +131,7 @@ export default function MyComplaintsPage() {
         return c.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid);
       return true;
     });
-    const { from, to } = dateRangeFor(datePreset, dateFrom, dateTo);
-    if (!from && !to) return byBucket;
-    return byBucket.filter((c) => {
-      const created = new Date(c.createdAt);
-      if (from && created < from) return false;
-      if (to && created > to) return false;
-      return true;
-    });
-  }, [complaints, bucket, user, datePreset, dateFrom, dateTo]);
+  }, [dateFiltered, bucket, user]);
 
   if (loading || !profile) {
     return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
@@ -153,7 +157,7 @@ export default function MyComplaintsPage() {
             icon={<IconClipboardList />}
             color="#6366f1"
             label={t("stats.total")}
-            value={complaints.length}
+            value={dateFiltered.length}
             active={bucket === ""}
             onClick={() => setBucket("")}
           />

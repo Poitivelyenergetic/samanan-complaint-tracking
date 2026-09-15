@@ -29,6 +29,7 @@ import { subscribeToCompanies } from "@/lib/companies";
 import { subscribeToAdministrations } from "@/lib/administrations";
 import { subscribeToDepartments } from "@/lib/departments";
 import { useAuth } from "@/lib/auth-context";
+import DateRangeFilter from "@/components/DateRangeFilter";
 import {
   COMPLAINT_STATUSES,
   TICKET_STATUSES,
@@ -130,6 +131,29 @@ const TOOLTIP_ITEM_STYLE: React.CSSProperties = { color: "var(--foreground)" };
 // The default hover cursor on bar charts is a harsh solid gray rectangle —
 // tone it down to a faint themed highlight instead.
 const BAR_CURSOR = { fill: "var(--border)", opacity: 0.4 };
+
+// Recharts wraps a category-axis tick onto multiple lines once its text
+// exceeds the axis width, and those wrapped lines then overflow into the
+// bar rows above/below — the "By Category" chart's long labels ("Refund |
+// Edit product | Assign technician | ...") were overlapping the bars next
+// to them. Truncating to a single line (full text still available via the
+// native <title> tooltip on hover) keeps every row self-contained.
+function makeCategoryTick(fontSize: number, maxChars: number) {
+  return function CategoryTick({ x, y, payload }: { x?: string | number; y?: string | number; payload?: { value?: unknown } }) {
+    const value = String(payload?.value ?? "");
+    const truncated = value.length > maxChars ? `${value.slice(0, maxChars - 1)}…` : value;
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <title>{value}</title>
+        <text x={0} y={0} dy={4} textAnchor="end" fontSize={fontSize} fill="var(--foreground)" fillOpacity={0.7}>
+          {truncated}
+        </text>
+      </g>
+    );
+  };
+}
+const renderCategoryTick90 = makeCategoryTick(11, 14);
+const renderCategoryTick110 = makeCategoryTick(12, 16);
 
 // Deliberately quiet — no visible border/background until the user actually
 // interacts with it, so five of these across the grid read as a small
@@ -351,6 +375,9 @@ export default function HomePage() {
   // Status Breakdown chart's own axis, so it gets a date-range filter like
   // the page-level one used to be; the other charts get a status filter.
   const [employeeFilter, setEmployeeFilter] = useState("");
+  const [complaintsDatePreset, setComplaintsDatePreset] = useState<DateFilter>("all");
+  const [complaintsDateFrom, setComplaintsDateFrom] = useState("");
+  const [complaintsDateTo, setComplaintsDateTo] = useState("");
   const [statusBreakdownDateFilter, setStatusBreakdownDateFilter] = useState<DateFilter>("all");
   const [statusBreakdownFrom, setStatusBreakdownFrom] = useState("");
   const [statusBreakdownTo, setStatusBreakdownTo] = useState("");
@@ -421,11 +448,18 @@ export default function HomePage() {
   // every card further narrows with its own filter.
   const list = useMemo(() => {
     const base = complaints ?? [];
+    const { from, to } = dateRangeFor(complaintsDatePreset, complaintsDateFrom, complaintsDateTo);
     return base.filter((c) => {
       if (managerScope && (!c.assignedTo || !scopedStaffIds.has(c.assignedTo))) return false;
-      return !employeeFilter || c.assignedTo === employeeFilter;
+      if (employeeFilter && c.assignedTo !== employeeFilter) return false;
+      if (from || to) {
+        const created = new Date(c.createdAt);
+        if (from && created < from) return false;
+        if (to && created > to) return false;
+      }
+      return true;
     });
-  }, [complaints, employeeFilter, managerScope, scopedStaffIds]);
+  }, [complaints, employeeFilter, managerScope, scopedStaffIds, complaintsDatePreset, complaintsDateFrom, complaintsDateTo]);
 
   // Drives the top stat row (Total + one card per status) — always
   // all-time, since date filtering now lives on the Status Breakdown card
@@ -610,6 +644,14 @@ export default function HomePage() {
                   ariaLabel={t("employeeFilter")}
                 />
               </div>
+              <DateRangeFilter
+                preset={complaintsDatePreset}
+                onPresetChange={setComplaintsDatePreset}
+                from={complaintsDateFrom}
+                to={complaintsDateTo}
+                onFromChange={setComplaintsDateFrom}
+                onToChange={setComplaintsDateTo}
+              />
             </div>
           )}
 
@@ -792,7 +834,15 @@ export default function HomePage() {
                     <BarChart data={categoryData} layout="vertical" margin={{ left: 8, right: 16 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                       <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
-                      <YAxis type="category" dataKey="label" width={90} stroke="var(--foreground)" opacity={0.7} fontSize={11} />
+                      <YAxis
+                        type="category"
+                        dataKey="label"
+                        width={90}
+                        stroke="var(--foreground)"
+                        opacity={0.7}
+                        fontSize={11}
+                        tick={renderCategoryTick90}
+                      />
                       <Tooltip
                         contentStyle={TOOLTIP_CONTENT_STYLE}
                         labelStyle={TOOLTIP_LABEL_STYLE}
@@ -841,7 +891,15 @@ export default function HomePage() {
                     <BarChart data={sourceData} layout="vertical" margin={{ left: 8, right: 16 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                       <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
-                      <YAxis type="category" dataKey="label" width={90} stroke="var(--foreground)" opacity={0.7} fontSize={11} />
+                      <YAxis
+                        type="category"
+                        dataKey="label"
+                        width={90}
+                        stroke="var(--foreground)"
+                        opacity={0.7}
+                        fontSize={11}
+                        tick={renderCategoryTick90}
+                      />
                       <Tooltip
                         contentStyle={TOOLTIP_CONTENT_STYLE}
                         labelStyle={TOOLTIP_LABEL_STYLE}
@@ -980,7 +1038,15 @@ export default function HomePage() {
                       <BarChart data={topAssignees} layout="vertical" margin={{ left: 8, right: 16 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                         <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
-                        <YAxis type="category" dataKey="name" width={110} stroke="var(--foreground)" opacity={0.7} fontSize={12} />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          width={110}
+                          stroke="var(--foreground)"
+                          opacity={0.7}
+                          fontSize={12}
+                          tick={renderCategoryTick110}
+                        />
                         <Tooltip
                           contentStyle={TOOLTIP_CONTENT_STYLE}
                           labelStyle={TOOLTIP_LABEL_STYLE}
@@ -1105,7 +1171,15 @@ export default function HomePage() {
                         <BarChart data={ticketTypeData} layout="vertical" margin={{ left: 8, right: 16 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                           <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
-                          <YAxis type="category" dataKey="label" width={90} stroke="var(--foreground)" opacity={0.7} fontSize={11} />
+                          <YAxis
+                        type="category"
+                        dataKey="label"
+                        width={90}
+                        stroke="var(--foreground)"
+                        opacity={0.7}
+                        fontSize={11}
+                        tick={renderCategoryTick90}
+                      />
                           <Tooltip
                             contentStyle={TOOLTIP_CONTENT_STYLE}
                             labelStyle={TOOLTIP_LABEL_STYLE}
@@ -1138,7 +1212,15 @@ export default function HomePage() {
                         <BarChart data={ticketTopAssignees} layout="vertical" margin={{ left: 8, right: 16 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                           <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
-                          <YAxis type="category" dataKey="name" width={110} stroke="var(--foreground)" opacity={0.7} fontSize={12} />
+                          <YAxis
+                          type="category"
+                          dataKey="name"
+                          width={110}
+                          stroke="var(--foreground)"
+                          opacity={0.7}
+                          fontSize={12}
+                          tick={renderCategoryTick110}
+                        />
                           <Tooltip
                             contentStyle={TOOLTIP_CONTENT_STYLE}
                             labelStyle={TOOLTIP_LABEL_STYLE}

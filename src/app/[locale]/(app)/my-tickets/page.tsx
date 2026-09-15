@@ -72,28 +72,40 @@ export default function MyTicketsPage() {
   const assigneeName = (uid: string | null) =>
     uid ? localizedName(staffById.get(uid), locale) || uid : tCommon("unassigned");
 
+  // Date filter applies before the bucket split, so every stat card's count
+  // — not just the table below — tracks whichever date range is active.
+  const dateFiltered = useMemo(() => {
+    const list = tickets ?? [];
+    const { from, to } = dateRangeFor(datePreset, dateFrom, dateTo);
+    if (!from && !to) return list;
+    return list.filter((tk) => {
+      const created = new Date(tk.createdAt);
+      if (from && created < from) return false;
+      if (to && created > to) return false;
+      return true;
+    });
+  }, [tickets, datePreset, dateFrom, dateTo]);
+
   const assignedToMe = useMemo(
-    () => (tickets ?? []).filter((tk) => tk.assignedTo === user?.uid),
-    [tickets, user]
+    () => dateFiltered.filter((tk) => tk.assignedTo === user?.uid),
+    [dateFiltered, user]
   );
-  const closedByMe = useMemo(() => (tickets ?? []).filter((tk) => tk.status === "Closed"), [tickets]);
+  const closedByMe = useMemo(() => dateFiltered.filter((tk) => tk.status === "Closed"), [dateFiltered]);
   const reassignedToMe = useMemo(
-    () =>
-      (tickets ?? []).filter((tk) => tk.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid)),
-    [tickets, user]
+    () => dateFiltered.filter((tk) => tk.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid)),
+    [dateFiltered, user]
   );
   const reassignedFromMe = useMemo(
     () =>
-      (tickets ?? []).filter((tk) =>
+      dateFiltered.filter((tk) =>
         tk.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid)
       ),
-    [tickets, user]
+    [dateFiltered, user]
   );
 
   const filtered = useMemo(() => {
-    const list = tickets ?? [];
-    const sorted = [...list].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-    const byBucket = sorted.filter((tk) => {
+    const sorted = [...dateFiltered].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return sorted.filter((tk) => {
       if (bucket === "assigned") return tk.assignedTo === user?.uid;
       if (bucket === "closed") return tk.status === "Closed";
       if (bucket === "reassignedTo")
@@ -102,15 +114,7 @@ export default function MyTicketsPage() {
         return tk.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid);
       return true;
     });
-    const { from, to } = dateRangeFor(datePreset, dateFrom, dateTo);
-    if (!from && !to) return byBucket;
-    return byBucket.filter((tk) => {
-      const created = new Date(tk.createdAt);
-      if (from && created < from) return false;
-      if (to && created > to) return false;
-      return true;
-    });
-  }, [tickets, bucket, user, datePreset, dateFrom, dateTo]);
+  }, [dateFiltered, bucket, user]);
 
   if (loading || !profile) {
     return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
@@ -137,7 +141,7 @@ export default function MyTicketsPage() {
             icon={<IconClipboardList />}
             color="#6366f1"
             label={t("stats.total")}
-            value={tickets.length}
+            value={dateFiltered.length}
             active={bucket === ""}
             onClick={() => setBucket("")}
           />

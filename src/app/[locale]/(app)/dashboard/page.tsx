@@ -189,20 +189,15 @@ export default function DashboardPage() {
 
   const visibleComplaints = useMemo(() => (canView ? complaints : []), [canView, complaints]);
 
-  const statusCounts = useMemo(() => {
-    const counts: Record<ComplaintStatus, number> = { Open: 0, Assigned: 0, Processing: 0, Cancel: 0, Closed: 0 };
-    (visibleComplaints ?? []).forEach((c) => {
-      counts[c.status] += 1;
-    });
-    return counts;
-  }, [visibleComplaints]);
-
-  const filtered = useMemo(() => {
+  // Every filter except status — feeds the stat cards, so their counts
+  // track whichever assignee/type/source/date/search filters are active
+  // instead of staying fixed at the unfiltered total. Status itself is
+  // excluded here since it's the dimension the cards themselves break down.
+  const filteredExceptStatus = useMemo(() => {
     if (!visibleComplaints) return [];
     const term = search.trim().toLowerCase();
     const { from, to } = dateRangeFor(datePreset, fromFilter, toFilter);
     return visibleComplaints.filter((c) => {
-      if (statusFilter && c.status !== statusFilter) return false;
       if (assigneeFilter && c.assignedTo !== assigneeFilter) return false;
       if (typeFilter && c.complaintTypeId !== typeFilter) return false;
       if (sourceFilter && c.complaintSourceId !== sourceFilter) return false;
@@ -222,7 +217,20 @@ export default function DashboardPage() {
       }
       return true;
     });
-  }, [visibleComplaints, search, statusFilter, assigneeFilter, typeFilter, sourceFilter, datePreset, fromFilter, toFilter]);
+  }, [visibleComplaints, search, assigneeFilter, typeFilter, sourceFilter, datePreset, fromFilter, toFilter]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<ComplaintStatus, number> = { Open: 0, Assigned: 0, Processing: 0, Cancel: 0, Closed: 0 };
+    filteredExceptStatus.forEach((c) => {
+      counts[c.status] += 1;
+    });
+    return counts;
+  }, [filteredExceptStatus]);
+
+  const filtered = useMemo(
+    () => filteredExceptStatus.filter((c) => !statusFilter || c.status === statusFilter),
+    [filteredExceptStatus, statusFilter]
+  );
 
   return (
     <div>
@@ -240,43 +248,6 @@ export default function DashboardPage() {
           </Link>
         )}
       </div>
-
-      {visibleComplaints !== null && (
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatCard
-            icon={<IconClipboardList />}
-            color="#475569"
-            label={t("stats.total")}
-            value={visibleComplaints.length}
-            active={statusFilter === ""}
-            onClick={() => router.push("/dashboard")}
-          />
-          <StatCard
-            icon={<IconInbox />}
-            color="#3b82f6"
-            label={t("stats.open")}
-            value={statusCounts.Open}
-            active={statusFilter === "Open"}
-            onClick={() => router.push(statusFilter === "Open" ? "/dashboard" : "/dashboard?status=Open")}
-          />
-          <StatCard
-            icon={<IconRefreshCw />}
-            color="#d97706"
-            label={t("stats.processing")}
-            value={statusCounts.Processing}
-            active={statusFilter === "Processing"}
-            onClick={() => router.push(statusFilter === "Processing" ? "/dashboard" : "/dashboard?status=Processing")}
-          />
-          <StatCard
-            icon={<IconShieldCheck />}
-            color="#16a34a"
-            label={t("stats.closed")}
-            value={statusCounts.Closed}
-            active={statusFilter === "Closed"}
-            onClick={() => router.push(statusFilter === "Closed" ? "/dashboard" : "/dashboard?status=Closed")}
-          />
-        </div>
-      )}
 
       <div className="mt-6 flex flex-wrap gap-3">
         <input
@@ -341,6 +312,43 @@ export default function DashboardPage() {
           onToChange={setToFilter}
         />
       </div>
+
+      {visibleComplaints !== null && (
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <StatCard
+            icon={<IconClipboardList />}
+            color="#475569"
+            label={t("stats.total")}
+            value={filteredExceptStatus.length}
+            active={statusFilter === ""}
+            onClick={() => router.push("/dashboard")}
+          />
+          <StatCard
+            icon={<IconInbox />}
+            color="#3b82f6"
+            label={t("stats.open")}
+            value={statusCounts.Open}
+            active={statusFilter === "Open"}
+            onClick={() => router.push(statusFilter === "Open" ? "/dashboard" : "/dashboard?status=Open")}
+          />
+          <StatCard
+            icon={<IconRefreshCw />}
+            color="#d97706"
+            label={t("stats.processing")}
+            value={statusCounts.Processing}
+            active={statusFilter === "Processing"}
+            onClick={() => router.push(statusFilter === "Processing" ? "/dashboard" : "/dashboard?status=Processing")}
+          />
+          <StatCard
+            icon={<IconShieldCheck />}
+            color="#16a34a"
+            label={t("stats.closed")}
+            value={statusCounts.Closed}
+            active={statusFilter === "Closed"}
+            onClick={() => router.push(statusFilter === "Closed" ? "/dashboard" : "/dashboard?status=Closed")}
+          />
+        </div>
+      )}
 
       <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
         <table className="w-full min-w-[940px] text-start text-sm">
