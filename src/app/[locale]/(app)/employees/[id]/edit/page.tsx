@@ -91,6 +91,7 @@ export default function EditEmployeePage({
             username: staff.username,
             number: staff.number,
             phone: staff.phone,
+            email: staff.email ?? "",
             jobTitle: staff.jobTitle,
             companyId: staff.companyId,
             administrationId: staff.administrationId,

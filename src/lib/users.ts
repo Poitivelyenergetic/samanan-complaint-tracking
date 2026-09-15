@@ -23,6 +23,7 @@ function fromDoc(id: string, data: DocumentData): StaffUser {
     roleIds: Array.isArray(data.roleIds) ? data.roleIds : [],
     permissions: { ...emptyRolePermissions(), ...data.permissions },
     avatarUrl: data.avatarUrl ?? null,
+    email: data.email ?? null,
   };
 }
 
@@ -59,7 +60,7 @@ export function subscribeToStaffMember(
 // caller is updating their own doc and touching just these two fields.
 export async function updateOwnProfile(
   uid: string,
-  data: { phone?: string; avatarUrl?: string | null }
+  data: { phone?: string; avatarUrl?: string | null; email?: string | null }
 ): Promise<void> {
   await updateDoc(doc(db, COLLECTION, uid), data);
 }

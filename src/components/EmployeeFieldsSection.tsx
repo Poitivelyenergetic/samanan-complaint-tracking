@@ -11,6 +11,7 @@ export interface EmployeeFieldsValues {
   username: string;
   number: string;
   phone: string;
+  email: string;
   jobTitle: string;
   companyId: string;
   administrationId: string;
@@ -25,6 +26,7 @@ export const EMPTY_EMPLOYEE_FIELDS: EmployeeFieldsValues = {
   username: "",
   number: "",
   phone: "",
+  email: "",
   jobTitle: "",
   companyId: "",
   administrationId: "",
@@ -190,6 +192,22 @@ export default function EmployeeFieldsSection({
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
           />
         </div>
+      </div>
+
+      <div>
+        <label htmlFor="email" className="block text-sm font-medium text-foreground">
+          {t("email")}
+        </label>
+        <input
+          id="email"
+          type="email"
+          dir="ltr"
+          value={values.email}
+          onChange={(e) => update("email", e.target.value)}
+          placeholder={t("emailPlaceholder")}
+          className="mt-1 w-full max-w-sm rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+        />
+        <p className="mt-1 text-xs text-foreground/50">{t("emailHint")}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">

@@ -6,12 +6,20 @@ import { Link } from "@/i18n/navigation";
 import { subscribeToMyComplaintsEver } from "@/lib/complaints";
 import { subscribeToComplaintSources } from "@/lib/complaintSources";
 import { subscribeToComplaintTypes } from "@/lib/complaintTypes";
+import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
-import { hasPermission, localizedName, type Complaint, type ComplaintSource, type ComplaintType } from "@/lib/types";
+import {
+  hasPermission,
+  localizedName,
+  type Complaint,
+  type ComplaintSource,
+  type ComplaintType,
+  type StaffUser,
+} from "@/lib/types";
 import StatusBadge from "@/components/StatusBadge";
 import { IconClipboardList, IconInbox, IconRefreshCw, IconShieldCheck } from "@/components/icons";
 
-type Bucket = "" | "assigned" | "closed" | "reassigned";
+type Bucket = "" | "assigned" | "closed" | "reassignedTo" | "reassignedFrom";
 
 function StatCard({
   icon,
@@ -54,6 +62,7 @@ export default function MyComplaintsPage() {
   const [complaints, setComplaints] = useState<Complaint[] | null>(null);
   const [complaintSources, setComplaintSources] = useState<ComplaintSource[]>([]);
   const [complaintTypes, setComplaintTypes] = useState<ComplaintType[]>([]);
+  const [staff, setStaff] = useState<StaffUser[]>([]);
   const [bucket, setBucket] = useState<Bucket>("");
 
   useEffect(() => {
@@ -62,17 +71,34 @@ export default function MyComplaintsPage() {
   }, [user, canView]);
   useEffect(() => subscribeToComplaintSources(setComplaintSources), []);
   useEffect(() => subscribeToComplaintTypes(setComplaintTypes), []);
+  useEffect(() => subscribeToStaff(setStaff), []);
 
   const sourcesById = useMemo(() => new Map(complaintSources.map((s) => [s.id, s])), [complaintSources]);
   const typesById = useMemo(() => new Map(complaintTypes.map((ct) => [ct.id, ct])), [complaintTypes]);
+  const staffById = useMemo(() => new Map(staff.map((s) => [s.id, s])), [staff]);
+  const assigneeName = (uid: string | null) =>
+    uid ? localizedName(staffById.get(uid), locale) || uid : tCommon("unassigned");
 
   const assignedToMe = useMemo(
     () => (complaints ?? []).filter((c) => c.assignedTo === user?.uid),
     [complaints, user]
   );
   const closedByMe = useMemo(() => (complaints ?? []).filter((c) => c.status === "Closed"), [complaints]);
+  // Distinct from "Assigned to Me": that includes complaints assigned to
+  // you from the moment they were created. These two instead look at the
+  // actual "reassigned" history entries to tell reassignment direction —
+  // received via a reassignment (regardless of who holds it now) vs. moved
+  // away from you to someone else.
+  const reassignedToMe = useMemo(
+    () =>
+      (complaints ?? []).filter((c) => c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid)),
+    [complaints, user]
+  );
   const reassignedFromMe = useMemo(
-    () => (complaints ?? []).filter((c) => c.assignedTo !== user?.uid),
+    () =>
+      (complaints ?? []).filter((c) =>
+        c.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid)
+      ),
     [complaints, user]
   );
 
@@ -81,7 +107,12 @@ export default function MyComplaintsPage() {
     const sorted = [...list].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     if (bucket === "assigned") return sorted.filter((c) => c.assignedTo === user?.uid);
     if (bucket === "closed") return sorted.filter((c) => c.status === "Closed");
-    if (bucket === "reassigned") return sorted.filter((c) => c.assignedTo !== user?.uid);
+    if (bucket === "reassignedTo")
+      return sorted.filter((c) => c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid));
+    if (bucket === "reassignedFrom")
+      return sorted.filter((c) =>
+        c.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid)
+      );
     return sorted;
   }, [complaints, bucket, user]);
 
@@ -104,7 +135,7 @@ export default function MyComplaintsPage() {
       <p className="mt-0.5 text-sm text-foreground/60">{t("subtitle")}</p>
 
       {complaints !== null && (
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           <StatCard
             icon={<IconClipboardList />}
             color="#6366f1"
@@ -131,11 +162,19 @@ export default function MyComplaintsPage() {
           />
           <StatCard
             icon={<IconRefreshCw />}
+            color="#8b5cf6"
+            label={t("stats.reassignedToMe")}
+            value={reassignedToMe.length}
+            active={bucket === "reassignedTo"}
+            onClick={() => setBucket("reassignedTo")}
+          />
+          <StatCard
+            icon={<IconRefreshCw />}
             color="#f59e0b"
             label={t("stats.reassignedFromMe")}
             value={reassignedFromMe.length}
-            active={bucket === "reassigned"}
-            onClick={() => setBucket("reassigned")}
+            active={bucket === "reassignedFrom"}
+            onClick={() => setBucket("reassignedFrom")}
           />
         </div>
       )}
@@ -148,6 +187,7 @@ export default function MyComplaintsPage() {
               <th className="px-4 py-3 text-start">{t("table.type")}</th>
               <th className="px-4 py-3 text-start">{t("table.customer")}</th>
               <th className="px-4 py-3 text-start">{t("table.source")}</th>
+              <th className="px-4 py-3 text-start">{t("table.assignedTo")}</th>
               <th className="px-4 py-3 text-start">{t("table.status")}</th>
               <th className="px-4 py-3 text-start">{t("table.createdAt")}</th>
             </tr>
@@ -155,13 +195,13 @@ export default function MyComplaintsPage() {
           <tbody>
             {complaints === null ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={7} className="px-4 py-8 text-center text-foreground/50">
                   {tCommon("loading")}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={7} className="px-4 py-8 text-center text-foreground/50">
                   {t("noResults")}
                 </td>
               </tr>
@@ -182,6 +222,7 @@ export default function MyComplaintsPage() {
                   <td className="px-4 py-3 text-foreground/70">
                     {localizedName(sourcesById.get(c.complaintSourceId), locale) || "—"}
                   </td>
+                  <td className="px-4 py-3 text-foreground/70">{assigneeName(c.assignedTo)}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={c.status} />
                   </td>

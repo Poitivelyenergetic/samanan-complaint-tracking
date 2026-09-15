@@ -470,7 +470,10 @@
       "noRoles": "No roles have been created yet.",
       "password": "Password",
       "passwordCreateHint": "Used to sign in. At least 6 characters.",
-      "passwordEditHint": "Leave blank to keep the current password."
+      "passwordEditHint": "Leave blank to keep the current password.",
+      "email": "Email",
+      "emailPlaceholder": "name@example.com",
+      "emailHint": "Optional. Used only to send notification emails, not for signing in."
     },
     "new": {
       "title": "New Employee",
@@ -758,7 +761,15 @@
       "type": "Type",
       "role": "Your role",
       "status": "Status",
-      "createdAt": "Created"
+      "createdAt": "Created",
+      "assignedTo": "Assigned To"
+    },
+    "stats": {
+      "total": "Total",
+      "assignedToMe": "Assigned to Me",
+      "closed": "Closed",
+      "reassignedToMe": "Reassigned To Me",
+      "reassignedFromMe": "Reassigned From Me"
     }
   },
   "myComplaints": {
@@ -772,13 +783,15 @@
       "source": "Source",
       "status": "Status",
       "createdAt": "Created",
-      "type": "Type"
+      "type": "Type",
+      "assignedTo": "Assigned To"
     },
     "stats": {
       "total": "Total",
       "assignedToMe": "Assigned to Me",
       "closed": "Closed",
-      "reassignedFromMe": "Reassigned From Me"
+      "reassignedFromMe": "Reassigned From Me",
+      "reassignedToMe": "Reassigned To Me"
     }
   },
   "ticketTypes": {

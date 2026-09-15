@@ -25,6 +25,7 @@ export async function PATCH(
   const username = body.username?.trim().toLowerCase();
   const number = body.number?.trim();
   const phone = body.phone?.trim() ?? "";
+  const email = body.email?.trim() || null;
   const jobTitle = body.jobTitle?.trim() ?? "";
   const companyId = body.companyId?.trim();
   const administrationId = body.administrationId?.trim();
@@ -80,6 +81,7 @@ export async function PATCH(
           username,
           number,
           phone,
+          email,
           jobTitle,
           companyId,
           administrationId,

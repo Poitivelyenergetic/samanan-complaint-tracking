@@ -46,3 +46,25 @@ export async function sendSignupVerificationEmail(email: string, code: string): 
   });
   if (error) throw new Error(error.message);
 }
+
+// Generic notification email — a complaint/ticket assignment or status
+// change. Sent best-effort (see /api/notifications/send-email); a failure
+// here should never block the underlying Firestore write from succeeding.
+export async function sendNotificationEmail(email: string, subject: string, heading: string, body: string, link: string): Promise<void> {
+  const { error } = await getClient().emails.send({
+    from: FROM,
+    to: email,
+    subject,
+    html: `
+      <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #1e293b;">
+        <p style="font-size: 14px; color: #64748b; margin: 0 0 8px;">Samnan</p>
+        <h1 style="font-size: 20px; margin: 0 0 16px;">${heading}</h1>
+        <p style="font-size: 14px; line-height: 1.5; margin: 0 0 24px;">${body}</p>
+        <a href="${link}" style="display: inline-block; background: #385bc1; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 6px;">
+          View in Samnan
+        </a>
+      </div>
+    `,
+  });
+  if (error) throw new Error(error.message);
+}

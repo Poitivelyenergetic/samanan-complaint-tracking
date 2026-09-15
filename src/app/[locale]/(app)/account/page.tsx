@@ -53,6 +53,9 @@ export default function AccountSettingsPage() {
   const [phone, setPhone] = useState("");
   const [phoneSaving, setPhoneSaving] = useState(false);
   const [phoneSaved, setPhoneSaved] = useState(false);
+  const [email, setEmail] = useState("");
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailSaved, setEmailSaved] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -95,6 +98,7 @@ export default function AccountSettingsPage() {
       Promise.resolve().then(() => {
         setPhone(profile.phone);
         setVerifiedPhone(profile.phone);
+        setEmail(profile.email ?? "");
       });
     }
   }, [profile]);
@@ -172,6 +176,19 @@ export default function AccountSettingsPage() {
       setPhoneSaved(true);
     } finally {
       setPhoneSaving(false);
+    }
+  }
+
+  async function handleSaveEmail(e: FormEvent) {
+    e.preventDefault();
+    if (!user) return;
+    setEmailSaving(true);
+    setEmailSaved(false);
+    try {
+      await updateOwnProfile(user.uid, { email: email.trim() || null });
+      setEmailSaved(true);
+    } finally {
+      setEmailSaving(false);
     }
   }
 
@@ -387,6 +404,35 @@ export default function AccountSettingsPage() {
               </form>
 
               <div id="account-phone-recaptcha-container" />
+
+              <form onSubmit={handleSaveEmail} className="mt-6 max-w-sm">
+                <label htmlFor="email" className="block text-sm font-medium text-foreground">
+                  {tFields("email")}
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  dir="ltr"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setEmailSaved(false);
+                  }}
+                  placeholder={tFields("emailPlaceholder")}
+                  className={inputClass}
+                />
+                <p className="mt-1 text-xs text-foreground/50">{tFields("emailHint")}</p>
+                <div className="mt-3 flex items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={emailSaving}
+                    className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-foreground disabled:opacity-50"
+                  >
+                    {emailSaving ? tCommon("saving") : tCommon("save")}
+                  </button>
+                  {emailSaved && <span className="text-sm text-green-600">{t("saved")}</span>}
+                </div>
+              </form>
             </div>
           )}
 

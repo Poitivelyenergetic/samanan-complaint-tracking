@@ -126,9 +126,13 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
     <div className="mx-auto max-w-2xl">
       <div className="flex items-center justify-between">
         <div>
-          <Link href="/tickets" className="text-sm text-brand hover:underline">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="text-sm text-brand hover:underline"
+          >
             &larr; {tCommon("back")}
-          </Link>
+          </button>
           <h1 className="mt-1 text-xl font-bold text-foreground">{t("editTitle")}</h1>
           <p className="mt-0.5 font-mono text-xs text-foreground/50">{ticket.id}</p>
         </div>

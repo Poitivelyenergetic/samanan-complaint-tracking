@@ -5,9 +5,43 @@ import { useLocale, useTranslations, useFormatter } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { subscribeToMyTickets } from "@/lib/tickets";
 import { subscribeToTicketTypes } from "@/lib/ticketTypes";
+import { subscribeToStaff } from "@/lib/users";
 import { useAuth } from "@/lib/auth-context";
-import { localizedName, type Ticket, type TicketType } from "@/lib/types";
+import { localizedName, type Ticket, type TicketType, type StaffUser } from "@/lib/types";
 import StatusBadge from "@/components/StatusBadge";
+import { IconClipboardList, IconInbox, IconRefreshCw, IconShieldCheck } from "@/components/icons";
+
+type Bucket = "" | "assigned" | "closed" | "reassignedTo" | "reassignedFrom";
+
+function StatCard({
+  icon,
+  color,
+  label,
+  value,
+  active,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  color: string;
+  label: string;
+  value: number;
+  active?: boolean;
+  onClick?: () => void;
+}) {
+  const className =
+    "block w-full text-start rounded-xl border bg-surface p-5 shadow-sm transition-all hover:shadow-md" +
+    (onClick ? " hover:border-brand/40 hover:-translate-y-0.5" : "") +
+    (active ? " border-brand" : " border-border");
+  return (
+    <button type="button" onClick={onClick} className={className}>
+      <div className="inline-flex rounded-lg p-2" style={{ backgroundColor: `${color}1f`, color }}>
+        {icon}
+      </div>
+      <p className="mt-4 text-sm font-medium text-foreground/60">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
+    </button>
+  );
+}
 
 export default function MyTicketsPage() {
   const t = useTranslations("myTickets");
@@ -18,14 +52,52 @@ export default function MyTicketsPage() {
 
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
+  const [staff, setStaff] = useState<StaffUser[]>([]);
+  const [bucket, setBucket] = useState<Bucket>("");
 
   useEffect(() => {
     if (!user) return;
     return subscribeToMyTickets(user.uid, setTickets);
   }, [user]);
   useEffect(() => subscribeToTicketTypes(setTicketTypes), []);
+  useEffect(() => subscribeToStaff(setStaff), []);
 
   const typesById = useMemo(() => new Map(ticketTypes.map((tt) => [tt.id, tt])), [ticketTypes]);
+  const staffById = useMemo(() => new Map(staff.map((s) => [s.id, s])), [staff]);
+  const assigneeName = (uid: string | null) =>
+    uid ? localizedName(staffById.get(uid), locale) || uid : tCommon("unassigned");
+
+  const assignedToMe = useMemo(
+    () => (tickets ?? []).filter((tk) => tk.assignedTo === user?.uid),
+    [tickets, user]
+  );
+  const closedByMe = useMemo(() => (tickets ?? []).filter((tk) => tk.status === "Closed"), [tickets]);
+  const reassignedToMe = useMemo(
+    () =>
+      (tickets ?? []).filter((tk) => tk.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid)),
+    [tickets, user]
+  );
+  const reassignedFromMe = useMemo(
+    () =>
+      (tickets ?? []).filter((tk) =>
+        tk.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid)
+      ),
+    [tickets, user]
+  );
+
+  const filtered = useMemo(() => {
+    const list = tickets ?? [];
+    const sorted = [...list].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    if (bucket === "assigned") return sorted.filter((tk) => tk.assignedTo === user?.uid);
+    if (bucket === "closed") return sorted.filter((tk) => tk.status === "Closed");
+    if (bucket === "reassignedTo")
+      return sorted.filter((tk) => tk.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid));
+    if (bucket === "reassignedFrom")
+      return sorted.filter((tk) =>
+        tk.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid)
+      );
+    return sorted;
+  }, [tickets, bucket, user]);
 
   if (loading || !profile) {
     return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
@@ -46,13 +118,59 @@ export default function MyTicketsPage() {
         </Link>
       </div>
 
+      {tickets !== null && (
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          <StatCard
+            icon={<IconClipboardList />}
+            color="#6366f1"
+            label={t("stats.total")}
+            value={tickets.length}
+            active={bucket === ""}
+            onClick={() => setBucket("")}
+          />
+          <StatCard
+            icon={<IconInbox />}
+            color="#0ea5e9"
+            label={t("stats.assignedToMe")}
+            value={assignedToMe.length}
+            active={bucket === "assigned"}
+            onClick={() => setBucket("assigned")}
+          />
+          <StatCard
+            icon={<IconShieldCheck />}
+            color="#22c55e"
+            label={t("stats.closed")}
+            value={closedByMe.length}
+            active={bucket === "closed"}
+            onClick={() => setBucket("closed")}
+          />
+          <StatCard
+            icon={<IconRefreshCw />}
+            color="#8b5cf6"
+            label={t("stats.reassignedToMe")}
+            value={reassignedToMe.length}
+            active={bucket === "reassignedTo"}
+            onClick={() => setBucket("reassignedTo")}
+          />
+          <StatCard
+            icon={<IconRefreshCw />}
+            color="#f59e0b"
+            label={t("stats.reassignedFromMe")}
+            value={reassignedFromMe.length}
+            active={bucket === "reassignedFrom"}
+            onClick={() => setBucket("reassignedFrom")}
+          />
+        </div>
+      )}
+
       <div className="mt-6 overflow-x-auto rounded-lg border border-border bg-surface">
-        <table className="w-full min-w-[640px] text-start text-sm">
+        <table className="w-full min-w-[720px] text-start text-sm">
           <thead>
             <tr className="border-b border-border bg-black/[0.02] text-start text-xs font-semibold uppercase tracking-wide text-foreground/50">
               <th className="px-4 py-3 text-start">{t("table.ticketId")}</th>
               <th className="px-4 py-3 text-start">{t("table.subject")}</th>
               <th className="px-4 py-3 text-start">{t("table.type")}</th>
+              <th className="px-4 py-3 text-start">{t("table.assignedTo")}</th>
               <th className="px-4 py-3 text-start">{t("table.role")}</th>
               <th className="px-4 py-3 text-start">{t("table.status")}</th>
               <th className="px-4 py-3 text-start">{t("table.createdAt")}</th>
@@ -61,18 +179,18 @@ export default function MyTicketsPage() {
           <tbody>
             {tickets === null ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={7} className="px-4 py-8 text-center text-foreground/50">
                   {tCommon("loading")}
                 </td>
               </tr>
-            ) : tickets.length === 0 ? (
+            ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={7} className="px-4 py-8 text-center text-foreground/50">
                   {t("noResults")}
                 </td>
               </tr>
             ) : (
-              tickets.map((tk) => (
+              filtered.map((tk) => (
                 <tr key={tk.id} className="border-b border-border last:border-0 hover:bg-black/[0.02]">
                   <td className="px-4 py-3">
                     <Link href={`/tickets/${tk.id}`} className="font-mono text-xs text-brand hover:underline">
@@ -87,6 +205,7 @@ export default function MyTicketsPage() {
                   <td className="px-4 py-3 text-foreground/70">
                     {localizedName(typesById.get(tk.ticketTypeId), locale) || "—"}
                   </td>
+                  <td className="px-4 py-3 text-foreground/70">{assigneeName(tk.assignedTo)}</td>
                   <td className="px-4 py-3 text-foreground/70">
                     {tk.assignedTo === user?.uid ? t("roleAssignee") : t("roleFiler")}
                     {tk.assignedTo === user?.uid && tk.createdBy === user?.uid ? ` · ${t("roleFiler")}` : ""}

@@ -9,6 +9,15 @@ export class ApiAuthError extends Error {
   }
 }
 
+/**
+ * Verifies the request's Firebase ID token with no further permission
+ * check — for routes any signed-in staff member may call, where the real
+ * authorization already happened on the Firestore write that triggered it.
+ */
+export async function requireAuth(request: Request): Promise<string> {
+  return verifyToken(request);
+}
+
 async function verifyToken(request: Request): Promise<string> {
   const authHeader = request.headers.get("authorization") ?? "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;

@@ -300,6 +300,10 @@ export interface StaffUser {
   roleIds: string[]; // an employee can hold multiple roles at once
   permissions: RolePermissions; // denormalized union of all roleIds' permissions — see note above
   avatarUrl: string | null; // self-uploaded profile picture (Firebase Storage download URL)
+  // Optional — separate from `username` (which maps to a synthetic,
+  // non-deliverable @samnan.local address for Firebase Auth login).
+  // Notification emails only go out when this is actually set.
+  email: string | null;
 }
 
 export interface EmployeeInput {
@@ -313,6 +317,7 @@ export interface EmployeeInput {
   administrationId: string;
   departmentId: string;
   roleIds: string[];
+  email?: string | null;
   password?: string; // required when creating, optional (reset) when editing
 }
 
@@ -505,12 +510,15 @@ export interface Ticket {
   status: TicketStatus;
   history: TicketHistoryEntry[];
   notes: string;
+  // Every staff UID this ticket has ever been assigned to — same purpose
+  // as Complaint.everAssignedTo, see its comment there.
+  everAssignedTo: string[];
   createdAt: string;
   updatedAt: string;
   createdBy: string | null; // UID of the employee who filed it
 }
 
-export type TicketInput = Omit<Ticket, "id" | "createdAt" | "updatedAt" | "history" | "notes">;
+export type TicketInput = Omit<Ticket, "id" | "createdAt" | "updatedAt" | "history" | "notes" | "everAssignedTo">;
 
 export type SignupRequestStatus = "pending" | "approved" | "rejected";
 

@@ -50,6 +50,7 @@ function fromDoc(id: string, data: DocumentData): Ticket {
     status: data.status ?? "Open",
     history: Array.isArray(data.history) ? (data.history as TicketHistoryEntry[]) : [],
     notes: data.notes ?? "",
+    everAssignedTo: Array.isArray(data.everAssignedTo) ? (data.everAssignedTo as string[]) : [],
     createdAt: toIso(data.createdAt),
     updatedAt: toIso(data.updatedAt),
     createdBy: data.createdBy ?? null,
@@ -99,8 +100,12 @@ export function subscribeToMyTickets(
     },
     onError
   );
+  // everAssignedTo (rather than a plain assignedTo == uid query) also picks
+  // up tickets since reassigned away — needed for "My Tickets"'s
+  // Reassigned To/From Me sections. See Complaint.everAssignedTo's comment
+  // in lib/types.ts for why this exists.
   const unsubAssigned = onSnapshot(
-    query(collection(db, COLLECTION), where("assignedTo", "==", uid)),
+    query(collection(db, COLLECTION), where("everAssignedTo", "array-contains", uid)),
     (snap) => {
       assignedToMe.clear();
       snap.docs.forEach((d) => assignedToMe.set(d.id, fromDoc(d.id, d.data())));
@@ -141,6 +146,7 @@ export async function createTicket(input: TicketInput): Promise<string> {
       ...input,
       history: [],
       notes: "",
+      everAssignedTo: input.assignedTo ? [input.assignedTo] : [],
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -202,6 +208,7 @@ export async function reassignTicket(
     departmentId,
     assignedTo,
     updatedAt: serverTimestamp(),
+    ...(assignedTo ? { everAssignedTo: arrayUnion(assignedTo) } : {}),
     history: arrayUnion({
       type: "reassigned",
       assignedTo,

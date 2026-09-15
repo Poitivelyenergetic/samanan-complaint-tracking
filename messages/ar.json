@@ -470,7 +470,10 @@
       "noRoles": "لم يتم إنشاء أي أدوار بعد.",
       "password": "كلمة المرور",
       "passwordCreateHint": "تُستخدم لتسجيل الدخول. 6 أحرف على الأقل.",
-      "passwordEditHint": "اتركها فارغة للإبقاء على كلمة المرور الحالية."
+      "passwordEditHint": "اتركها فارغة للإبقاء على كلمة المرور الحالية.",
+      "email": "البريد الإلكتروني",
+      "emailPlaceholder": "name@example.com",
+      "emailHint": "اختياري. يُستخدم فقط لإرسال إشعارات بالبريد الإلكتروني، وليس لتسجيل الدخول."
     },
     "new": {
       "title": "موظف جديد",
@@ -758,7 +761,15 @@
       "type": "النوع",
       "role": "دورك",
       "status": "الحالة",
-      "createdAt": "تاريخ الإنشاء"
+      "createdAt": "تاريخ الإنشاء",
+      "assignedTo": "مسندة إلى"
+    },
+    "stats": {
+      "total": "الإجمالي",
+      "assignedToMe": "مسندة إليّ",
+      "closed": "مغلقة",
+      "reassignedToMe": "أُعيد إسنادها إليّ",
+      "reassignedFromMe": "أُعيد إسنادها عني"
     }
   },
   "myComplaints": {
@@ -772,13 +783,15 @@
       "source": "المصدر",
       "status": "الحالة",
       "createdAt": "تاريخ الإنشاء",
-      "type": "النوع"
+      "type": "النوع",
+      "assignedTo": "مسندة إلى"
     },
     "stats": {
       "total": "الإجمالي",
       "assignedToMe": "مسندة إليّ",
       "closed": "مغلقة",
-      "reassignedFromMe": "أُعيد إسنادها عني"
+      "reassignedFromMe": "أُعيد إسنادها عني",
+      "reassignedToMe": "أُعيد إسنادها إليّ"
     }
   },
   "ticketTypes": {

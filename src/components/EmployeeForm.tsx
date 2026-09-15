@@ -49,6 +49,7 @@ export default function EmployeeForm({
         username: values.username.trim(),
         number: values.number.trim(),
         phone: values.phone.trim(),
+        email: values.email.trim() || null,
         jobTitle: values.jobTitle.trim(),
         companyId: values.companyId,
         administrationId: values.administrationId,
