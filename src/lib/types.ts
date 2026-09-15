@@ -533,6 +533,10 @@ export interface SignupRequest {
   // Whether `contact` was confirmed via a one-time code before this request
   // was submitted — lets an admin reviewing the request trust it's reachable.
   contactVerified: boolean;
+  // Always required, separate from `contact` — becomes the approved
+  // employee's StaffUser.email (notification emails), regardless of
+  // whether `contact` itself happens to be an email or a phone number.
+  email: string;
   position: string;
   administration: string;
   note: string | null;

@@ -14,13 +14,17 @@ export async function POST(request: Request) {
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const username = typeof body?.username === "string" ? body.username.trim().toLowerCase() : "";
   const contact = typeof body?.contact === "string" ? body.contact.trim() : "";
+  const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
   const position = typeof body?.position === "string" ? body.position.trim() : "";
   const administration = typeof body?.administration === "string" ? body.administration.trim() : "";
   const note = typeof body?.note === "string" && body.note.trim() ? body.note.trim() : null;
   const phoneIdToken = typeof body?.phoneIdToken === "string" ? body.phoneIdToken : "";
 
-  if (!name || !username || !contact || !position || !administration) {
+  if (!name || !username || !contact || !email || !position || !administration) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json({ error: "invalid_email" }, { status: 400 });
   }
 
   const db = getAdminDb();
@@ -65,6 +69,7 @@ export async function POST(request: Request) {
     username,
     contact,
     contactVerified: true,
+    email,
     position,
     administration,
     note,

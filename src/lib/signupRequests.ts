@@ -29,6 +29,7 @@ function fromDoc(id: string, data: DocumentData): SignupRequest {
     username: data.username ?? "",
     contact: data.contact ?? "",
     contactVerified: data.contactVerified ?? false,
+    email: data.email ?? "",
     position: data.position ?? "",
     administration: data.administration ?? "",
     note: data.note ?? null,
@@ -41,6 +42,7 @@ export interface SignupRequestInput {
   name: string;
   username: string;
   contact: string;
+  email: string;
   position: string;
   administration: string;
   note: string | null;

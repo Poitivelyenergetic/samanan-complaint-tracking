@@ -107,7 +107,9 @@ export default function NewEmployeePage() {
           administrations={administrations}
           departments={departments}
           roles={roles}
-          initialValues={request ? { nameEn: request.name, username: request.username } : undefined}
+          initialValues={
+            request ? { nameEn: request.name, username: request.username, email: request.email } : undefined
+          }
           submitLabel={t("submit")}
           submittingLabel={tCommon("saving")}
           onSubmit={handleSubmit}

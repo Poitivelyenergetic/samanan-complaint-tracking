@@ -286,10 +286,14 @@
       "contactPlaceholder": "Email or phone number",
       "position": "Position",
       "administration": "Administration",
-      "note": "Note (optional)"
+      "note": "Note (optional)",
+      "email": "Email",
+      "emailPlaceholder": "name@example.com",
+      "emailHint": "Used to notify you about assignments and status updates once approved."
     },
     "errors": {
-      "required": "This field is required."
+      "required": "This field is required.",
+      "invalidEmail": "Enter a valid email address."
     },
     "success": {
       "title": "Request submitted",

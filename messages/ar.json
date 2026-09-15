@@ -286,10 +286,14 @@
       "contactPlaceholder": "البريد الإلكتروني أو رقم الهاتف",
       "position": "المنصب",
       "administration": "الإدارة",
-      "note": "ملاحظة (اختياري)"
+      "note": "ملاحظة (اختياري)",
+      "email": "البريد الإلكتروني",
+      "emailPlaceholder": "name@example.com",
+      "emailHint": "يُستخدم لإشعارك بالإسناد وتحديثات الحالة بعد قبول طلبك."
     },
     "errors": {
-      "required": "هذا الحقل مطلوب."
+      "required": "هذا الحقل مطلوب.",
+      "invalidEmail": "أدخل بريداً إلكترونياً صحيحاً."
     },
     "success": {
       "title": "تم إرسال الطلب",

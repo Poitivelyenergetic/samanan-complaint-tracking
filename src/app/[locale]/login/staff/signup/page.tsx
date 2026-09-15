@@ -16,6 +16,7 @@ interface FormValues {
   name: string;
   username: string;
   contact: string;
+  email: string;
   position: string;
   administration: string;
   note: string;
@@ -25,6 +26,7 @@ const DEFAULT_VALUES: FormValues = {
   name: "",
   username: "",
   contact: "",
+  email: "",
   position: "",
   administration: "",
   note: "",
@@ -188,6 +190,8 @@ export default function StaffSignupPage() {
     if (!values.name.trim()) next.name = t("errors.required");
     if (!values.username.trim()) next.username = t("errors.required");
     if (!values.contact.trim()) next.contact = t("errors.required");
+    if (!values.email.trim()) next.email = t("errors.required");
+    else if (!EMAIL_RE.test(values.email.trim())) next.email = t("errors.invalidEmail");
     if (!values.position.trim()) next.position = t("errors.required");
     if (!values.administration.trim()) next.administration = t("errors.required");
     setErrors(next);
@@ -209,6 +213,7 @@ export default function StaffSignupPage() {
         name: values.name.trim(),
         username: values.username.trim().toLowerCase(),
         contact: values.contact.trim(),
+        email: values.email.trim().toLowerCase(),
         position: values.position.trim(),
         administration: values.administration.trim(),
         note: values.note.trim() || null,
@@ -343,6 +348,23 @@ export default function StaffSignupPage() {
               </p>
             )}
             {verifyError && <p className="mt-1 text-xs text-red-600">{verifyError}</p>}
+          </div>
+
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-foreground">
+              {t("fields.email")}
+            </label>
+            <input
+              id="email"
+              type="email"
+              dir="ltr"
+              value={values.email}
+              onChange={(e) => update("email", e.target.value)}
+              placeholder={t("fields.emailPlaceholder")}
+              className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+            />
+            <p className="mt-1 text-xs text-foreground/50">{t("fields.emailHint")}</p>
+            {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
