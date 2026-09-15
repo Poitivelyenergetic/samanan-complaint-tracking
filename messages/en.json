@@ -54,7 +54,8 @@
     "newTicket": "New IT Ticket",
     "ticketInquiry": "IT Ticket Inquiry",
     "ticketTypes": "IT Ticket Types",
-    "ticketSources": "IT Ticket Sources"
+    "ticketSources": "IT Ticket Sources",
+    "profile": "Profile"
   },
   "login": {
     "title": "Staff Login",

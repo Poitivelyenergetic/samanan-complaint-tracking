@@ -54,7 +54,8 @@
     "newTicket": "تذكرة IT جديدة",
     "ticketInquiry": "استعلام عن تذكرة IT",
     "ticketTypes": "أنواع التذاكر IT",
-    "ticketSources": "مصادر التذاكر IT"
+    "ticketSources": "مصادر التذاكر IT",
+    "profile": "الملف الشخصي"
   },
   "login": {
     "title": "تسجيل دخول الموظفين",
