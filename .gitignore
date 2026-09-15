@@ -34,6 +34,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# local Claude Code dev-server config (browser preview only, not app code)
+.claude/
+
 # vercel
 .vercel
 
