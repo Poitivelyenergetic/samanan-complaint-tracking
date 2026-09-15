@@ -16,8 +16,21 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
+      - name: Ensure backup bucket exists
+        # The app's default Storage bucket is in me-central1, but this
+        # project's Firestore database lives in me-central2 — Firestore
+        # export requires the destination bucket to be in the same
+        # location, so backups need their own bucket there. Idempotent:
+        # no-ops once the bucket exists.
+        run: |
+          gcloud storage buckets create gs://samnan-complaint-tracking-backups \
+            --project=samnan-complaint-tracking \
+            --location=me-central2 \
+            --uniform-bucket-level-access \
+            || true
+
       - name: Export Firestore to Cloud Storage
         run: |
           gcloud firestore export \
-            "gs://samnan-complaint-tracking.firebasestorage.app/firestore-backups/$(date -u +%Y-%m-%dT%H-%M-%SZ)" \
+            "gs://samnan-complaint-tracking-backups/firestore-backups/$(date -u +%Y-%m-%dT%H-%M-%SZ)" \
             --project=samnan-complaint-tracking
