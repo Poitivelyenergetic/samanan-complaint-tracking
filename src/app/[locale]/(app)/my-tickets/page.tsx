@@ -92,8 +92,15 @@ export default function MyTicketsPage() {
     [dateFiltered, user]
   );
   const closedByMe = useMemo(() => dateFiltered.filter((tk) => tk.status === "Closed"), [dateFiltered]);
+  // "Reassigned To Me" drops a ticket once it's closed — see the matching
+  // comment in my-complaints/page.tsx. "Reassigned From Me" keeps closed
+  // ones since it's a record of what you moved away, not what still needs
+  // handling.
   const reassignedToMe = useMemo(
-    () => dateFiltered.filter((tk) => tk.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid)),
+    () =>
+      dateFiltered.filter(
+        (tk) => tk.status !== "Closed" && tk.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid)
+      ),
     [dateFiltered, user]
   );
   const reassignedFromMe = useMemo(
@@ -110,7 +117,7 @@ export default function MyTicketsPage() {
       if (bucket === "assigned") return tk.assignedTo === user?.uid;
       if (bucket === "closed") return tk.status === "Closed";
       if (bucket === "reassignedTo")
-        return tk.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid);
+        return tk.status !== "Closed" && tk.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid);
       if (bucket === "reassignedFrom")
         return tk.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid);
       return true;

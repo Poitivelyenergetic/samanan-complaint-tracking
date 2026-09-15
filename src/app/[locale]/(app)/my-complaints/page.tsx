@@ -109,8 +109,17 @@ export default function MyComplaintsPage() {
   // actual "reassigned" history entries to tell reassignment direction —
   // received via a reassignment (regardless of who holds it now) vs. moved
   // away from you to someone else.
+  //
+  // "Reassigned To Me" drops a complaint once it's closed — it's meant to
+  // read as "things reassigned to me that I still need to handle", not a
+  // permanent record. "Reassigned From Me" has no such exclusion: it's a
+  // record of what you moved away, which stays true regardless of what
+  // happens to it afterward.
   const reassignedToMe = useMemo(
-    () => dateFiltered.filter((c) => c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid)),
+    () =>
+      dateFiltered.filter(
+        (c) => c.status !== "Closed" && c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid)
+      ),
     [dateFiltered, user]
   );
   const reassignedFromMe = useMemo(
@@ -127,7 +136,7 @@ export default function MyComplaintsPage() {
       if (bucket === "assigned") return c.assignedTo === user?.uid;
       if (bucket === "closed") return c.status === "Closed";
       if (bucket === "reassignedTo")
-        return c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid);
+        return c.status !== "Closed" && c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid);
       if (bucket === "reassignedFrom")
         return c.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid);
       return true;
