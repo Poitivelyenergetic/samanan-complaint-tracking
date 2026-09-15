@@ -1,0 +1,23 @@
+name: Daily backup mirror
+
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push mirror to backup repo
+        run: |
+          git remote add backup "https://${BACKUP_PUSH_TOKEN}@github.com/Poitivelyenergetic/samnan-complaint-tracking-backup.git"
+          git push backup --all --force
+          git push backup --tags --force
+        env:
+          BACKUP_PUSH_TOKEN: ${{ secrets.BACKUP_PUSH_TOKEN }}

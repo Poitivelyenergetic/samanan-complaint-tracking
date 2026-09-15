@@ -53,6 +53,7 @@ function fromDoc(id: string, data: DocumentData): Complaint {
     // rather than throwing.
     history: Array.isArray(data.history) ? (data.history as ComplaintHistoryEntry[]) : [],
     notes: data.notes ?? "",
+    everAssignedTo: Array.isArray(data.everAssignedTo) ? (data.everAssignedTo as string[]) : [],
     createdAt: toIso(data.createdAt),
     updatedAt: toIso(data.updatedAt),
     createdBy: data.createdBy ?? null,
@@ -105,6 +106,7 @@ export async function createComplaint(input: ComplaintInput): Promise<string> {
       ...input,
       history: [],
       notes: "",
+      everAssignedTo: input.assignedTo ? [input.assignedTo] : [],
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -170,6 +172,7 @@ export async function reassignComplaint(
   await updateDoc(doc(db, COLLECTION, id), {
     assignedTo,
     updatedAt: serverTimestamp(),
+    ...(assignedTo ? { everAssignedTo: arrayUnion(assignedTo) } : {}),
     history: arrayUnion({
       type: "reassigned",
       assignedTo,
@@ -180,6 +183,24 @@ export async function reassignComplaint(
       byUid,
     }),
   });
+}
+
+// "My Complaints" — every complaint the given employee has ever been
+// assigned to (current assignee included), so it can show what's assigned
+// to them now, what they've closed, and what's since been reassigned away
+// from them. Relies on everAssignedTo (see its comment in lib/types.ts) and
+// the matching canReadComplaint() clause in firestore.rules.
+export function subscribeToMyComplaintsEver(
+  uid: string,
+  callback: (complaints: Complaint[]) => void,
+  onError?: (error: unknown) => void
+) {
+  const q = query(collection(db, COLLECTION), where("everAssignedTo", "array-contains", uid));
+  return onSnapshot(
+    q,
+    (snap) => callback(snap.docs.map((d) => fromDoc(d.id, d.data()))),
+    onError
+  );
 }
 
 export async function deleteComplaint(id: string): Promise<void> {

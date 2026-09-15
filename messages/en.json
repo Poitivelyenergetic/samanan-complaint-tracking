@@ -47,7 +47,7 @@
     "signedInAs": "Signed in as",
     "hideSidebar": "Hide",
     "complaintsGroup": "Complaints",
-    "myComplaints": "My Complaints",
+    "myComplaints": "Assigned to Me",
     "ticketsGroup": "IT Tickets",
     "ticketsList": "IT Tickets",
     "myTickets": "My IT Tickets",
@@ -760,8 +760,8 @@
     }
   },
   "myComplaints": {
-    "title": "My Complaints",
-    "subtitle": "Complaints currently assigned to you.",
+    "title": "Complaints Assigned to Me",
+    "subtitle": "Everything you've ever been assigned, closed, or had reassigned away from you.",
     "noAccess": "You don't have access to complaints.",
     "noResults": "You have no complaints assigned to you.",
     "table": {
@@ -771,6 +771,12 @@
       "status": "Status",
       "createdAt": "Created",
       "type": "Type"
+    },
+    "stats": {
+      "total": "Total",
+      "assignedToMe": "Assigned to Me",
+      "closed": "Closed",
+      "reassignedFromMe": "Reassigned From Me"
     }
   },
   "ticketTypes": {

@@ -94,14 +94,30 @@ service cloud.firestore {
       return affected.hasOnly(["status", "updatedAt", "history"]);
     }
 
+    // createComplaint() can't append the initial "created" history entry in
+    // the same write as the transaction that creates the doc (history can't
+    // hold serverTimestamp() inside an array — see serverTime.ts), so it
+    // follows up with a separate update. Without complaints.create implying
+    // complaints.update too, a create-only role would create the doc fine
+    // but then get denied on that follow-up write. This lets the original
+    // creator (and only them) finish appending to their own complaint's
+    // history, without granting them any broader edit rights.
+    function isHistoryOnlyWrite() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return affected.hasOnly(["history", "updatedAt"]);
+    }
+
     // Without complaints.viewAll, a staff member only sees complaints
-    // currently assigned to them. `list` queries are validated against the
-    // query shape, not fetched-then-filtered — the client must query with a
-    // matching where("assignedTo","==",uid) clause, or Firestore denies the
-    // whole request rather than silently returning a subset.
+    // currently or formerly assigned to them (everAssignedTo — see its
+    // comment in lib/types.ts, used by "My Complaints"). `list` queries are
+    // validated against the query shape, not fetched-then-filtered — the
+    // client must query with a matching where("assignedTo","==",uid) or
+    // where("everAssignedTo","array-contains",uid) clause, or Firestore
+    // denies the whole request rather than silently returning a subset.
     function canReadComplaint() {
       return hasPermission("complaints", "viewAll")
-        || (hasPermission("complaints", "view") && resource.data.assignedTo == request.auth.uid);
+        || (hasPermission("complaints", "view") && resource.data.assignedTo == request.auth.uid)
+        || (hasPermission("complaints", "view") && request.auth.uid in resource.data.everAssignedTo);
     }
 
     match /complaints/{complaintId} {
@@ -109,7 +125,8 @@ service cloud.firestore {
       allow list: if canReadComplaint();
       allow update: if hasPermission("complaints", "update")
         || (hasPermission("complaints", "reassign") && isReassignWrite())
-        || (isSignedIn() && resource.data.assignedTo == request.auth.uid && isComplaintStatusOnlyWrite());
+        || (isSignedIn() && resource.data.assignedTo == request.auth.uid && isComplaintStatusOnlyWrite())
+        || (isSignedIn() && resource.data.createdBy == request.auth.uid && isHistoryOnlyWrite());
       allow delete: if hasPermission("complaints", "delete");
       allow create: if isSignedIn() && hasPermission("complaints", "create") && isSelfCreatedComplaint();
     }

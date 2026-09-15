@@ -425,12 +425,20 @@ export interface Complaint {
   status: ComplaintStatus;
   history: ComplaintHistoryEntry[];
   notes: string; // free-text scratchpad for staff working the complaint — not part of the formal history log
+  // Every staff UID this complaint has ever been assigned to (current
+  // assignee included), appended to on creation and every reassignment,
+  // never removed from. Firestore rules can't otherwise let someone see a
+  // complaint once it's been reassigned away from them — this lets a
+  // complaints.view (not viewAll) holder keep reading complaints they used
+  // to hold via canReadComplaint()'s `in everAssignedTo` check, which is
+  // what "My Complaints" needs to show a "reassigned from me" section.
+  everAssignedTo: string[];
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
   createdBy: string | null; // UID of staff who created it, null for public submissions
 }
 
-export type ComplaintInput = Omit<Complaint, "id" | "createdAt" | "updatedAt" | "history" | "notes">;
+export type ComplaintInput = Omit<Complaint, "id" | "createdAt" | "updatedAt" | "history" | "notes" | "everAssignedTo">;
 
 // --- Tickets -------------------------------------------------------------
 // A separate, parallel system to Complaints — for internal requests an

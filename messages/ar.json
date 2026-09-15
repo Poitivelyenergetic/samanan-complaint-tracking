@@ -47,7 +47,7 @@
     "signedInAs": "مسجل الدخول باسم",
     "hideSidebar": "إخفاء",
     "complaintsGroup": "الشكاوى",
-    "myComplaints": "شكاواي",
+    "myComplaints": "المسندة إليّ",
     "ticketsGroup": "التذاكر IT",
     "ticketsList": "التذاكر IT",
     "myTickets": "تذاكري IT",
@@ -760,8 +760,8 @@
     }
   },
   "myComplaints": {
-    "title": "شكاواي",
-    "subtitle": "الشكاوى المسندة إليك حالياً.",
+    "title": "الشكاوى المسندة إليّ",
+    "subtitle": "كل ما أُسند إليك، أو أغلقته، أو أُعيد إسناده بعيداً عنك.",
     "noAccess": "لا تملك صلاحية الوصول إلى الشكاوى.",
     "noResults": "لا توجد شكاوى مسندة إليك.",
     "table": {
@@ -771,6 +771,12 @@
       "status": "الحالة",
       "createdAt": "تاريخ الإنشاء",
       "type": "النوع"
+    },
+    "stats": {
+      "total": "الإجمالي",
+      "assignedToMe": "مسندة إليّ",
+      "closed": "مغلقة",
+      "reassignedFromMe": "أُعيد إسنادها عني"
     }
   },
   "ticketTypes": {
