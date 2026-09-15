@@ -18,6 +18,9 @@ jobs:
           # BACKUP_PUSH_TOKEN below when we push to a different repo.
           persist-credentials: false
 
+      - name: Set backup timestamp
+        run: echo "STAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)" >> "$GITHUB_ENV"
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -40,11 +43,10 @@ jobs:
         working-directory: ${{ runner.temp }}/backup-tool
         run: node backup-firestore.mjs "$RUNNER_TEMP/firestore-dump"
 
-      - name: Push dump to backup repo
+      - name: Push dump to backup repo (GitHub)
         env:
           BACKUP_PUSH_TOKEN: ${{ secrets.BACKUP_PUSH_TOKEN }}
         run: |
-          STAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
           git clone "https://${BACKUP_PUSH_TOKEN}@github.com/Poitivelyenergetic/samnan-complaint-tracking-backup.git" "$RUNNER_TEMP/backup-repo"
           mkdir -p "$RUNNER_TEMP/backup-repo/firestore-backups/$STAMP"
           cp "$RUNNER_TEMP"/firestore-dump/*.json "$RUNNER_TEMP/backup-repo/firestore-backups/$STAMP/"
@@ -54,3 +56,20 @@ jobs:
           git add .
           git commit -m "Firestore backup $STAMP" || echo "Nothing to commit"
           git push
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Push dump to Cloud Storage (Google)
+        # Plain file uploads, not gcloud firestore export — so, unlike the
+        # approach this replaced, there's no requirement for the bucket to
+        # be in the same region as Firestore itself. Uses the app's own
+        # existing bucket (already used for complaint attachments), so no
+        # new bucket or extra IAM grant is needed.
+        run: |
+          gcloud storage cp "$RUNNER_TEMP"/firestore-dump/*.json \
+            "gs://samnan-complaint-tracking.firebasestorage.app/firestore-backups/$STAMP/" \
+            --project=samnan-complaint-tracking
