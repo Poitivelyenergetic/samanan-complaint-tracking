@@ -168,7 +168,9 @@
     "empty": "You're all caught up.",
     "accountRequestTitle": "New account request: {name}",
     "ticketAssignedTitle": "You were assigned IT ticket #{id}",
-    "ticketStatusTitle": "IT Ticket #{id} is now {status}"
+    "ticketStatusTitle": "IT Ticket #{id} is now {status}",
+    "complaintAssignedTitle": "You were assigned complaint #{id}",
+    "complaintStatusTitle": "Complaint #{id} is now {status}"
   },
   "dashboard": {
     "title": "Complaints",

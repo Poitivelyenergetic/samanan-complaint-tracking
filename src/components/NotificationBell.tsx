@@ -5,8 +5,9 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { subscribeToPendingSignupRequests } from "@/lib/signupRequests";
 import { subscribeToMyTickets } from "@/lib/tickets";
+import { subscribeToMyComplaintsEver } from "@/lib/complaints";
 import { useAuth } from "@/lib/auth-context";
-import { hasPermission, type SignupRequest, type Ticket } from "@/lib/types";
+import { hasPermission, type Complaint, type SignupRequest, type Ticket } from "@/lib/types";
 
 interface NotificationItem {
   id: string;
@@ -45,6 +46,7 @@ export default function NotificationBell() {
 
   const [signupRequests, setSignupRequests] = useState<SignupRequest[]>([]);
   const [myTickets, setMyTickets] = useState<Ticket[]>([]);
+  const [myComplaints, setMyComplaints] = useState<Complaint[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
 
@@ -60,6 +62,11 @@ export default function NotificationBell() {
   useEffect(() => {
     if (!user) return;
     return subscribeToMyTickets(user.uid, setMyTickets);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    return subscribeToMyComplaintsEver(user.uid, setMyComplaints);
   }, [user]);
 
   const items: NotificationItem[] = [
@@ -91,6 +98,26 @@ export default function NotificationBell() {
         href: `/tickets/${ticket.id}`,
         title: t("ticketStatusTitle", { id: ticket.id, status: tStatus(ticket.status) }),
         subtitle: ticket.subject,
+      })),
+    // Complaints don't have a "requester" like tickets do — the current
+    // assignee is who cares about both being assigned and later status
+    // changes, so both notifications key off assignedTo rather than
+    // splitting between assignedTo and createdBy the way tickets do.
+    ...myComplaints
+      .filter((c) => c.assignedTo === user?.uid)
+      .map((c) => ({
+        id: `complaint-assigned:${c.id}:${c.assignedTo}`,
+        href: `/complaints/${c.id}`,
+        title: t("complaintAssignedTitle", { id: c.id }),
+        subtitle: c.customerName,
+      })),
+    ...myComplaints
+      .filter((c) => c.assignedTo === user?.uid && c.status !== "Open")
+      .map((c) => ({
+        id: `complaint-status:${c.id}:${c.status}:${c.updatedAt}`,
+        href: `/complaints/${c.id}`,
+        title: t("complaintStatusTitle", { id: c.id, status: tStatus(c.status) }),
+        subtitle: c.customerName,
       })),
   ];
 

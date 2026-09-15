@@ -168,7 +168,9 @@
     "empty": "لا توجد إشعارات جديدة.",
     "accountRequestTitle": "طلب حساب جديد: {name}",
     "ticketAssignedTitle": "تم إسناد التذكرة IT #{id} إليك",
-    "ticketStatusTitle": "حالة التذكرة IT #{id} الآن {status}"
+    "ticketStatusTitle": "حالة التذكرة IT #{id} الآن {status}",
+    "complaintAssignedTitle": "تم إسناد الشكوى #{id} إليك",
+    "complaintStatusTitle": "حالة الشكوى #{id} الآن {status}"
   },
   "dashboard": {
     "title": "الشكاوى",
