@@ -127,6 +127,19 @@ export default function SearchableSelect<T>({
             setQuery("");
             setOpen(true);
           }}
+          onClick={() => {
+            // Picking an option (see the option buttons' onMouseDown below)
+            // keeps focus on this input rather than blurring it, so a second
+            // click right after picking something doesn't fire a new native
+            // focus event — onFocus above never reruns, and without this the
+            // list stayed closed until the user typed a character to trigger
+            // it via onChange instead. A plain click always fires though, so
+            // reopen here too whenever the list isn't already open.
+            if (!open) {
+              setQuery("");
+              setOpen(true);
+            }
+          }}
           onChange={(e) => {
             setQuery(e.target.value);
             // Re-open on every keystroke, not just on focus — editing right
