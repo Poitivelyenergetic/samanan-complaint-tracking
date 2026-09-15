@@ -184,6 +184,7 @@
     "searchPlaceholder": "ابحث باسم/هاتف العميل أو رقم الطلب أو الرقم المرجعي...",
     "statusFilter": "الحالة",
     "assigneeFilter": "المسندة إلى",
+    "recordedByFilter": "سجّلها",
     "typeFilter": "النوع",
     "sourceFilter": "المصدر",
     "noResults": "لا توجد شكاوى.",

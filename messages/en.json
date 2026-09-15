@@ -184,6 +184,7 @@
     "searchPlaceholder": "Search by customer name/phone, order number, or reference number...",
     "statusFilter": "Status",
     "assigneeFilter": "Assigned to",
+    "recordedByFilter": "Recorded by",
     "typeFilter": "Type",
     "sourceFilter": "Source",
     "noResults": "No complaints found.",

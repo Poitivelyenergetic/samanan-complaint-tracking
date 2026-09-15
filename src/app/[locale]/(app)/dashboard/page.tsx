@@ -104,6 +104,14 @@ export default function DashboardPage() {
     setAssigneeFilter(paramAssignedTo);
   }
 
+  const paramRecordedBy = searchParams.get("recordedBy") ?? "";
+  const [recordedByFilter, setRecordedByFilter] = useState(paramRecordedBy);
+  const [syncedParamRecordedBy, setSyncedParamRecordedBy] = useState(paramRecordedBy);
+  if (paramRecordedBy !== syncedParamRecordedBy) {
+    setSyncedParamRecordedBy(paramRecordedBy);
+    setRecordedByFilter(paramRecordedBy);
+  }
+
   const paramType = searchParams.get("type") ?? "";
   const [typeFilter, setTypeFilter] = useState(paramType);
   const [syncedParamType, setSyncedParamType] = useState(paramType);
@@ -186,6 +194,13 @@ export default function DashboardPage() {
     ],
     [staff, locale, t, tCommon]
   );
+  const recordedByFilterOptions = useMemo(
+    () => [
+      { id: "", label: `${t("recordedByFilter")}: ${tCommon("all")}` },
+      ...staff.map((member) => ({ id: member.id, label: localizedName(member, locale) })),
+    ],
+    [staff, locale, t, tCommon]
+  );
 
   const visibleComplaints = useMemo(() => (canView ? complaints : []), [canView, complaints]);
 
@@ -199,6 +214,7 @@ export default function DashboardPage() {
     const { from, to } = dateRangeFor(datePreset, fromFilter, toFilter);
     return visibleComplaints.filter((c) => {
       if (assigneeFilter && c.assignedTo !== assigneeFilter) return false;
+      if (recordedByFilter && c.createdBy !== recordedByFilter) return false;
       if (typeFilter && c.complaintTypeId !== typeFilter) return false;
       if (sourceFilter && c.complaintSourceId !== sourceFilter) return false;
       if (from || to) {
@@ -217,7 +233,17 @@ export default function DashboardPage() {
       }
       return true;
     });
-  }, [visibleComplaints, search, assigneeFilter, typeFilter, sourceFilter, datePreset, fromFilter, toFilter]);
+  }, [
+    visibleComplaints,
+    search,
+    assigneeFilter,
+    recordedByFilter,
+    typeFilter,
+    sourceFilter,
+    datePreset,
+    fromFilter,
+    toFilter,
+  ]);
 
   const statusCounts = useMemo(() => {
     const counts: Record<ComplaintStatus, number> = { Open: 0, Assigned: 0, Processing: 0, Cancel: 0, Closed: 0 };
@@ -278,6 +304,19 @@ export default function DashboardPage() {
               getLabel={(option) => option.label}
               allowClear={false}
               ariaLabel={t("assigneeFilter")}
+            />
+          </div>
+        )}
+        {canViewAll && (
+          <div className="w-[220px]">
+            <SearchableSelect
+              items={recordedByFilterOptions}
+              value={recordedByFilter}
+              onChange={setRecordedByFilter}
+              getId={(option) => option.id}
+              getLabel={(option) => option.label}
+              allowClear={false}
+              ariaLabel={t("recordedByFilter")}
             />
           </div>
         )}

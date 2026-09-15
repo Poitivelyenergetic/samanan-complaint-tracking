@@ -1141,7 +1141,19 @@ export default function HomePage() {
                           itemStyle={TOOLTIP_ITEM_STYLE}
                           cursor={BAR_CURSOR}
                         />
-                        <Bar dataKey="count" fill="#14b8a6" radius={[0, 4, 4, 0]} barSize={28} />
+                        <Bar
+                          dataKey="count"
+                          fill="#14b8a6"
+                          radius={[0, 4, 4, 0]}
+                          barSize={28}
+                          cursor="pointer"
+                          onClick={(data: { payload?: { id: string } }) => {
+                            if (!data.payload) return;
+                            router.push(
+                              dashboardHref({ recordedBy: data.payload.id, status: topRecordersStatusFilter || undefined })
+                            );
+                          }}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   )}
