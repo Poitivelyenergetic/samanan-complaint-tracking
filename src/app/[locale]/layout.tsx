@@ -59,7 +59,13 @@ export default async function LocaleLayout({
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <ThemeProvider>
-          <NextIntlClientProvider messages={messages}>
+          {/* timeZone must be passed explicitly — it isn't inherited from
+              next-intl's server request config (see i18n/request.ts).
+              Without it, every "use client" page's useFormatter() (ticket/
+              complaint history timestamps included) falls back to the
+              browser/OS's own timezone instead of Asia/Riyadh, so a device
+              set to UTC displayed history times hours off from local time. */}
+          <NextIntlClientProvider messages={messages} timeZone="Asia/Riyadh">
             <AuthProvider>{children}</AuthProvider>
           </NextIntlClientProvider>
         </ThemeProvider>
