@@ -84,50 +84,79 @@ export default function MyComplaintsPage() {
   const assigneeName = (uid: string | null) =>
     uid ? localizedName(staffById.get(uid), locale) || uid : tCommon("unassigned");
 
-  const assignedToMe = useMemo(
-    () => (complaints ?? []).filter((c) => c.assignedTo === user?.uid),
-    [complaints, user]
-  );
-  const closedByMe = useMemo(() => (complaints ?? []).filter((c) => c.status === "Closed"), [complaints]);
-  // Distinct from "Assigned to Me": that includes complaints assigned to
-  // you from the moment they were created. These two instead look at the
-  // actual "reassigned" history entries to tell reassignment direction —
-  // received via a reassignment (regardless of who holds it now) vs. moved
-  // away from you to someone else.
-  const reassignedToMe = useMemo(
-    () =>
-      (complaints ?? []).filter((c) => c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid)),
-    [complaints, user]
-  );
-  const reassignedFromMe = useMemo(
-    () =>
-      (complaints ?? []).filter((c) =>
-        c.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid)
-      ),
-    [complaints, user]
-  );
-
-  const filtered = useMemo(() => {
+  // The date filter applies to every stat card's own count, not just the
+  // table below — otherwise picking a range narrowed the list but left
+  // "Assigned to Me" etc. still showing the all-time total, which read as
+  // the filter silently not working for those cards.
+  const dateFiltered = useMemo(() => {
     const list = complaints ?? [];
-    const sorted = [...list].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-    const byBucket = sorted.filter((c) => {
-      if (bucket === "assigned") return c.assignedTo === user?.uid;
-      if (bucket === "closed") return c.status === "Closed";
-      if (bucket === "reassignedTo")
-        return c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid);
-      if (bucket === "reassignedFrom")
-        return c.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid);
-      return true;
-    });
     const { from, to } = dateRangeFor(datePreset, dateFrom, dateTo);
-    if (!from && !to) return byBucket;
-    return byBucket.filter((c) => {
+    if (!from && !to) return list;
+    return list.filter((c) => {
       const created = new Date(c.createdAt);
       if (from && created < from) return false;
       if (to && created > to) return false;
       return true;
     });
-  }, [complaints, bucket, user, datePreset, dateFrom, dateTo]);
+  }, [complaints, datePreset, dateFrom, dateTo]);
+
+  // "Assigned to Me" and "Reassigned to Me" only count complaints whose
+  // status is still literally "Open" or "Assigned" (not Processing, Cancel,
+  // or Closed) — those two cards are meant to surface what's newly on your
+  // plate and not yet picked up, not everything still technically
+  // unresolved. "Reassigned from Me" intentionally keeps every status,
+  // since it's a history of what moved away from you rather than a
+  // worklist.
+  const isOpenStatus = (c: Complaint) => c.status === "Open" || c.status === "Assigned";
+
+  const assignedToMe = useMemo(
+    () => dateFiltered.filter((c) => c.assignedTo === user?.uid && isOpenStatus(c)),
+    [dateFiltered, user]
+  );
+  const closedByMe = useMemo(() => dateFiltered.filter((c) => c.status === "Closed"), [dateFiltered]);
+  // Distinct from "Assigned to Me": that includes complaints assigned to
+  // you from the moment they were created. These two instead look at the
+  // actual "reassigned" history entries to tell reassignment direction —
+  // received via a reassignment (regardless of who holds it now) vs. moved
+  // away from you to someone else.
+  // Also requires still being the current assignee — once it's reassigned
+  // away to someone else, it should drop out of this list rather than stay
+  // forever just because it passed through you at some point in its
+  // history.
+  const reassignedToMe = useMemo(
+    () =>
+      dateFiltered.filter(
+        (c) =>
+          c.assignedTo === user?.uid &&
+          c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid) &&
+          isOpenStatus(c)
+      ),
+    [dateFiltered, user]
+  );
+  const reassignedFromMe = useMemo(
+    () =>
+      dateFiltered.filter((c) =>
+        c.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid)
+      ),
+    [dateFiltered, user]
+  );
+
+  const filtered = useMemo(() => {
+    const sorted = [...dateFiltered].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return sorted.filter((c) => {
+      if (bucket === "assigned") return c.assignedTo === user?.uid && isOpenStatus(c);
+      if (bucket === "closed") return c.status === "Closed";
+      if (bucket === "reassignedTo")
+        return (
+          c.assignedTo === user?.uid &&
+          c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid) &&
+          isOpenStatus(c)
+        );
+      if (bucket === "reassignedFrom")
+        return c.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid);
+      return true;
+    });
+  }, [dateFiltered, bucket, user]);
 
   if (loading || !profile) {
     return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
@@ -153,7 +182,7 @@ export default function MyComplaintsPage() {
             icon={<IconClipboardList />}
             color="#6366f1"
             label={t("stats.total")}
-            value={complaints.length}
+            value={dateFiltered.length}
             active={bucket === ""}
             onClick={() => setBucket("")}
           />

@@ -189,20 +189,16 @@ export default function DashboardPage() {
 
   const visibleComplaints = useMemo(() => (canView ? complaints : []), [canView, complaints]);
 
-  const statusCounts = useMemo(() => {
-    const counts: Record<ComplaintStatus, number> = { Open: 0, Assigned: 0, Processing: 0, Cancel: 0, Closed: 0 };
-    (visibleComplaints ?? []).forEach((c) => {
-      counts[c.status] += 1;
-    });
-    return counts;
-  }, [visibleComplaints]);
-
-  const filtered = useMemo(() => {
+  // Everything the table's filter row applies except status — the basis for
+  // both the status breakdown in the stat cards above (so they reflect the
+  // search/date/assignee/type/source filters instead of always showing the
+  // all-time, all-filters total) and, further narrowed by status, the table
+  // itself.
+  const filteredExceptStatus = useMemo(() => {
     if (!visibleComplaints) return [];
     const term = search.trim().toLowerCase();
     const { from, to } = dateRangeFor(datePreset, fromFilter, toFilter);
     return visibleComplaints.filter((c) => {
-      if (statusFilter && c.status !== statusFilter) return false;
       if (assigneeFilter && c.assignedTo !== assigneeFilter) return false;
       if (typeFilter && c.complaintTypeId !== typeFilter) return false;
       if (sourceFilter && c.complaintSourceId !== sourceFilter) return false;
@@ -222,7 +218,20 @@ export default function DashboardPage() {
       }
       return true;
     });
-  }, [visibleComplaints, search, statusFilter, assigneeFilter, typeFilter, sourceFilter, datePreset, fromFilter, toFilter]);
+  }, [visibleComplaints, search, assigneeFilter, typeFilter, sourceFilter, datePreset, fromFilter, toFilter]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<ComplaintStatus, number> = { Open: 0, Assigned: 0, Processing: 0, Cancel: 0, Closed: 0 };
+    filteredExceptStatus.forEach((c) => {
+      counts[c.status] += 1;
+    });
+    return counts;
+  }, [filteredExceptStatus]);
+
+  const filtered = useMemo(
+    () => (statusFilter ? filteredExceptStatus.filter((c) => c.status === statusFilter) : filteredExceptStatus),
+    [filteredExceptStatus, statusFilter]
+  );
 
   return (
     <div>
@@ -247,7 +256,7 @@ export default function DashboardPage() {
             icon={<IconClipboardList />}
             color="#475569"
             label={t("stats.total")}
-            value={visibleComplaints.length}
+            value={filteredExceptStatus.length}
             active={statusFilter === ""}
             onClick={() => router.push("/dashboard")}
           />
