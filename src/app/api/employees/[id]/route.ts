@@ -48,11 +48,14 @@ export async function PATCH(
 
   const permissions = await computeUnionPermissions(roleIds);
 
+  let previousEmail: string | undefined;
   try {
     const authUpdates: { email: string; password?: string } = {
       email: usernameToEmail(username),
     };
     if (password) authUpdates.password = password;
+    const existing = await getAdminAuth().getUser(id);
+    previousEmail = existing.email;
     await getAdminAuth().updateUser(id, authUpdates);
   } catch (err: unknown) {
     const code = (err as { code?: string })?.code;
@@ -65,23 +68,41 @@ export async function PATCH(
     return NextResponse.json({ error: "auth_update_failed" }, { status: 500 });
   }
 
-  await getAdminDb().collection("users").doc(id).set(
-    {
-      id,
-      nameAr,
-      nameEn,
-      username,
-      number,
-      phone,
-      jobTitle,
-      companyId,
-      administrationId,
-      departmentId,
-      roleIds,
-      permissions,
-    },
-    { merge: true }
-  );
+  try {
+    await getAdminDb()
+      .collection("users")
+      .doc(id)
+      .set(
+        {
+          id,
+          nameAr,
+          nameEn,
+          username,
+          number,
+          phone,
+          jobTitle,
+          companyId,
+          administrationId,
+          departmentId,
+          roleIds,
+          permissions,
+        },
+        { merge: true }
+      );
+  } catch (err) {
+    // The Auth email (and possibly password) already changed at this
+    // point — leaving that in place with a Firestore profile still showing
+    // the old username would let the old username's login stop working
+    // while the profile shown elsewhere in the app stays stale. Revert the
+    // email so the account stays reachable under its original username;
+    // a changed password can't be rolled back, so only email is restored.
+    if (previousEmail) {
+      await getAdminAuth()
+        .updateUser(id, { email: previousEmail })
+        .catch(() => undefined);
+    }
+    throw err;
+  }
 
   return NextResponse.json({ ok: true });
 }
