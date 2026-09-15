@@ -16,7 +16,9 @@ import {
   type ComplaintType,
   type StaffUser,
 } from "@/lib/types";
+import { dateRangeFor, type DateFilter } from "@/lib/dateRange";
 import StatusBadge from "@/components/StatusBadge";
+import DateRangeFilter from "@/components/DateRangeFilter";
 import { IconClipboardList, IconInbox, IconRefreshCw, IconShieldCheck } from "@/components/icons";
 
 type Bucket = "" | "assigned" | "closed" | "reassignedTo" | "reassignedFrom";
@@ -64,6 +66,9 @@ export default function MyComplaintsPage() {
   const [complaintTypes, setComplaintTypes] = useState<ComplaintType[]>([]);
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [bucket, setBucket] = useState<Bucket>("");
+  const [datePreset, setDatePreset] = useState<DateFilter>("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   useEffect(() => {
     if (!user || !canView) return;
@@ -105,16 +110,24 @@ export default function MyComplaintsPage() {
   const filtered = useMemo(() => {
     const list = complaints ?? [];
     const sorted = [...list].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-    if (bucket === "assigned") return sorted.filter((c) => c.assignedTo === user?.uid);
-    if (bucket === "closed") return sorted.filter((c) => c.status === "Closed");
-    if (bucket === "reassignedTo")
-      return sorted.filter((c) => c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid));
-    if (bucket === "reassignedFrom")
-      return sorted.filter((c) =>
-        c.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid)
-      );
-    return sorted;
-  }, [complaints, bucket, user]);
+    const byBucket = sorted.filter((c) => {
+      if (bucket === "assigned") return c.assignedTo === user?.uid;
+      if (bucket === "closed") return c.status === "Closed";
+      if (bucket === "reassignedTo")
+        return c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid);
+      if (bucket === "reassignedFrom")
+        return c.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid);
+      return true;
+    });
+    const { from, to } = dateRangeFor(datePreset, dateFrom, dateTo);
+    if (!from && !to) return byBucket;
+    return byBucket.filter((c) => {
+      const created = new Date(c.createdAt);
+      if (from && created < from) return false;
+      if (to && created > to) return false;
+      return true;
+    });
+  }, [complaints, bucket, user, datePreset, dateFrom, dateTo]);
 
   if (loading || !profile) {
     return <p className="text-sm text-foreground/50">{tCommon("loading")}</p>;
@@ -179,7 +192,18 @@ export default function MyComplaintsPage() {
         </div>
       )}
 
-      <div className="mt-6 overflow-x-auto rounded-lg border border-border bg-surface">
+      <div className="mt-6 flex flex-wrap gap-3">
+        <DateRangeFilter
+          preset={datePreset}
+          onPresetChange={setDatePreset}
+          from={dateFrom}
+          to={dateTo}
+          onFromChange={setDateFrom}
+          onToChange={setDateTo}
+        />
+      </div>
+
+      <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-surface">
         <table className="w-full min-w-[720px] text-start text-sm">
           <thead>
             <tr className="border-b border-border bg-black/[0.02] text-start text-xs font-semibold uppercase tracking-wide text-foreground/50">

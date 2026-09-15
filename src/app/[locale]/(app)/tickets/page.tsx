@@ -18,8 +18,10 @@ import {
   type TicketStatus,
   type TicketType,
 } from "@/lib/types";
+import { dateRangeFor, type DateFilter } from "@/lib/dateRange";
 import StatusBadge from "@/components/StatusBadge";
 import SearchableSelect from "@/components/SearchableSelect";
+import DateRangeFilter from "@/components/DateRangeFilter";
 import { IconClipboardList, IconInbox, IconRefreshCw, IconShieldCheck } from "@/components/icons";
 
 function StatCard({
@@ -63,6 +65,9 @@ export default function TicketsPage() {
   const [assigneeFilter, setAssigneeFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
+  const [datePreset, setDatePreset] = useState<DateFilter>("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   useEffect(() => {
     if (!canView) return;
@@ -116,11 +121,17 @@ export default function TicketsPage() {
   const filtered = useMemo(() => {
     if (!tickets) return [];
     const term = search.trim().toLowerCase();
+    const { from, to } = dateRangeFor(datePreset, dateFrom, dateTo);
     return tickets.filter((tk) => {
       if (statusFilter && tk.status !== statusFilter) return false;
       if (assigneeFilter && tk.assignedTo !== assigneeFilter) return false;
       if (typeFilter && tk.ticketTypeId !== typeFilter) return false;
       if (sourceFilter && tk.ticketSourceId !== sourceFilter) return false;
+      if (from || to) {
+        const created = new Date(tk.createdAt);
+        if (from && created < from) return false;
+        if (to && created > to) return false;
+      }
       if (
         term &&
         !tk.subject.toLowerCase().includes(term) &&
@@ -131,7 +142,7 @@ export default function TicketsPage() {
       }
       return true;
     });
-  }, [tickets, search, statusFilter, assigneeFilter, typeFilter, sourceFilter]);
+  }, [tickets, search, statusFilter, assigneeFilter, typeFilter, sourceFilter, datePreset, dateFrom, dateTo]);
 
   if (!canView) {
     return (
@@ -223,6 +234,14 @@ export default function TicketsPage() {
             ariaLabel={t("sourceFilter")}
           />
         </div>
+        <DateRangeFilter
+          preset={datePreset}
+          onPresetChange={setDatePreset}
+          from={dateFrom}
+          to={dateTo}
+          onFromChange={setDateFrom}
+          onToChange={setDateTo}
+        />
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">

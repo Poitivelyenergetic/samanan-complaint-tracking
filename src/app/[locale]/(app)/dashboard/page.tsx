@@ -19,8 +19,10 @@ import {
   type StaffUser,
 } from "@/lib/types";
 import { COMPLAINT_STATUSES } from "@/lib/types";
+import { dateRangeFor, type DateFilter } from "@/lib/dateRange";
 import StatusBadge from "@/components/StatusBadge";
 import SearchableSelect from "@/components/SearchableSelect";
+import DateRangeFilter from "@/components/DateRangeFilter";
 import { IconClipboardList, IconInbox, IconRefreshCw, IconShieldCheck } from "@/components/icons";
 
 function StatCard({
@@ -119,24 +121,26 @@ export default function DashboardPage() {
   }
 
   // "YYYY-MM-DD", inclusive on both ends — lets a home page trend chart
-  // point link straight to that single day's complaints. No dedicated UI
-  // control for these (unlike the filters above); they're only ever set by
-  // arriving via such a link, and clearing back to a normal view (e.g. the
-  // Total stat card) drops them like any other param not in the URL.
+  // point link straight to that single day's complaints, or the date-range
+  // filter below set a custom range directly.
   const paramFrom = searchParams.get("from") ?? "";
   const [fromFilter, setFromFilter] = useState(paramFrom);
   const [syncedParamFrom, setSyncedParamFrom] = useState(paramFrom);
-  if (paramFrom !== syncedParamFrom) {
-    setSyncedParamFrom(paramFrom);
-    setFromFilter(paramFrom);
-  }
 
   const paramTo = searchParams.get("to") ?? "";
   const [toFilter, setToFilter] = useState(paramTo);
   const [syncedParamTo, setSyncedParamTo] = useState(paramTo);
-  if (paramTo !== syncedParamTo) {
+
+  // Arriving via a link with from/to params (e.g. a home page chart point)
+  // implies a custom range; otherwise it defaults to "all" and the preset
+  // dropdown drives fromFilter/toFilter instead of the URL.
+  const [datePreset, setDatePreset] = useState<DateFilter>(paramFrom || paramTo ? "custom" : "all");
+  if (paramFrom !== syncedParamFrom || paramTo !== syncedParamTo) {
+    setSyncedParamFrom(paramFrom);
     setSyncedParamTo(paramTo);
+    setFromFilter(paramFrom);
     setToFilter(paramTo);
+    if (paramFrom || paramTo) setDatePreset("custom");
   }
 
   useEffect(() => {
@@ -196,8 +200,7 @@ export default function DashboardPage() {
   const filtered = useMemo(() => {
     if (!visibleComplaints) return [];
     const term = search.trim().toLowerCase();
-    const from = fromFilter ? new Date(`${fromFilter}T00:00:00`) : null;
-    const to = toFilter ? new Date(`${toFilter}T23:59:59.999`) : null;
+    const { from, to } = dateRangeFor(datePreset, fromFilter, toFilter);
     return visibleComplaints.filter((c) => {
       if (statusFilter && c.status !== statusFilter) return false;
       if (assigneeFilter && c.assignedTo !== assigneeFilter) return false;
@@ -219,7 +222,7 @@ export default function DashboardPage() {
       }
       return true;
     });
-  }, [visibleComplaints, search, statusFilter, assigneeFilter, typeFilter, sourceFilter, fromFilter, toFilter]);
+  }, [visibleComplaints, search, statusFilter, assigneeFilter, typeFilter, sourceFilter, datePreset, fromFilter, toFilter]);
 
   return (
     <div>
@@ -329,6 +332,14 @@ export default function DashboardPage() {
             ariaLabel={t("sourceFilter")}
           />
         </div>
+        <DateRangeFilter
+          preset={datePreset}
+          onPresetChange={setDatePreset}
+          from={fromFilter}
+          to={toFilter}
+          onFromChange={setFromFilter}
+          onToChange={setToFilter}
+        />
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
