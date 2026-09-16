@@ -84,10 +84,12 @@ service cloud.firestore {
     // only moving it (assignedTo) and/or progressing it (status). Full
     // content edits require complaints.editDetails instead (see the update
     // rule below). `status` is included here too since reassignComplaint()
-    // bumps Open straight to Assigned as part of the same write.
+    // bumps Open straight to Assigned as part of the same write, and
+    // `everAssignedTo` since that same write also records the new assignee
+    // in that array.
     function isReassignWrite() {
       let affected = request.resource.data.diff(resource.data).affectedKeys();
-      return affected.hasOnly(["assignedTo", "status", "updatedAt", "history"]);
+      return affected.hasOnly(["assignedTo", "status", "updatedAt", "history", "everAssignedTo"]);
     }
 
     // The current assignee can move a complaint's status even without
