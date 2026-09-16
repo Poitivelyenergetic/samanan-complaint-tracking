@@ -30,7 +30,7 @@ import { dateRangeFor, type DateFilter } from "@/lib/dateRange";
 import StatusBadge from "@/components/StatusBadge";
 import SearchableSelect from "@/components/SearchableSelect";
 import DateRangeFilter from "@/components/DateRangeFilter";
-import { IconClipboardList, IconInbox, IconRefreshCw, IconShieldCheck } from "@/components/icons";
+import { IconClipboardList, IconInbox, IconPaperclip, IconRefreshCw, IconShieldCheck } from "@/components/icons";
 
 function StatCard({
   icon,
@@ -464,9 +464,16 @@ export default function DashboardPage() {
                   className="border-b border-border last:border-0 hover:bg-black/[0.02]"
                 >
                   <td className="px-4 py-3">
-                    <Link href={`/complaints/${c.id}`} className="font-mono text-xs text-brand hover:underline">
-                      {c.id}
-                    </Link>
+                    <div className="flex items-center gap-1.5">
+                      <Link href={`/complaints/${c.id}`} className="font-mono text-xs text-brand hover:underline">
+                        {c.id}
+                      </Link>
+                      {c.attachmentUrls.length > 0 && (
+                        <span title={tCommon("hasAttachment")}>
+                          <IconPaperclip className="h-3.5 w-3.5 shrink-0 text-foreground/40" />
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <Link href={`/complaints/${c.id}`} className="font-medium text-foreground hover:text-brand">

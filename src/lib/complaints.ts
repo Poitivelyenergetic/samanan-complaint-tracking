@@ -47,7 +47,7 @@ function fromDoc(id: string, data: DocumentData): Complaint {
     complainantName: data.complainantName ?? null,
     contactEmail: data.contactEmail ?? null,
     contactPhone: data.contactPhone ?? null,
-    attachmentUrl: data.attachmentUrl ?? null,
+    attachmentUrls: Array.isArray(data.attachmentUrls) ? (data.attachmentUrls as string[]) : [],
     assignedTo: data.assignedTo ?? null,
     status: data.status ?? "Open",
     // Complaints predating history tracking have none — treat as empty
@@ -196,7 +196,7 @@ export async function reassignComplaint(
   currentStatus: Complaint["status"] | null,
   byUid: string | null,
   reason: string,
-  attachmentUrl?: string | null
+  attachmentUrls?: string[]
 ): Promise<void> {
   const at = await resolveServerNowIso(COLLECTION, id);
   // Reassigning to someone while still Open moves it to Assigned — mirrors
@@ -212,7 +212,7 @@ export async function reassignComplaint(
       assignedTo,
       previousAssignedTo,
       reason,
-      ...(attachmentUrl ? { attachmentUrl } : {}),
+      ...(attachmentUrls && attachmentUrls.length ? { attachmentUrls } : {}),
       at,
       byUid,
     }),

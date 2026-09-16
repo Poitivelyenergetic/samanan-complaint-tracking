@@ -31,7 +31,7 @@ export default function ReassignComplaintPage({
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
+  const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
   const [attachmentUploading, setAttachmentUploading] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -71,7 +71,7 @@ export default function ReassignComplaintPage({
         complaint?.status ?? null,
         user?.uid ?? null,
         reason.trim(),
-        attachmentUrl
+        attachmentUrls
       );
       router.push(`/complaints/${id}`);
     } catch {
@@ -80,15 +80,21 @@ export default function ReassignComplaintPage({
     }
   }
 
-  async function uploadAttachment(file: File) {
+  async function uploadAttachments(files: FileList | File[]) {
+    const fileList = Array.from(files);
+    if (!fileList.length) return;
     setAttachmentError(null);
     setAttachmentUploading(true);
     try {
-      const path = `complaints/${Date.now()}-${file.name}`;
-      const fileRef = ref(storage, path);
-      await uploadBytes(fileRef, file, { contentType: file.type });
-      const url = await getDownloadURL(fileRef);
-      setAttachmentUrl(url);
+      const urls = await Promise.all(
+        fileList.map(async (file) => {
+          const path = `complaints/${Date.now()}-${file.name}`;
+          const fileRef = ref(storage, path);
+          await uploadBytes(fileRef, file, { contentType: file.type });
+          return getDownloadURL(fileRef);
+        })
+      );
+      setAttachmentUrls((prev) => [...prev, ...urls]);
     } catch {
       setAttachmentError(tDetail("attachmentUploadFailed"));
     } finally {
@@ -96,17 +102,20 @@ export default function ReassignComplaintPage({
     }
   }
 
+  function removeAttachment(url: string) {
+    setAttachmentUrls((prev) => prev.filter((u) => u !== url));
+  }
+
   function handleAttachmentInputChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const files = e.target.files ? Array.from(e.target.files) : [];
     e.target.value = "";
-    if (file) uploadAttachment(file);
+    if (files.length) uploadAttachments(files);
   }
 
   function handleAttachmentDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) uploadAttachment(file);
+    if (e.dataTransfer.files.length) uploadAttachments(e.dataTransfer.files);
   }
 
   if (complaint === undefined || loading || !profile || !canReassign) {
@@ -178,23 +187,36 @@ export default function ReassignComplaintPage({
               dragOver ? "border-brand bg-brand/5" : "border-border"
             }`}
           >
-            {attachmentUrl ? (
+            {attachmentUrls.length > 0 ? (
               <>
-                <a
-                  href={attachmentUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-brand hover:underline"
-                >
-                  {tDetail("viewAttachment")}
-                </a>
+                <ul className="w-full space-y-1">
+                  {attachmentUrls.map((url, i) => (
+                    <li key={url} className="flex items-center justify-center gap-2">
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-brand hover:underline"
+                      >
+                        {attachmentUrls.length > 1 ? `${tDetail("viewAttachment")} ${i + 1}` : tDetail("viewAttachment")}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(url)}
+                        className="text-xs text-foreground/50 hover:text-red-600"
+                      >
+                        {t("removeAttachment")}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
                 <button
                   type="button"
                   onClick={() => attachmentInputRef.current?.click()}
                   disabled={attachmentUploading}
                   className="text-xs text-foreground/60 hover:text-foreground disabled:opacity-50"
                 >
-                  {attachmentUploading ? tCommon("saving") : t("replaceAttachment")}
+                  {attachmentUploading ? tCommon("saving") : t("addMoreFiles")}
                 </button>
               </>
             ) : (
@@ -210,7 +232,13 @@ export default function ReassignComplaintPage({
                 </button>
               </>
             )}
-            <input ref={attachmentInputRef} type="file" onChange={handleAttachmentInputChange} className="hidden" />
+            <input
+              ref={attachmentInputRef}
+              type="file"
+              multiple
+              onChange={handleAttachmentInputChange}
+              className="hidden"
+            />
           </div>
           {attachmentError && <p className="mt-1 text-xs text-red-600">{attachmentError}</p>}
         </div>

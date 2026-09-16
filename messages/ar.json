@@ -21,7 +21,8 @@
     "back": "رجوع",
     "required": "مطلوب",
     "somethingWentWrong": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
-    "confirmDelete": "هل أنت متأكد من حذف هذه الشكوى؟"
+    "confirmDelete": "هل أنت متأكد من حذف هذه الشكوى؟",
+    "hasAttachment": "يحتوي على مرفق"
   },
   "nav": {
     "home": "الرئيسية",
@@ -221,9 +222,11 @@
       "assignedTo": "مسندة إلى",
       "status": "الحالة",
       "attachment": "المرفق",
-      "attachmentDropHint": "اسحب وأفلت ملفاً هنا، أو",
-      "chooseFile": "اختر ملفاً",
-      "replaceAttachment": "استبدال الملف"
+      "attachmentDropHint": "اسحب وأفلت الملفات هنا، أو",
+      "chooseFile": "اختر ملفات",
+      "replaceAttachment": "استبدال الملف",
+      "addMoreFiles": "إضافة المزيد من الملفات",
+      "removeAttachment": "إزالة"
     },
     "new": {
       "title": "شكوى جديدة",
@@ -274,9 +277,11 @@
       "submit": "إعادة الإسناد",
       "submitting": "جارٍ إعادة الإسناد...",
       "attachment": "المرفق",
-      "attachmentDropHint": "اسحب وأفلت ملفاً هنا، أو",
-      "chooseFile": "اختر ملفاً",
-      "replaceAttachment": "استبدال الملف"
+      "attachmentDropHint": "اسحب وأفلت الملفات هنا، أو",
+      "chooseFile": "اختر ملفات",
+      "replaceAttachment": "استبدال الملف",
+      "addMoreFiles": "إضافة المزيد من الملفات",
+      "removeAttachment": "إزالة"
     }
   },
   "staffSignup": {

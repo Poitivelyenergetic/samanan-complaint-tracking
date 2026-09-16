@@ -190,7 +190,7 @@ export default function ComplaintDetailPage({
             complainantName: complaint.complainantName,
             contactEmail: complaint.contactEmail,
             contactPhone: complaint.contactPhone,
-            attachmentUrl: complaint.attachmentUrl,
+            attachmentUrls: complaint.attachmentUrls,
           }}
           submitLabel={t("submit")}
           submittingLabel={tCommon("saving")}
@@ -253,15 +253,20 @@ export default function ComplaintDetailPage({
                     {isReassignEntry && entry.reason && (
                       <p className="text-foreground/60">{t("historyReassignedReason", { reason: entry.reason })}</p>
                     )}
-                    {isReassignEntry && entry.attachmentUrl && (
-                      <a
-                        href={entry.attachmentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-brand hover:underline"
-                      >
-                        {t("viewAttachment")}
-                      </a>
+                    {isReassignEntry && entry.attachmentUrls && entry.attachmentUrls.length > 0 && (
+                      <div className="flex flex-wrap gap-x-3 gap-y-1">
+                        {entry.attachmentUrls.map((url, i) => (
+                          <a
+                            key={url}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-brand hover:underline"
+                          >
+                            {entry.attachmentUrls!.length > 1 ? `${t("viewAttachment")} ${i + 1}` : t("viewAttachment")}
+                          </a>
+                        ))}
+                      </div>
                     )}
                     {entry.type === "status" && entry.note && (
                       <p className="text-foreground/60">{t("historyStatusNote", { note: entry.note })}</p>

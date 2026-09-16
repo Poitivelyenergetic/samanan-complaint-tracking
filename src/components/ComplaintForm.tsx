@@ -40,7 +40,7 @@ export interface ComplaintFormValues {
   complainantName: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
-  attachmentUrl: string | null;
+  attachmentUrls: string[];
 }
 
 interface ComplaintFormProps {
@@ -94,7 +94,7 @@ const DEFAULT_VALUES: ComplaintFormValues = {
   complainantName: null,
   contactEmail: null,
   contactPhone: null,
-  attachmentUrl: null,
+  attachmentUrls: [],
 };
 
 const textInputClass =
@@ -249,7 +249,7 @@ export default function ComplaintForm({
       complainantName: values.complainantName,
       contactEmail: values.contactEmail,
       contactPhone: values.contactPhone,
-      attachmentUrl: values.attachmentUrl,
+      attachmentUrls: values.attachmentUrls,
       createdBy: null,
     };
   }
@@ -262,15 +262,21 @@ export default function ComplaintForm({
     }
   }
 
-  async function uploadAttachment(file: File) {
+  async function uploadAttachments(files: FileList | File[]) {
+    const fileList = Array.from(files);
+    if (!fileList.length) return;
     setAttachmentError(null);
     setAttachmentUploading(true);
     try {
-      const path = `complaints/${Date.now()}-${file.name}`;
-      const fileRef = ref(storage, path);
-      await uploadBytes(fileRef, file, { contentType: file.type });
-      const url = await getDownloadURL(fileRef);
-      update("attachmentUrl", url);
+      const urls = await Promise.all(
+        fileList.map(async (file) => {
+          const path = `complaints/${Date.now()}-${file.name}`;
+          const fileRef = ref(storage, path);
+          await uploadBytes(fileRef, file, { contentType: file.type });
+          return getDownloadURL(fileRef);
+        })
+      );
+      update("attachmentUrls", [...values.attachmentUrls, ...urls]);
     } catch {
       setAttachmentError(tDetail("attachmentUploadFailed"));
     } finally {
@@ -278,17 +284,23 @@ export default function ComplaintForm({
     }
   }
 
+  function removeAttachment(url: string) {
+    update(
+      "attachmentUrls",
+      values.attachmentUrls.filter((u) => u !== url)
+    );
+  }
+
   function handleAttachmentInputChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const files = e.target.files ? Array.from(e.target.files) : [];
     e.target.value = "";
-    if (file) uploadAttachment(file);
+    if (files.length) uploadAttachments(files);
   }
 
   function handleAttachmentDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) uploadAttachment(file);
+    if (e.dataTransfer.files.length) uploadAttachments(e.dataTransfer.files);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -329,15 +341,20 @@ export default function ComplaintForm({
             {values.contactEmail ? ` · ${values.contactEmail}` : ""}
             {values.contactPhone ? ` · ${values.contactPhone}` : ""}
           </p>
-          {values.attachmentUrl && (
-            <a
-              href={values.attachmentUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1 inline-block text-brand hover:underline"
-            >
-              {tDetail("viewAttachment")}
-            </a>
+          {values.attachmentUrls.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+              {values.attachmentUrls.map((url, i) => (
+                <a
+                  key={url}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block text-brand hover:underline"
+                >
+                  {values.attachmentUrls.length > 1 ? `${tDetail("viewAttachment")} ${i + 1}` : tDetail("viewAttachment")}
+                </a>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -472,23 +489,36 @@ export default function ComplaintForm({
                 dragOver ? "border-brand bg-brand/5" : "border-border"
               }`}
             >
-              {values.attachmentUrl ? (
+              {values.attachmentUrls.length > 0 ? (
                 <>
-                  <a
-                    href={values.attachmentUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium text-brand hover:underline"
-                  >
-                    {tDetail("viewAttachment")}
-                  </a>
+                  <ul className="w-full space-y-1">
+                    {values.attachmentUrls.map((url, i) => (
+                      <li key={url} className="flex items-center justify-center gap-2">
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-brand hover:underline"
+                        >
+                          {values.attachmentUrls.length > 1 ? `${tDetail("viewAttachment")} ${i + 1}` : tDetail("viewAttachment")}
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(url)}
+                          className="text-xs text-foreground/50 hover:text-red-600"
+                        >
+                          {t("removeAttachment")}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                   <button
                     type="button"
                     onClick={() => attachmentInputRef.current?.click()}
                     disabled={attachmentUploading}
                     className="text-xs text-foreground/60 hover:text-foreground disabled:opacity-50"
                   >
-                    {attachmentUploading ? tCommon("saving") : t("replaceAttachment")}
+                    {attachmentUploading ? tCommon("saving") : t("addMoreFiles")}
                   </button>
                 </>
               ) : (
@@ -507,6 +537,7 @@ export default function ComplaintForm({
               <input
                 ref={attachmentInputRef}
                 type="file"
+                multiple
                 onChange={handleAttachmentInputChange}
                 className="hidden"
               />

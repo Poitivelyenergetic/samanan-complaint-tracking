@@ -11,6 +11,7 @@ import { hasPermission, localizedName, type Complaint, type ComplaintType, type 
 import { phoneDigitsOnly, toLatinDigits } from "@/lib/phone";
 import StatusBadge from "@/components/StatusBadge";
 import Spinner from "@/components/Spinner";
+import { IconPaperclip } from "@/components/icons";
 
 export default function ComplaintInquiryPage() {
   const t = useTranslations("complaintInquiry");
@@ -108,9 +109,16 @@ export default function ComplaintInquiryPage() {
               results.map((c) => (
                 <tr key={c.id} className="border-b border-border last:border-0 hover:bg-black/[0.02]">
                   <td className="px-4 py-3">
-                    <Link href={`/complaints/${c.id}`} className="font-mono text-xs text-brand hover:underline">
-                      {c.id}
-                    </Link>
+                    <div className="flex items-center gap-1.5">
+                      <Link href={`/complaints/${c.id}`} className="font-mono text-xs text-brand hover:underline">
+                        {c.id}
+                      </Link>
+                      {c.attachmentUrls.length > 0 && (
+                        <span title={tCommon("hasAttachment")}>
+                          <IconPaperclip className="h-3.5 w-3.5 shrink-0 text-foreground/40" />
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <Link href={`/complaints/${c.id}`} className="font-medium text-foreground hover:text-brand">

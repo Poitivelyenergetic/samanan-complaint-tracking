@@ -21,7 +21,8 @@
     "back": "Back",
     "required": "Required",
     "somethingWentWrong": "Something went wrong. Please try again.",
-    "confirmDelete": "Are you sure you want to delete this complaint?"
+    "confirmDelete": "Are you sure you want to delete this complaint?",
+    "hasAttachment": "Has attachment"
   },
   "nav": {
     "home": "Home",
@@ -221,9 +222,11 @@
       "assignedTo": "Assigned To",
       "status": "Status",
       "attachment": "Attachment",
-      "attachmentDropHint": "Drag and drop a file here, or",
-      "chooseFile": "Choose File",
-      "replaceAttachment": "Replace file"
+      "attachmentDropHint": "Drag and drop files here, or",
+      "chooseFile": "Choose Files",
+      "replaceAttachment": "Replace file",
+      "addMoreFiles": "Add more files",
+      "removeAttachment": "Remove"
     },
     "new": {
       "title": "New Complaint",
@@ -274,9 +277,11 @@
       "submit": "Reassign",
       "submitting": "Reassigning...",
       "attachment": "Attachment",
-      "attachmentDropHint": "Drag and drop a file here, or",
-      "chooseFile": "Choose File",
-      "replaceAttachment": "Replace file"
+      "attachmentDropHint": "Drag and drop files here, or",
+      "chooseFile": "Choose Files",
+      "replaceAttachment": "Replace file",
+      "addMoreFiles": "Add more files",
+      "removeAttachment": "Remove"
     }
   },
   "staffSignup": {

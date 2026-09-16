@@ -31,6 +31,20 @@ export function IconClipboardList(props: IconProps) {
   );
 }
 
+export function IconPaperclip(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path
+        d="M13.5 7.5 8.4 12.6a2.5 2.5 0 0 0 3.54 3.54l5.3-5.3a4.5 4.5 0 1 0-6.36-6.36L5.6 9.76a6.5 6.5 0 1 0 9.19 9.19"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Base>
+  );
+}
+
 export function IconPlusCircle(props: IconProps) {
   return (
     <Base {...props}>
