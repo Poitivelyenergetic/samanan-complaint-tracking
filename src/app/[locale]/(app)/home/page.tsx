@@ -131,6 +131,15 @@ const TOOLTIP_ITEM_STYLE: React.CSSProperties = { color: "var(--foreground)" };
 // The default hover cursor on bar charts is a harsh solid gray rectangle —
 // tone it down to a faint themed highlight instead.
 const BAR_CURSOR = { fill: "var(--border)", opacity: 0.4 };
+// Recharts' default pie legend renders each label in that slice's own
+// (fully saturated) color at 16px — reads as garish and oversized next to
+// the rest of the page's muted, small chart text. Keeping the colored dot
+// but rendering the label itself in the same faint foreground tone as
+// every axis/tooltip label keeps the legend from standing out.
+const LEGEND_WRAPPER_STYLE: React.CSSProperties = { fontSize: 12 };
+function renderLegendLabel(value: string) {
+  return <span style={{ color: "var(--foreground)", opacity: 0.7 }}>{value}</span>;
+}
 
 // Recharts wraps a category-axis tick onto multiple lines once its text
 // exceeds the axis width, and those wrapped lines then overflow into the
@@ -976,7 +985,12 @@ export default function HomePage() {
                           labelStyle={TOOLTIP_LABEL_STYLE}
                           itemStyle={TOOLTIP_ITEM_STYLE}
                         />
-                        <Legend verticalAlign="bottom" height={36} />
+                        <Legend
+                          verticalAlign="bottom"
+                          height={36}
+                          wrapperStyle={LEGEND_WRAPPER_STYLE}
+                          formatter={renderLegendLabel}
+                        />
                       </PieChart>
                     </ResponsiveContainer>
                     {/* Centered in the donut's hole — the ring alone left
@@ -1408,7 +1422,12 @@ export default function HomePage() {
                               labelStyle={TOOLTIP_LABEL_STYLE}
                               itemStyle={TOOLTIP_ITEM_STYLE}
                             />
-                            <Legend verticalAlign="bottom" height={36} />
+                            <Legend
+                          verticalAlign="bottom"
+                          height={36}
+                          wrapperStyle={LEGEND_WRAPPER_STYLE}
+                          formatter={renderLegendLabel}
+                        />
                           </PieChart>
                         </ResponsiveContainer>
                         <div className="pointer-events-none absolute inset-0 flex -translate-y-[18px] flex-col items-center justify-center">

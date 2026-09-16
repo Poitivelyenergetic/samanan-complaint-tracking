@@ -664,7 +664,8 @@
       "clearAll": "Clear all",
       "tickets": "Tickets",
       "ticketTypes": "Ticket Types",
-      "ticketSources": "Ticket Sources"
+      "ticketSources": "Ticket Sources",
+      "complaintsPermissionHint": "For Complaints: Update only allows changing status and reassigning — editing the complaint's own content (description, customer info, type, source) requires Edit Details."
     },
     "actions": {
       "view": "View",
@@ -675,7 +676,6 @@
       "reassign": "Reassign",
       "editDetails": "Edit Details"
     },
-    "complaintsPermissionHint": "For Complaints: Update only allows changing status and reassigning — editing the complaint's own content (description, customer info, type, source) requires Edit Details.",
     "errors": {
       "missing_fields": "Please enter a role name.",
       "not_authenticated": "Your session has expired. Please sign in again.",
