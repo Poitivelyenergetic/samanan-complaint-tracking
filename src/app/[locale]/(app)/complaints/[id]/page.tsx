@@ -114,6 +114,23 @@ export default function ComplaintDetailPage({
   const staffById = new Map(staff.map((s) => [s.id, s]));
   const assigneeName = (uid: string | null | undefined) =>
     uid ? localizedName(staffById.get(uid), locale) || uid : tCommon("unassigned");
+
+  // The real "created" history entry is written in a second, separate
+  // request right after the complaint doc itself is created (see
+  // createComplaint() — Firestore's serverTimestamp() can't go inside an
+  // arrayUnion() element, so a real server timestamp has to be resolved
+  // and appended after the fact). If that second request never completes
+  // (the tab closed, a network hiccup, a permission edge case), the
+  // complaint is left with no history at all forever, even though it very
+  // much was created and possibly assigned. createdAt/createdBy/assignedTo
+  // are set atomically in the original transaction, though, so they're
+  // always trustworthy — fall back to them instead of leaving history
+  // looking empty for these complaints.
+  const hasCreatedEntry = complaint.history.some((h) => h.type === "created");
+  const hasAssignmentRecord = complaint.history.some((h) => h.type === "created" || h.type === "reassigned");
+  const showSyntheticCreated = !hasCreatedEntry;
+  const showSyntheticAssigned = !hasAssignmentRecord && !!complaint.assignedTo;
+
   return (
     <div className="mx-auto max-w-2xl">
       <div className="flex items-center justify-between">
@@ -204,10 +221,34 @@ export default function ComplaintDetailPage({
 
       <div className="mt-6 rounded-lg border border-tint-history-border bg-tint-history-bg p-6">
         <h2 className="text-sm font-semibold text-foreground">{t("history")}</h2>
-        {complaint.history.length === 0 ? (
+        {!showSyntheticCreated && !showSyntheticAssigned && complaint.history.length === 0 ? (
           <p className="mt-3 text-sm text-foreground/50">{t("noHistory")}</p>
         ) : (
           <ol className="mt-3 space-y-3">
+            {showSyntheticCreated && (
+              <li className="flex items-start gap-3 text-sm">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
+                <div>
+                  <p className="text-foreground/80">{t("historyCreatedBy", { actor: assigneeName(complaint.createdBy) })}</p>
+                  <p className="text-xs text-foreground/50">
+                    {format.dateTime(new Date(complaint.createdAt), { dateStyle: "medium", timeStyle: "short" })}
+                  </p>
+                </div>
+              </li>
+            )}
+            {showSyntheticAssigned && (
+              <li className="flex items-start gap-3 text-sm">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
+                <div>
+                  <p className="text-foreground/80">
+                    {t("historyAssignedTo", { assignee: assigneeName(complaint.assignedTo) })}
+                  </p>
+                  <p className="text-xs text-foreground/50">
+                    {format.dateTime(new Date(complaint.createdAt), { dateStyle: "medium", timeStyle: "short" })}
+                  </p>
+                </div>
+              </li>
+            )}
             {[...complaint.history].reverse().map((entry, i) => {
               const actorName = entry.byUid
                 ? localizedName(staffById.get(entry.byUid), locale) || entry.byUid

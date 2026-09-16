@@ -54,6 +54,7 @@ export default function EditEmployeePage({
 
   async function handleSubmit(values: EmployeeInput) {
     await updateEmployee(id, values);
+    router.back();
   }
 
   if (loading || !profile || !canUpdate || staff === undefined) {

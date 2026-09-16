@@ -55,3 +55,17 @@ export async function updateRole(id: string, input: RoleInput): Promise<void> {
 export async function deleteRole(id: string): Promise<void> {
   await authedFetch(`/api/roles/${id}`, { method: "DELETE" });
 }
+
+// Grants a role to every employee within one org scope (a department, an
+// administration, or a whole company — pass exactly one) who doesn't
+// already hold it. Never removes roles, never touches employees outside
+// that scope.
+export async function bulkAssignRole(
+  roleId: string,
+  scope: { departmentId?: string; administrationId?: string; companyId?: string }
+): Promise<{ matched: number; updated: number }> {
+  return (await authedFetch(`/api/roles/${roleId}/bulk-assign`, {
+    method: "POST",
+    body: JSON.stringify(scope),
+  })) as { matched: number; updated: number };
+}

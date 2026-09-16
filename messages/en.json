@@ -253,6 +253,8 @@
       "reassign": "Reassign",
       "history": "History",
       "noHistory": "No history yet.",
+      "historyCreatedBy": "Created by {actor}",
+      "historyAssignedTo": "Assigned to {assignee}",
       "historyCreated": "Opened with status \"{status}\"",
       "historyStatus": "Status changed from \"{previousStatus}\" to \"{status}\"",
       "historyStatusNote": "What was done: {note}",
@@ -691,7 +693,15 @@
       "title": "Edit Role",
       "submit": "Save Changes",
       "notFound": "Role not found.",
-      "deleteConfirm": "Are you sure you want to delete this role? Employees holding only this role will lose its permissions."
+      "deleteConfirm": "Are you sure you want to delete this role? Employees holding only this role will lose its permissions.",
+      "employeesWithRole": "Employees with this role",
+      "noEmployeesWithRole": "No employees currently hold this role.",
+      "assignToScope": "Assign to everyone in...",
+      "assignToScopeHint": "Grants this role to every employee in the selected company, administration, or department — pick the most specific level that covers who you want. Existing roles on those employees aren't affected.",
+      "assignButton": "Assign Role",
+      "assigning": "Assigning...",
+      "assignNoScope": "Select a company, administration, or department first.",
+      "assignResult": "Done — {updated} of {matched} employee(s) were given this role ({already} already had it)."
     }
   },
   "ticket": {
