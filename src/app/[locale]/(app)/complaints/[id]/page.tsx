@@ -202,9 +202,11 @@ export default function ComplaintDetailPage({
         />
       </div>
 
-      {complaint.history.length > 0 && (
-        <div className="mt-6 rounded-lg border border-tint-history-border bg-tint-history-bg p-6">
-          <h2 className="text-sm font-semibold text-foreground">{t("history")}</h2>
+      <div className="mt-6 rounded-lg border border-tint-history-border bg-tint-history-bg p-6">
+        <h2 className="text-sm font-semibold text-foreground">{t("history")}</h2>
+        {complaint.history.length === 0 ? (
+          <p className="mt-3 text-sm text-foreground/50">{t("noHistory")}</p>
+        ) : (
           <ol className="mt-3 space-y-3">
             {[...complaint.history].reverse().map((entry, i) => {
               const actorName = entry.byUid
@@ -280,8 +282,8 @@ export default function ComplaintDetailPage({
               );
             })}
           </ol>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

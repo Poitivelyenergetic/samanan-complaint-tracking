@@ -252,6 +252,7 @@
       "assignedTo": "مسندة إلى",
       "reassign": "إعادة الإسناد",
       "history": "السجل",
+      "noHistory": "لا يوجد سجل بعد.",
       "historyCreated": "تم فتحها بالحالة \"{status}\"",
       "historyStatus": "تم تغيير الحالة من \"{previousStatus}\" إلى \"{status}\"",
       "historyStatusNote": "ما تم عمله: {note}",
