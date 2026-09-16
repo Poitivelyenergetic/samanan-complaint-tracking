@@ -102,10 +102,6 @@ function colorForSource(label: string): string {
   return match ? match[1] : DEFAULT_SOURCE_COLOR;
 }
 
-function emptyStatusCounts(): Record<ComplaintStatus, number> {
-  return { Open: 0, Assigned: 0, Processing: 0, Cancel: 0, Closed: 0 };
-}
-
 const STATUS_ICONS: Record<ComplaintStatus, React.ReactNode> = {
   Open: <IconInbox />,
   Assigned: <IconUsers />,
@@ -351,6 +347,125 @@ function dashboardHref(params: Record<string, string | undefined>): string {
   return qs ? `/dashboard?${qs}` : "/dashboard";
 }
 
+// Turns a chart's own date filter into the from/to query params the
+// Complaints list understands (see dashboard/page.tsx's paramFrom/paramTo) —
+// "custom" passes the two picked dates straight through, a fixed preset
+// (today/7d/30d/month) becomes its lower-bound day, and "all" contributes
+// nothing.
+function dateFilterToParams(filter: DateFilter, customFrom: string, customTo: string): { from?: string; to?: string } {
+  if (filter === "custom") return { from: customFrom || undefined, to: customTo || undefined };
+  const cutoff = cutoffFor(filter);
+  return cutoff ? { from: toLocalISODate(cutoff) } : {};
+}
+
+// The Top Assignees / Top Recorders charts share this exact pair of
+// filters — a status dropdown (all-statuses-or-one, same options every other
+// per-card status filter already uses) stacked above a date-range dropdown
+// (same preset set + custom-range popover as the Status Breakdown card's own
+// date filter) — so the two charts don't each duplicate this JSX.
+function PersonChartFilters({
+  statusFilter,
+  onStatusChange,
+  statusOptions,
+  dateFilter,
+  onDateFilterChange,
+  dateOptions,
+  dateFrom,
+  onDateFromChange,
+  dateTo,
+  onDateToChange,
+  idPrefix,
+  tCommon,
+  t,
+}: {
+  statusFilter: ComplaintStatus | "";
+  onStatusChange: (value: ComplaintStatus | "") => void;
+  statusOptions: { id: string; label: string }[];
+  dateFilter: DateFilter;
+  onDateFilterChange: (value: DateFilter) => void;
+  dateOptions: { id: string; label: string }[];
+  dateFrom: string;
+  onDateFromChange: (value: string) => void;
+  dateTo: string;
+  onDateToChange: (value: string) => void;
+  idPrefix: string;
+  tCommon: (key: string) => string;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="flex flex-col items-end gap-1.5">
+      <div className="w-[110px]">
+        <SearchableSelect
+          items={statusOptions}
+          value={statusFilter}
+          onChange={(id) => onStatusChange(id as ComplaintStatus | "")}
+          getId={(option) => option.id}
+          getLabel={(option) => option.label}
+          allowClear={false}
+          className={compactSelectClass}
+          ariaLabel={tCommon("filter")}
+        />
+      </div>
+      <div className="relative flex flex-col items-end">
+        <div className="w-[110px]">
+          <SearchableSelect
+            items={dateOptions}
+            value={dateFilter}
+            onChange={(id) => onDateFilterChange(id as DateFilter)}
+            getId={(option) => option.id}
+            getLabel={(option) => option.label}
+            allowClear={false}
+            className={compactSelectClass}
+            ariaLabel={t("dateFilter")}
+          />
+        </div>
+        {dateFilter === "custom" && (
+          <div className="absolute end-0 top-full z-10 mt-1 flex items-end gap-2 rounded-lg border border-border bg-surface p-3 shadow-lg">
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor={`${idPrefix}From`}
+                className="text-[10px] font-semibold uppercase tracking-wide text-foreground/40"
+              >
+                {t("dateFrom")}
+              </label>
+              <div className="w-[136px]">
+                <DatePicker
+                  id={`${idPrefix}From`}
+                  value={dateFrom}
+                  onChange={onDateFromChange}
+                  ariaLabel={t("dateFrom")}
+                  placeholder={t("dateFrom")}
+                  className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-start text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                />
+              </div>
+            </div>
+            <span className="pb-2 text-foreground/30">→</span>
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor={`${idPrefix}To`}
+                className="text-[10px] font-semibold uppercase tracking-wide text-foreground/40"
+              >
+                {t("dateTo")}
+              </label>
+              <div className="w-[136px]">
+                <DatePicker
+                  id={`${idPrefix}To`}
+                  value={dateTo}
+                  onChange={onDateToChange}
+                  ariaLabel={t("dateTo")}
+                  placeholder={t("dateTo")}
+                  align="end"
+                  className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-start text-xs text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Same idea as dashboardHref, but into the Tickets queue.
 function ticketsHref(params: Record<string, string | undefined>): string {
   const query = new URLSearchParams();
@@ -398,11 +513,14 @@ export default function HomePage() {
   const [categoryStatusFilter, setCategoryStatusFilter] = useState<ComplaintStatus | "">("");
   const [sourceStatusFilter, setSourceStatusFilter] = useState<ComplaintStatus | "">("");
   const [trendStatusFilter, setTrendStatusFilter] = useState<ComplaintStatus | "">("");
-  // Which status segment the cursor is currently over, per chart — drives
-  // the smaller sub-line in StackedPersonTooltip. Not the same thing as a
-  // filter; these charts show every status at once as stacked segments.
-  const [hoveredAssigneeStatus, setHoveredAssigneeStatus] = useState<ComplaintStatus | null>(null);
-  const [hoveredRecorderStatus, setHoveredRecorderStatus] = useState<ComplaintStatus | null>(null);
+  const [topAssigneesStatusFilter, setTopAssigneesStatusFilter] = useState<ComplaintStatus | "">("");
+  const [topAssigneesDateFilter, setTopAssigneesDateFilter] = useState<DateFilter>("all");
+  const [topAssigneesDateFrom, setTopAssigneesDateFrom] = useState("");
+  const [topAssigneesDateTo, setTopAssigneesDateTo] = useState("");
+  const [topRecordersStatusFilter, setTopRecordersStatusFilter] = useState<ComplaintStatus | "">("");
+  const [topRecordersDateFilter, setTopRecordersDateFilter] = useState<DateFilter>("all");
+  const [topRecordersDateFrom, setTopRecordersDateFrom] = useState("");
+  const [topRecordersDateTo, setTopRecordersDateTo] = useState("");
 
   useEffect(() => {
     if (!profile || !canView) return;
@@ -568,50 +686,56 @@ export default function HomePage() {
     return days;
   }, [list, trendStatusFilter, format]);
 
-  // Both of these break each person's bar down into one stacked segment per
-  // status (see StackedPersonBar/StackedPersonTooltip below) rather than a
-  // single flat count, so "who's carrying the most open work" is visible at
-  // a glance instead of needing the old single-status filter dropdown.
-  const topAssignees = useMemo(() => {
-    const byUid = new Map<string, Record<ComplaintStatus, number>>();
-    list.forEach((c) => {
-      if (!c.assignedTo) return;
-      const entry = byUid.get(c.assignedTo) ?? emptyStatusCounts();
-      entry[c.status] += 1;
-      byUid.set(c.assignedTo, entry);
+  const topAssigneesList = useMemo(() => {
+    const { from, to } = dateRangeFor(topAssigneesDateFilter, topAssigneesDateFrom, topAssigneesDateTo);
+    return list.filter((c) => {
+      if (topAssigneesStatusFilter && c.status !== topAssigneesStatusFilter) return false;
+      if (from || to) {
+        const created = new Date(c.createdAt);
+        if (from && created < from) return false;
+        if (to && created > to) return false;
+      }
+      return true;
     });
-    return [...byUid.entries()]
-      .map(([uid, counts]) => ({
-        id: uid,
-        name: localizedName(staffById.get(uid), locale) || uid,
-        total: COMPLAINT_STATUSES.reduce((sum, s) => sum + counts[s], 0),
-        ...counts,
-      }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5);
-  }, [list, staffById, locale]);
+  }, [list, topAssigneesStatusFilter, topAssigneesDateFilter, topAssigneesDateFrom, topAssigneesDateTo]);
+  const topAssignees = useMemo(() => {
+    const counts = new Map<string, number>();
+    topAssigneesList.forEach((c) => {
+      if (!c.assignedTo) return;
+      counts.set(c.assignedTo, (counts.get(c.assignedTo) ?? 0) + 1);
+    });
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([uid, count]) => ({ id: uid, name: localizedName(staffById.get(uid), locale) || uid, count }));
+  }, [topAssigneesList, staffById, locale]);
 
   // Who logged the complaint (createdBy) rather than who's handling it
   // (assignedTo) — e.g. call-center staff who record complaints on a
   // customer's behalf but don't necessarily end up assigned to them.
-  const topRecorders = useMemo(() => {
-    const byUid = new Map<string, Record<ComplaintStatus, number>>();
-    list.forEach((c) => {
-      if (!c.createdBy) return;
-      const entry = byUid.get(c.createdBy) ?? emptyStatusCounts();
-      entry[c.status] += 1;
-      byUid.set(c.createdBy, entry);
+  const topRecordersList = useMemo(() => {
+    const { from, to } = dateRangeFor(topRecordersDateFilter, topRecordersDateFrom, topRecordersDateTo);
+    return list.filter((c) => {
+      if (topRecordersStatusFilter && c.status !== topRecordersStatusFilter) return false;
+      if (from || to) {
+        const created = new Date(c.createdAt);
+        if (from && created < from) return false;
+        if (to && created > to) return false;
+      }
+      return true;
     });
-    return [...byUid.entries()]
-      .map(([uid, counts]) => ({
-        id: uid,
-        name: localizedName(staffById.get(uid), locale) || uid,
-        total: COMPLAINT_STATUSES.reduce((sum, s) => sum + counts[s], 0),
-        ...counts,
-      }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5);
-  }, [list, staffById, locale]);
+  }, [list, topRecordersStatusFilter, topRecordersDateFilter, topRecordersDateFrom, topRecordersDateTo]);
+  const topRecorders = useMemo(() => {
+    const counts = new Map<string, number>();
+    topRecordersList.forEach((c) => {
+      if (!c.createdBy) return;
+      counts.set(c.createdBy, (counts.get(c.createdBy) ?? 0) + 1);
+    });
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([uid, count]) => ({ id: uid, name: localizedName(staffById.get(uid), locale) || uid, count }));
+  }, [topRecordersList, staffById, locale]);
 
   // Tickets get a smaller, unfiltered mirror of the Complaints analytics
   // above — same status palette/icons, same chart types — rather than a
@@ -1064,7 +1188,26 @@ export default function HomePage() {
 
             {canViewAll && (
               <Reveal delay={240}>
-                <ChartCard title={t("topAssignees")}>
+                <ChartCard
+                  title={t("topAssignees")}
+                  filter={
+                    <PersonChartFilters
+                      statusFilter={topAssigneesStatusFilter}
+                      onStatusChange={setTopAssigneesStatusFilter}
+                      statusOptions={statusFilterOptions}
+                      dateFilter={topAssigneesDateFilter}
+                      onDateFilterChange={setTopAssigneesDateFilter}
+                      dateOptions={dateFilterOptions}
+                      dateFrom={topAssigneesDateFrom}
+                      onDateFromChange={setTopAssigneesDateFrom}
+                      dateTo={topAssigneesDateTo}
+                      onDateToChange={setTopAssigneesDateTo}
+                      idPrefix="topAssignees"
+                      tCommon={tCommon}
+                      t={t}
+                    />
+                  }
+                >
                   {topAssignees.length === 0 ? (
                     <EmptyChart text={t("noData")} />
                   ) : (
@@ -1082,34 +1225,28 @@ export default function HomePage() {
                           tick={renderCategoryTick110}
                         />
                         <Tooltip
-                          content={
-                            <StackedPersonTooltip hoveredStatus={hoveredAssigneeStatus} tStatus={tStatus} />
-                          }
+                          contentStyle={TOOLTIP_CONTENT_STYLE}
+                          labelStyle={TOOLTIP_LABEL_STYLE}
+                          itemStyle={TOOLTIP_ITEM_STYLE}
                           cursor={BAR_CURSOR}
                         />
-                        {COMPLAINT_STATUSES.map((status, i) => (
-                          <Bar
-                            key={status}
-                            dataKey={status}
-                            stackId="a"
-                            fill={STATUS_COLORS[status]}
-                            radius={
-                              i === 0
-                                ? [0, 0, 0, 4]
-                                : i === COMPLAINT_STATUSES.length - 1
-                                  ? [0, 4, 4, 0]
-                                  : [0, 0, 0, 0]
-                            }
-                            barSize={28}
-                            cursor="pointer"
-                            onMouseEnter={() => setHoveredAssigneeStatus(status)}
-                            onMouseLeave={() => setHoveredAssigneeStatus(null)}
-                            onClick={(data: { payload?: { id: string } }) => {
-                              if (!data.payload) return;
-                              router.push(dashboardHref({ assignedTo: data.payload.id, status }));
-                            }}
-                          />
-                        ))}
+                        <Bar
+                          dataKey="count"
+                          fill="#385bc1"
+                          radius={[0, 4, 4, 0]}
+                          barSize={28}
+                          cursor="pointer"
+                          onClick={(data: { payload?: { id: string } }) => {
+                            if (!data.payload) return;
+                            router.push(
+                              dashboardHref({
+                                assignedTo: data.payload.id,
+                                status: topAssigneesStatusFilter || undefined,
+                                ...dateFilterToParams(topAssigneesDateFilter, topAssigneesDateFrom, topAssigneesDateTo),
+                              })
+                            );
+                          }}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   )}
@@ -1119,7 +1256,26 @@ export default function HomePage() {
 
             {canViewAll && (
               <Reveal delay={300}>
-                <ChartCard title={t("topRecorders")}>
+                <ChartCard
+                  title={t("topRecorders")}
+                  filter={
+                    <PersonChartFilters
+                      statusFilter={topRecordersStatusFilter}
+                      onStatusChange={setTopRecordersStatusFilter}
+                      statusOptions={statusFilterOptions}
+                      dateFilter={topRecordersDateFilter}
+                      onDateFilterChange={setTopRecordersDateFilter}
+                      dateOptions={dateFilterOptions}
+                      dateFrom={topRecordersDateFrom}
+                      onDateFromChange={setTopRecordersDateFrom}
+                      dateTo={topRecordersDateTo}
+                      onDateToChange={setTopRecordersDateTo}
+                      idPrefix="topRecorders"
+                      tCommon={tCommon}
+                      t={t}
+                    />
+                  }
+                >
                   {topRecorders.length === 0 ? (
                     <EmptyChart text={t("noData")} />
                   ) : (
@@ -1137,34 +1293,28 @@ export default function HomePage() {
                           tick={renderCategoryTick110}
                         />
                         <Tooltip
-                          content={
-                            <StackedPersonTooltip hoveredStatus={hoveredRecorderStatus} tStatus={tStatus} />
-                          }
+                          contentStyle={TOOLTIP_CONTENT_STYLE}
+                          labelStyle={TOOLTIP_LABEL_STYLE}
+                          itemStyle={TOOLTIP_ITEM_STYLE}
                           cursor={BAR_CURSOR}
                         />
-                        {COMPLAINT_STATUSES.map((status, i) => (
-                          <Bar
-                            key={status}
-                            dataKey={status}
-                            stackId="a"
-                            fill={STATUS_COLORS[status]}
-                            radius={
-                              i === 0
-                                ? [0, 0, 0, 4]
-                                : i === COMPLAINT_STATUSES.length - 1
-                                  ? [0, 4, 4, 0]
-                                  : [0, 0, 0, 0]
-                            }
-                            barSize={28}
-                            cursor="pointer"
-                            onMouseEnter={() => setHoveredRecorderStatus(status)}
-                            onMouseLeave={() => setHoveredRecorderStatus(null)}
-                            onClick={(data: { payload?: { id: string } }) => {
-                              if (!data.payload) return;
-                              router.push(dashboardHref({ recordedBy: data.payload.id, status }));
-                            }}
-                          />
-                        ))}
+                        <Bar
+                          dataKey="count"
+                          fill="#385bc1"
+                          radius={[0, 4, 4, 0]}
+                          barSize={28}
+                          cursor="pointer"
+                          onClick={(data: { payload?: { id: string } }) => {
+                            if (!data.payload) return;
+                            router.push(
+                              dashboardHref({
+                                recordedBy: data.payload.id,
+                                status: topRecordersStatusFilter || undefined,
+                                ...dateFilterToParams(topRecordersDateFilter, topRecordersDateFrom, topRecordersDateTo),
+                              })
+                            );
+                          }}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   )}
@@ -1353,39 +1503,4 @@ export default function HomePage() {
 
 function EmptyChart({ text }: { text: string }) {
   return <div className="flex h-full items-center justify-center text-sm text-foreground/40">{text}</div>;
-}
-
-// Custom tooltip for the Top Assignees / Top Recorders stacked bars —
-// recharts' default stacked tooltip lists every segment at once, but a bar
-// made of thin color-coded status segments reads better with just the
-// overall total up top and, in smaller muted text below, the count for
-// whichever single segment the cursor is actually over (tracked via each
-// <Bar>'s own onMouseEnter/Leave, passed in as `hoveredStatus`).
-function StackedPersonTooltip({
-  active,
-  payload,
-  label,
-  hoveredStatus,
-  tStatus,
-}: {
-  active?: boolean;
-  payload?: { dataKey?: string; value?: number }[];
-  label?: string;
-  hoveredStatus: ComplaintStatus | null;
-  tStatus: (status: ComplaintStatus) => string;
-}) {
-  if (!active || !payload || payload.length === 0) return null;
-  const total = payload.reduce((sum, entry) => sum + (typeof entry.value === "number" ? entry.value : 0), 0);
-  const hoveredEntry = hoveredStatus ? payload.find((entry) => entry.dataKey === hoveredStatus) : undefined;
-  return (
-    <div style={TOOLTIP_CONTENT_STYLE}>
-      <p style={TOOLTIP_LABEL_STYLE}>{label}</p>
-      <p style={TOOLTIP_ITEM_STYLE}>{total}</p>
-      {hoveredEntry && (
-        <p style={{ ...TOOLTIP_ITEM_STYLE, marginTop: 2, fontSize: 11, opacity: 0.65 }}>
-          {tStatus(hoveredStatus as ComplaintStatus)}: {hoveredEntry.value}
-        </p>
-      )}
-    </div>
-  );
 }
