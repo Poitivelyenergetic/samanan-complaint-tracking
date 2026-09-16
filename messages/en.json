@@ -129,6 +129,7 @@
     "dateFilterCustom": "Custom range",
     "dateFrom": "From",
     "dateTo": "To",
+    "statusFilterAll": "All Statuses",
     "employeeFilter": "Employee",
     "employeeFilterAll": "All employees",
     "complaintsSectionTitle": "Complaints",

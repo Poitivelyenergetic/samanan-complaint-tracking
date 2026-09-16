@@ -578,6 +578,17 @@ export default function HomePage() {
     ],
     [t]
   );
+  // Top Assignees/Recorders sit next to a date filter that also starts with
+  // "All" ("All time") — spelling this one out as "All Statuses" instead of
+  // the shorter "All" the other per-card status filters use keeps the two
+  // dropdowns from reading as duplicates of each other.
+  const personStatusFilterOptions = useMemo(
+    () => [
+      { id: "", label: t("statusFilterAll") },
+      ...COMPLAINT_STATUSES.map((status) => ({ id: status, label: tStatus(status) })),
+    ],
+    [t, tStatus]
+  );
 
   // Scoped by "who" (the employee filter) and, for a General Manager, by
   // their org branch — the top stat row's basis, and the starting point
@@ -1194,7 +1205,7 @@ export default function HomePage() {
                     <PersonChartFilters
                       statusFilter={topAssigneesStatusFilter}
                       onStatusChange={setTopAssigneesStatusFilter}
-                      statusOptions={statusFilterOptions}
+                      statusOptions={personStatusFilterOptions}
                       dateFilter={topAssigneesDateFilter}
                       onDateFilterChange={setTopAssigneesDateFilter}
                       dateOptions={dateFilterOptions}
@@ -1262,7 +1273,7 @@ export default function HomePage() {
                     <PersonChartFilters
                       statusFilter={topRecordersStatusFilter}
                       onStatusChange={setTopRecordersStatusFilter}
-                      statusOptions={statusFilterOptions}
+                      statusOptions={personStatusFilterOptions}
                       dateFilter={topRecordersDateFilter}
                       onDateFilterChange={setTopRecordersDateFilter}
                       dateOptions={dateFilterOptions}
