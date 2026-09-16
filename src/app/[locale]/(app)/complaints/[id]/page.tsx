@@ -53,8 +53,12 @@ export default function ComplaintDetailPage({
   const canEdit = hasPermission(profile, "complaints", "update");
   const canEditDetails = hasPermission(profile, "complaints", "editDetails");
   const canDelete = hasPermission(profile, "complaints", "delete");
-  const canReassign = hasPermission(profile, "complaints", "reassign");
+  const canViewAllComplaints = hasPermission(profile, "complaints", "viewAll");
   const isAssignee = !!complaint && !!user && complaint.assignedTo === user.uid;
+  // Without viewAll (a plain Employee, not Call center/Admin/Super Admin),
+  // reassign only ever applies to a complaint currently assigned to you —
+  // matches the same restriction in firestore.rules' isReassignWrite() check.
+  const canReassign = hasPermission(profile, "complaints", "reassign") && (canViewAllComplaints || isAssignee);
   const canEditStatus = canEdit || isAssignee;
 
   useEffect(

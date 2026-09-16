@@ -37,7 +37,13 @@ export default function ReassignComplaintPage({
   const [dragOver, setDragOver] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
 
-  const canReassign = hasPermission(profile, "complaints", "reassign");
+  const canViewAllComplaints = hasPermission(profile, "complaints", "viewAll");
+  const hasReassignPermission = hasPermission(profile, "complaints", "reassign");
+  // Without viewAll (a plain Employee, not Call center/Admin/Super Admin),
+  // reassign only ever applies to a complaint currently assigned to you —
+  // matches the same restriction in firestore.rules' isReassignWrite() check.
+  const isAssignee = !!complaint && !!user && complaint.assignedTo === user.uid;
+  const canReassign = hasReassignPermission && (canViewAllComplaints || isAssignee);
 
   useEffect(
     () => subscribeToComplaint(id, setComplaint, () => setComplaint(null)),
@@ -50,10 +56,10 @@ export default function ReassignComplaintPage({
   }, [complaint]);
 
   useEffect(() => {
-    if (!loading && profile && !canReassign) {
+    if (!loading && profile && complaint !== undefined && !canReassign) {
       router.replace(`/complaints/${id}`);
     }
-  }, [loading, profile, canReassign, router, id]);
+  }, [loading, profile, complaint, canReassign, router, id]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

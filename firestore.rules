@@ -132,8 +132,14 @@ service cloud.firestore {
       // (description, customer info, type, source, company) — update and
       // reassign are both restricted to isReassignWrite()'s narrower field
       // set (status + assignedTo) regardless of which of the two grants it.
+      // Someone without viewAll (a plain Employee, not Call center/Admin/
+      // Super Admin) can only reassign a complaint currently assigned to
+      // them — viewAll is what distinguishes "can reassign anything visible"
+      // from "can only move on what's mine right now".
       allow update: if hasPermission("complaints", "editDetails")
-        || ((hasPermission("complaints", "update") || hasPermission("complaints", "reassign")) && isReassignWrite())
+        || ((hasPermission("complaints", "update") || hasPermission("complaints", "reassign"))
+            && isReassignWrite()
+            && (hasPermission("complaints", "viewAll") || resource.data.assignedTo == request.auth.uid))
         || (isSignedIn() && resource.data.assignedTo == request.auth.uid && isComplaintStatusOnlyWrite())
         || (isSignedIn() && resource.data.createdBy == request.auth.uid && isHistoryOnlyWrite());
       allow delete: if hasPermission("complaints", "delete");
