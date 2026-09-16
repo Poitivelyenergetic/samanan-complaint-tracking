@@ -8,14 +8,21 @@ import { subscribeToComplaints } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { subscribeToComplaintSources } from "@/lib/complaintSources";
 import { subscribeToComplaintTypes } from "@/lib/complaintTypes";
+import { subscribeToCompanies } from "@/lib/companies";
+import { subscribeToAdministrations } from "@/lib/administrations";
+import { subscribeToDepartments } from "@/lib/departments";
+import { computeManagerScope, scopeStaff } from "@/lib/orgScope";
 import { useAuth } from "@/lib/auth-context";
 import {
   hasPermission,
   localizedName,
+  type Administration,
+  type Company,
   type Complaint,
   type ComplaintSource,
   type ComplaintStatus,
   type ComplaintType,
+  type Department,
   type StaffUser,
 } from "@/lib/types";
 import { COMPLAINT_STATUSES } from "@/lib/types";
@@ -78,6 +85,9 @@ export default function DashboardPage() {
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [complaintSources, setComplaintSources] = useState<ComplaintSource[]>([]);
   const [complaintTypes, setComplaintTypes] = useState<ComplaintType[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [administrations, setAdministrations] = useState<Administration[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [search, setSearch] = useState("");
   // Lets the home page's stat cards / chart bars — and this page's own stat
   // cards — link straight into a filtered view (e.g. /dashboard?status=Open).
@@ -158,6 +168,32 @@ export default function DashboardPage() {
   useEffect(() => subscribeToStaff(setStaff), []);
   useEffect(() => subscribeToComplaintSources(setComplaintSources), []);
   useEffect(() => subscribeToComplaintTypes(setComplaintTypes), []);
+  useEffect(() => subscribeToCompanies(setCompanies), []);
+  useEffect(() => subscribeToAdministrations(setAdministrations), []);
+  useEffect(() => subscribeToDepartments(setDepartments), []);
+
+  // A General Manager (whoever a company/administration/department has set
+  // as its managerId) only ever sees complaints assigned within their own
+  // branch here — unlike orgScope's usual hasBroaderAccess convention
+  // (where already having viewAll bypasses manager scoping entirely), this
+  // page deliberately scopes a GM down even though complaints.viewAll is
+  // what lets them query beyond their own assigned complaints in the first
+  // place. The one exception is complaints.editDetails — that's this app's
+  // definition of a true Admin (only admins can edit a complaint's actual
+  // content), so holding it exempts someone from manager-scoping here even
+  // if they're also set as a manager somewhere — a real person can hold
+  // both (e.g. this project's own Super Admin test account is also the GM
+  // of an administration), and without this exemption they'd get wrongly
+  // narrowed down to just that one branch instead of seeing everything.
+  const isAdmin = hasPermission(profile, "complaints", "editDetails");
+  const managerScope = useMemo(
+    () => computeManagerScope(profile?.id, companies, administrations, departments, isAdmin),
+    [profile?.id, companies, administrations, departments, isAdmin]
+  );
+  const scopedStaffIds = useMemo(
+    () => new Set(scopeStaff(staff, managerScope).map((s) => s.id)),
+    [staff, managerScope]
+  );
 
   const staffById = useMemo(() => {
     const map = new Map<string, StaffUser>();
@@ -202,7 +238,11 @@ export default function DashboardPage() {
     [staff, locale, t, tCommon]
   );
 
-  const visibleComplaints = useMemo(() => (canView ? complaints : []), [canView, complaints]);
+  const visibleComplaints = useMemo(() => {
+    if (!canView) return [];
+    if (!managerScope || complaints === null) return complaints;
+    return complaints.filter((c) => c.assignedTo && scopedStaffIds.has(c.assignedTo));
+  }, [canView, complaints, managerScope, scopedStaffIds]);
 
   // Every filter except status — feeds the stat cards, so their counts
   // track whichever assignee/type/source/date/search filters are active

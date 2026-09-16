@@ -244,6 +244,7 @@
       "submittedByCustomer": "Submitted directly by the customer",
       "viewAttachment": "View attachment",
       "readOnlyNotice": "You have view-only access to this complaint.",
+      "statusOnlyNotice": "You can only change this complaint's status here — editing its details requires the Edit Details permission.",
       "assignedTo": "Assigned To",
       "reassign": "Reassign",
       "history": "History",
@@ -665,8 +666,10 @@
       "update": "Update",
       "delete": "Delete",
       "viewAll": "View All",
-      "reassign": "Reassign"
+      "reassign": "Reassign",
+      "editDetails": "Edit Details"
     },
+    "complaintsPermissionHint": "For Complaints: Update only allows changing status and reassigning — editing the complaint's own content (description, customer info, type, source) requires Edit Details.",
     "errors": {
       "missing_fields": "Please enter a role name.",
       "not_authenticated": "Your session has expired. Please sign in again.",
@@ -776,6 +779,7 @@
       "total": "Total",
       "assignedToMe": "Assigned to Me",
       "closed": "Closed",
+      "cancelled": "Canceled",
       "reassignedToMe": "Reassigned To Me",
       "reassignedFromMe": "Reassigned From Me"
     }
@@ -798,6 +802,7 @@
       "total": "Total",
       "assignedToMe": "Assigned to Me",
       "closed": "Closed",
+      "cancelled": "Canceled",
       "reassignedFromMe": "Reassigned From Me",
       "reassignedToMe": "Reassigned To Me"
     }

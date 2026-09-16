@@ -102,6 +102,10 @@ function colorForSource(label: string): string {
   return match ? match[1] : DEFAULT_SOURCE_COLOR;
 }
 
+function emptyStatusCounts(): Record<ComplaintStatus, number> {
+  return { Open: 0, Assigned: 0, Processing: 0, Cancel: 0, Closed: 0 };
+}
+
 const STATUS_ICONS: Record<ComplaintStatus, React.ReactNode> = {
   Open: <IconInbox />,
   Assigned: <IconUsers />,
@@ -394,8 +398,11 @@ export default function HomePage() {
   const [categoryStatusFilter, setCategoryStatusFilter] = useState<ComplaintStatus | "">("");
   const [sourceStatusFilter, setSourceStatusFilter] = useState<ComplaintStatus | "">("");
   const [trendStatusFilter, setTrendStatusFilter] = useState<ComplaintStatus | "">("");
-  const [topAssigneesStatusFilter, setTopAssigneesStatusFilter] = useState<ComplaintStatus | "">("");
-  const [topRecordersStatusFilter, setTopRecordersStatusFilter] = useState<ComplaintStatus | "">("");
+  // Which status segment the cursor is currently over, per chart — drives
+  // the smaller sub-line in StackedPersonTooltip. Not the same thing as a
+  // filter; these charts show every status at once as stacked segments.
+  const [hoveredAssigneeStatus, setHoveredAssigneeStatus] = useState<ComplaintStatus | null>(null);
+  const [hoveredRecorderStatus, setHoveredRecorderStatus] = useState<ComplaintStatus | null>(null);
 
   useEffect(() => {
     if (!profile || !canView) return;
@@ -561,34 +568,50 @@ export default function HomePage() {
     return days;
   }, [list, trendStatusFilter, format]);
 
+  // Both of these break each person's bar down into one stacked segment per
+  // status (see StackedPersonBar/StackedPersonTooltip below) rather than a
+  // single flat count, so "who's carrying the most open work" is visible at
+  // a glance instead of needing the old single-status filter dropdown.
   const topAssignees = useMemo(() => {
-    const scoped = topAssigneesStatusFilter ? list.filter((c) => c.status === topAssigneesStatusFilter) : list;
-    const counts = new Map<string, number>();
-    scoped.forEach((c) => {
+    const byUid = new Map<string, Record<ComplaintStatus, number>>();
+    list.forEach((c) => {
       if (!c.assignedTo) return;
-      counts.set(c.assignedTo, (counts.get(c.assignedTo) ?? 0) + 1);
+      const entry = byUid.get(c.assignedTo) ?? emptyStatusCounts();
+      entry[c.status] += 1;
+      byUid.set(c.assignedTo, entry);
     });
-    return [...counts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([uid, count]) => ({ id: uid, name: localizedName(staffById.get(uid), locale) || uid, count }));
-  }, [list, topAssigneesStatusFilter, staffById, locale]);
+    return [...byUid.entries()]
+      .map(([uid, counts]) => ({
+        id: uid,
+        name: localizedName(staffById.get(uid), locale) || uid,
+        total: COMPLAINT_STATUSES.reduce((sum, s) => sum + counts[s], 0),
+        ...counts,
+      }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+  }, [list, staffById, locale]);
 
   // Who logged the complaint (createdBy) rather than who's handling it
   // (assignedTo) — e.g. call-center staff who record complaints on a
   // customer's behalf but don't necessarily end up assigned to them.
   const topRecorders = useMemo(() => {
-    const scoped = topRecordersStatusFilter ? list.filter((c) => c.status === topRecordersStatusFilter) : list;
-    const counts = new Map<string, number>();
-    scoped.forEach((c) => {
+    const byUid = new Map<string, Record<ComplaintStatus, number>>();
+    list.forEach((c) => {
       if (!c.createdBy) return;
-      counts.set(c.createdBy, (counts.get(c.createdBy) ?? 0) + 1);
+      const entry = byUid.get(c.createdBy) ?? emptyStatusCounts();
+      entry[c.status] += 1;
+      byUid.set(c.createdBy, entry);
     });
-    return [...counts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([uid, count]) => ({ id: uid, name: localizedName(staffById.get(uid), locale) || uid, count }));
-  }, [list, topRecordersStatusFilter, staffById, locale]);
+    return [...byUid.entries()]
+      .map(([uid, counts]) => ({
+        id: uid,
+        name: localizedName(staffById.get(uid), locale) || uid,
+        total: COMPLAINT_STATUSES.reduce((sum, s) => sum + counts[s], 0),
+        ...counts,
+      }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+  }, [list, staffById, locale]);
 
   // Tickets get a smaller, unfiltered mirror of the Complaints analytics
   // above — same status palette/icons, same chart types — rather than a
@@ -1041,23 +1064,7 @@ export default function HomePage() {
 
             {canViewAll && (
               <Reveal delay={240}>
-                <ChartCard
-                  title={t("topAssignees")}
-                  filter={
-                    <div className="w-[130px]">
-                      <SearchableSelect
-                        items={statusFilterOptions}
-                        value={topAssigneesStatusFilter}
-                        onChange={(id) => setTopAssigneesStatusFilter(id as ComplaintStatus | "")}
-                        getId={(option) => option.id}
-                        getLabel={(option) => option.label}
-                        allowClear={false}
-                        className={compactSelectClass}
-                        ariaLabel={tCommon("filter")}
-                      />
-                    </div>
-                  }
-                >
+                <ChartCard title={t("topAssignees")}>
                   {topAssignees.length === 0 ? (
                     <EmptyChart text={t("noData")} />
                   ) : (
@@ -1075,24 +1082,34 @@ export default function HomePage() {
                           tick={renderCategoryTick110}
                         />
                         <Tooltip
-                          contentStyle={TOOLTIP_CONTENT_STYLE}
-                          labelStyle={TOOLTIP_LABEL_STYLE}
-                          itemStyle={TOOLTIP_ITEM_STYLE}
+                          content={
+                            <StackedPersonTooltip hoveredStatus={hoveredAssigneeStatus} tStatus={tStatus} />
+                          }
                           cursor={BAR_CURSOR}
                         />
-                        <Bar
-                          dataKey="count"
-                          fill="#6366f1"
-                          radius={[0, 4, 4, 0]}
-                          barSize={28}
-                          cursor="pointer"
-                          onClick={(data: { payload?: { id: string } }) => {
-                            if (!data.payload) return;
-                            router.push(
-                              dashboardHref({ assignedTo: data.payload.id, status: topAssigneesStatusFilter || undefined })
-                            );
-                          }}
-                        />
+                        {COMPLAINT_STATUSES.map((status, i) => (
+                          <Bar
+                            key={status}
+                            dataKey={status}
+                            stackId="a"
+                            fill={STATUS_COLORS[status]}
+                            radius={
+                              i === 0
+                                ? [0, 0, 0, 4]
+                                : i === COMPLAINT_STATUSES.length - 1
+                                  ? [0, 4, 4, 0]
+                                  : [0, 0, 0, 0]
+                            }
+                            barSize={28}
+                            cursor="pointer"
+                            onMouseEnter={() => setHoveredAssigneeStatus(status)}
+                            onMouseLeave={() => setHoveredAssigneeStatus(null)}
+                            onClick={(data: { payload?: { id: string } }) => {
+                              if (!data.payload) return;
+                              router.push(dashboardHref({ assignedTo: data.payload.id, status }));
+                            }}
+                          />
+                        ))}
                       </BarChart>
                     </ResponsiveContainer>
                   )}
@@ -1102,23 +1119,7 @@ export default function HomePage() {
 
             {canViewAll && (
               <Reveal delay={300}>
-                <ChartCard
-                  title={t("topRecorders")}
-                  filter={
-                    <div className="w-[130px]">
-                      <SearchableSelect
-                        items={statusFilterOptions}
-                        value={topRecordersStatusFilter}
-                        onChange={(id) => setTopRecordersStatusFilter(id as ComplaintStatus | "")}
-                        getId={(option) => option.id}
-                        getLabel={(option) => option.label}
-                        allowClear={false}
-                        className={compactSelectClass}
-                        ariaLabel={tCommon("filter")}
-                      />
-                    </div>
-                  }
-                >
+                <ChartCard title={t("topRecorders")}>
                   {topRecorders.length === 0 ? (
                     <EmptyChart text={t("noData")} />
                   ) : (
@@ -1136,24 +1137,34 @@ export default function HomePage() {
                           tick={renderCategoryTick110}
                         />
                         <Tooltip
-                          contentStyle={TOOLTIP_CONTENT_STYLE}
-                          labelStyle={TOOLTIP_LABEL_STYLE}
-                          itemStyle={TOOLTIP_ITEM_STYLE}
+                          content={
+                            <StackedPersonTooltip hoveredStatus={hoveredRecorderStatus} tStatus={tStatus} />
+                          }
                           cursor={BAR_CURSOR}
                         />
-                        <Bar
-                          dataKey="count"
-                          fill="#14b8a6"
-                          radius={[0, 4, 4, 0]}
-                          barSize={28}
-                          cursor="pointer"
-                          onClick={(data: { payload?: { id: string } }) => {
-                            if (!data.payload) return;
-                            router.push(
-                              dashboardHref({ recordedBy: data.payload.id, status: topRecordersStatusFilter || undefined })
-                            );
-                          }}
-                        />
+                        {COMPLAINT_STATUSES.map((status, i) => (
+                          <Bar
+                            key={status}
+                            dataKey={status}
+                            stackId="a"
+                            fill={STATUS_COLORS[status]}
+                            radius={
+                              i === 0
+                                ? [0, 0, 0, 4]
+                                : i === COMPLAINT_STATUSES.length - 1
+                                  ? [0, 4, 4, 0]
+                                  : [0, 0, 0, 0]
+                            }
+                            barSize={28}
+                            cursor="pointer"
+                            onMouseEnter={() => setHoveredRecorderStatus(status)}
+                            onMouseLeave={() => setHoveredRecorderStatus(null)}
+                            onClick={(data: { payload?: { id: string } }) => {
+                              if (!data.payload) return;
+                              router.push(dashboardHref({ recordedBy: data.payload.id, status }));
+                            }}
+                          />
+                        ))}
                       </BarChart>
                     </ResponsiveContainer>
                   )}
@@ -1342,4 +1353,39 @@ export default function HomePage() {
 
 function EmptyChart({ text }: { text: string }) {
   return <div className="flex h-full items-center justify-center text-sm text-foreground/40">{text}</div>;
+}
+
+// Custom tooltip for the Top Assignees / Top Recorders stacked bars —
+// recharts' default stacked tooltip lists every segment at once, but a bar
+// made of thin color-coded status segments reads better with just the
+// overall total up top and, in smaller muted text below, the count for
+// whichever single segment the cursor is actually over (tracked via each
+// <Bar>'s own onMouseEnter/Leave, passed in as `hoveredStatus`).
+function StackedPersonTooltip({
+  active,
+  payload,
+  label,
+  hoveredStatus,
+  tStatus,
+}: {
+  active?: boolean;
+  payload?: { dataKey?: string; value?: number }[];
+  label?: string;
+  hoveredStatus: ComplaintStatus | null;
+  tStatus: (status: ComplaintStatus) => string;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const total = payload.reduce((sum, entry) => sum + (typeof entry.value === "number" ? entry.value : 0), 0);
+  const hoveredEntry = hoveredStatus ? payload.find((entry) => entry.dataKey === hoveredStatus) : undefined;
+  return (
+    <div style={TOOLTIP_CONTENT_STYLE}>
+      <p style={TOOLTIP_LABEL_STYLE}>{label}</p>
+      <p style={TOOLTIP_ITEM_STYLE}>{total}</p>
+      {hoveredEntry && (
+        <p style={{ ...TOOLTIP_ITEM_STYLE, marginTop: 2, fontSize: 11, opacity: 0.65 }}>
+          {tStatus(hoveredStatus as ComplaintStatus)}: {hoveredEntry.value}
+        </p>
+      )}
+    </div>
+  );
 }

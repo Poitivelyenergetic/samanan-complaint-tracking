@@ -128,7 +128,6 @@ export default function ComplaintForm({
   const [statusNote, setStatusNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showAssignHint, setShowAssignHint] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [attachmentUploading, setAttachmentUploading] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
@@ -179,8 +178,11 @@ export default function ComplaintForm({
     isDirtyRef.current = true;
     setValues((prev) => {
       const next = { ...prev, [key]: value };
+      // Assigning someone to a still-Open complaint moves it to Assigned
+      // automatically — this used to just show a hint suggesting the user
+      // do this themselves, but there's no real reason to make them.
       if (key === "assignedTo" && prev.assignedTo === "" && value !== "" && prev.status === "Open") {
-        setShowAssignHint(true);
+        next.status = "Assigned";
       }
       return next;
     });
@@ -308,9 +310,14 @@ export default function ComplaintForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {readOnly && (
+      {readOnly && !canEditStatus && (
         <div className="rounded-md border border-border bg-black/[0.02] px-3 py-2.5 text-sm text-foreground/70">
           {tDetail("readOnlyNotice")}
+        </div>
+      )}
+      {readOnly && canEditStatus && (
+        <div className="rounded-md border border-border bg-black/[0.02] px-3 py-2.5 text-sm text-foreground/70">
+          {tDetail("statusOnlyNotice")}
         </div>
       )}
 
@@ -603,22 +610,6 @@ export default function ComplaintForm({
             placeholder={tDetail("statusNotePlaceholder")}
             className={textInputClass}
           />
-        </div>
-      )}
-
-      {showAssignHint && !readOnly && (
-        <div className="flex items-start justify-between gap-3 rounded-md border border-brand/30 bg-brand/5 px-3 py-2.5 text-sm">
-          <p className="text-foreground/80">{tDetail("assignHint")}</p>
-          <button
-            type="button"
-            onClick={() => {
-              update("status", "Assigned");
-              setShowAssignHint(false);
-            }}
-            className="shrink-0 rounded-md bg-brand px-2.5 py-1 text-xs font-semibold text-brand-foreground hover:opacity-90"
-          >
-            {tStatus("Assigned")}
-          </button>
         </div>
       )}
 

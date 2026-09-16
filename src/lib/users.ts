@@ -8,7 +8,14 @@ const COLLECTION = "users";
 // `permissions` field (or a resource added after that doc was last
 // recomputed), rather than throwing — the API layer is what keeps this
 // field in sync with roleIds, this is just a defensive read-side default.
-function fromDoc(id: string, data: DocumentData): StaffUser {
+// Exported as staffUserFromDoc so auth-context.tsx can use the exact same
+// normalization for the signed-in user's own profile — it used to cast
+// snap.data() directly instead, which (unlike every other place a StaffUser
+// gets built) left `id` unset, since Firestore's own doc ID isn't part of
+// the document's field data. That went unnoticed all this time because it
+// only breaks for an account without complaints.viewAll, whose own uid
+// (via profile.id) is needed to scope the complaints list query.
+export function staffUserFromDoc(id: string, data: DocumentData): StaffUser {
   return {
     id,
     nameAr: data.nameAr ?? "",
@@ -33,14 +40,14 @@ export function subscribeToStaff(
 ) {
   return onSnapshot(
     collection(db, COLLECTION),
-    (snap) => callback(snap.docs.map((d) => fromDoc(d.id, d.data()))),
+    (snap) => callback(snap.docs.map((d) => staffUserFromDoc(d.id, d.data()))),
     onError
   );
 }
 
 export async function getStaffMember(id: string): Promise<StaffUser | null> {
   const snap = await getDoc(doc(db, COLLECTION, id));
-  return snap.exists() ? fromDoc(snap.id, snap.data()) : null;
+  return snap.exists() ? staffUserFromDoc(snap.id, snap.data()) : null;
 }
 
 export function subscribeToStaffMember(
@@ -50,7 +57,7 @@ export function subscribeToStaffMember(
 ) {
   return onSnapshot(
     doc(db, COLLECTION, id),
-    (snap) => callback(snap.exists() ? fromDoc(snap.id, snap.data()) : null),
+    (snap) => callback(snap.exists() ? staffUserFromDoc(snap.id, snap.data()) : null),
     onError
   );
 }

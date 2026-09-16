@@ -68,6 +68,7 @@ export default function ReassignComplaintPage({
         id,
         assignTo || null,
         complaint?.assignedTo ?? null,
+        complaint?.status ?? null,
         user?.uid ?? null,
         reason.trim(),
         attachmentUrl

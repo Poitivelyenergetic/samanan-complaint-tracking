@@ -15,6 +15,7 @@ import {
 } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db, usernameToEmail } from "./firebase";
+import { staffUserFromDoc } from "./users";
 import type { StaffUser } from "./types";
 
 interface AuthContextValue {
@@ -47,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
     const unsubscribe = onSnapshot(doc(db, "users", user.uid), (snap) => {
-      setRawProfile(snap.exists() ? (snap.data() as StaffUser) : null);
+      setRawProfile(snap.exists() ? staffUserFromDoc(snap.id, snap.data()) : null);
       setProfileUid(user.uid);
     });
     return unsubscribe;

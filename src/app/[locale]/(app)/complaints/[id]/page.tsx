@@ -43,10 +43,15 @@ export default function ComplaintDetailPage({
   const [complaintSources, setComplaintSources] = useState<ComplaintSource[]>([]);
   const [deleting, setDeleting] = useState(false);
 
-  // Without complaints.update, an account gets a read-only view. Default to
-  // read-only (rather than editable) if the profile hasn't loaded yet,
-  // since that's the safer failure mode.
+  // complaints.update no longer means "can edit everything" — it (and
+  // complaints.reassign) only ever let someone move status/assignedTo.
+  // Editing the complaint's actual content (description, customer info,
+  // type, source, company) requires complaints.editDetails specifically —
+  // that's this app's definition of an Admin. Default to read-only (rather
+  // than editable) if the profile hasn't loaded yet, since that's the safer
+  // failure mode.
   const canEdit = hasPermission(profile, "complaints", "update");
+  const canEditDetails = hasPermission(profile, "complaints", "editDetails");
   const canDelete = hasPermission(profile, "complaints", "delete");
   const canReassign = hasPermission(profile, "complaints", "reassign");
   const isAssignee = !!complaint && !!user && complaint.assignedTo === user.uid;
@@ -190,7 +195,7 @@ export default function ComplaintDetailPage({
           submitLabel={t("submit")}
           submittingLabel={tCommon("saving")}
           onSubmit={handleSubmit}
-          readOnly={!canEdit}
+          readOnly={!canEditDetails}
           canEditStatus={canEditStatus}
           hideAssignedTo
           onCancel={() => router.push("/dashboard")}

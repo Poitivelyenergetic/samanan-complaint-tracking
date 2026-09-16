@@ -20,9 +20,17 @@ import Spinner from "@/components/Spinner";
 import { dateRangeFor, type DateFilter } from "@/lib/dateRange";
 import StatusBadge from "@/components/StatusBadge";
 import DateRangeFilter from "@/components/DateRangeFilter";
-import { IconClipboardList, IconInbox, IconRefreshCw, IconShieldCheck } from "@/components/icons";
+import { IconClipboardList, IconInbox, IconRefreshCw, IconShieldCheck, IconXCircle } from "@/components/icons";
 
-type Bucket = "" | "assigned" | "closed" | "reassignedTo" | "reassignedFrom";
+type Bucket = "" | "assigned" | "closed" | "cancelled" | "reassignedTo" | "reassignedFrom";
+
+// Open/Assigned/Processing are "still active" — a complaint stops counting
+// as Assigned to Me or Reassigned To Me the moment it's Closed or
+// Cancelled, since those cards are meant to read as "what I still need to
+// handle" rather than a permanent record.
+function isActiveStatus(status: Complaint["status"]): boolean {
+  return status !== "Closed" && status !== "Cancel";
+}
 
 function StatCard({
   icon,
@@ -100,25 +108,25 @@ export default function MyComplaintsPage() {
   }, [complaints, datePreset, dateFrom, dateTo]);
 
   const assignedToMe = useMemo(
-    () => dateFiltered.filter((c) => c.assignedTo === user?.uid),
+    () => dateFiltered.filter((c) => c.assignedTo === user?.uid && isActiveStatus(c.status)),
     [dateFiltered, user]
   );
   const closedByMe = useMemo(() => dateFiltered.filter((c) => c.status === "Closed"), [dateFiltered]);
+  const cancelledByMe = useMemo(() => dateFiltered.filter((c) => c.status === "Cancel"), [dateFiltered]);
   // Distinct from "Assigned to Me": that includes complaints assigned to
   // you from the moment they were created. These two instead look at the
   // actual "reassigned" history entries to tell reassignment direction —
   // received via a reassignment (regardless of who holds it now) vs. moved
   // away from you to someone else.
   //
-  // "Reassigned To Me" drops a complaint once it's closed — it's meant to
-  // read as "things reassigned to me that I still need to handle", not a
-  // permanent record. "Reassigned From Me" has no such exclusion: it's a
-  // record of what you moved away, which stays true regardless of what
+  // "Reassigned To Me" drops a complaint once it's Closed or Cancelled — see
+  // isActiveStatus. "Reassigned From Me" has no such exclusion: it's a
+  // permanent record of what you moved away, true regardless of what
   // happens to it afterward.
   const reassignedToMe = useMemo(
     () =>
       dateFiltered.filter(
-        (c) => c.status !== "Closed" && c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid)
+        (c) => isActiveStatus(c.status) && c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid)
       ),
     [dateFiltered, user]
   );
@@ -133,10 +141,11 @@ export default function MyComplaintsPage() {
   const filtered = useMemo(() => {
     const sorted = [...dateFiltered].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     return sorted.filter((c) => {
-      if (bucket === "assigned") return c.assignedTo === user?.uid;
+      if (bucket === "assigned") return c.assignedTo === user?.uid && isActiveStatus(c.status);
       if (bucket === "closed") return c.status === "Closed";
+      if (bucket === "cancelled") return c.status === "Cancel";
       if (bucket === "reassignedTo")
-        return c.status !== "Closed" && c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid);
+        return isActiveStatus(c.status) && c.history.some((h) => h.type === "reassigned" && h.assignedTo === user?.uid);
       if (bucket === "reassignedFrom")
         return c.history.some((h) => h.type === "reassigned" && h.previousAssignedTo === user?.uid);
       return true;
@@ -162,7 +171,7 @@ export default function MyComplaintsPage() {
       <p className="mt-0.5 text-sm text-foreground/60">{t("subtitle")}</p>
 
       {complaints !== null && (
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           <StatCard
             icon={<IconClipboardList />}
             color="#6366f1"
@@ -186,6 +195,14 @@ export default function MyComplaintsPage() {
             value={closedByMe.length}
             active={bucket === "closed"}
             onClick={() => setBucket("closed")}
+          />
+          <StatCard
+            icon={<IconXCircle />}
+            color="#dc2626"
+            label={t("stats.cancelled")}
+            value={cancelledByMe.length}
+            active={bucket === "cancelled"}
+            onClick={() => setBucket("cancelled")}
           />
           <StatCard
             icon={<IconRefreshCw />}

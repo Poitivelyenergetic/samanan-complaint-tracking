@@ -79,12 +79,15 @@ service cloud.firestore {
       allow delete: if hasPermission("departments", "delete");
     }
 
-    // complaints.reassign moves a complaint directly — no separate
-    // approval step. Anyone who also holds complaints.update can write any
-    // field regardless.
+    // Shared by both complaints.reassign and complaints.update — neither of
+    // those permissions grants editing the complaint's own content anymore,
+    // only moving it (assignedTo) and/or progressing it (status). Full
+    // content edits require complaints.editDetails instead (see the update
+    // rule below). `status` is included here too since reassignComplaint()
+    // bumps Open straight to Assigned as part of the same write.
     function isReassignWrite() {
       let affected = request.resource.data.diff(resource.data).affectedKeys();
-      return affected.hasOnly(["assignedTo", "updatedAt", "history"]);
+      return affected.hasOnly(["assignedTo", "status", "updatedAt", "history"]);
     }
 
     // The current assignee can move a complaint's status even without
@@ -116,15 +119,19 @@ service cloud.firestore {
     // denies the whole request rather than silently returning a subset.
     function canReadComplaint() {
       return hasPermission("complaints", "viewAll")
-        || (hasPermission("complaints", "view") && resource.data.assignedTo == request.auth.uid)
-        || (hasPermission("complaints", "view") && request.auth.uid in resource.data.everAssignedTo);
+        || (hasPermission("complaints", "view")
+            && (resource.data.assignedTo == request.auth.uid || request.auth.uid in resource.data.everAssignedTo));
     }
 
     match /complaints/{complaintId} {
       allow get: if canReadComplaint();
       allow list: if canReadComplaint();
-      allow update: if hasPermission("complaints", "update")
-        || (hasPermission("complaints", "reassign") && isReassignWrite())
+      // editDetails is the only way to touch the complaint's actual content
+      // (description, customer info, type, source, company) — update and
+      // reassign are both restricted to isReassignWrite()'s narrower field
+      // set (status + assignedTo) regardless of which of the two grants it.
+      allow update: if hasPermission("complaints", "editDetails")
+        || ((hasPermission("complaints", "update") || hasPermission("complaints", "reassign")) && isReassignWrite())
         || (isSignedIn() && resource.data.assignedTo == request.auth.uid && isComplaintStatusOnlyWrite())
         || (isSignedIn() && resource.data.createdBy == request.auth.uid && isHistoryOnlyWrite());
       allow delete: if hasPermission("complaints", "delete");

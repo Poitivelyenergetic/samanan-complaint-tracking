@@ -45,15 +45,25 @@ export interface MarketingPermission {
   view: boolean;
 }
 
-// Complaints carries two extra flags beyond the standard CRUD set:
+// Complaints carries three extra flags beyond the standard CRUD set:
 //  - viewAll: see every complaint, not just ones assigned to you (default
 //    scoping — see hasPermission's callers in the dashboard/detail pages —
-//    is "only your own assigned complaints").
+//    is "only your own assigned complaints"). A General Manager (see
+//    lib/orgScope.ts) who holds viewAll is further narrowed to their own
+//    branch on the Complaints list unless they also hold editDetails.
 //  - reassign: change a complaint's assignee directly. Takes effect
 //    immediately — there is no separate approval step.
+//  - editDetails: edit a complaint's actual content (description, customer
+//    info, type, source, company). Without it, `update` only lets someone
+//    move status/assignedTo — see isReassignWrite() in firestore.rules,
+//    which both `update` and `reassign` share. This is also what defines
+//    "Admin" for GM-scoping purposes: holding it exempts someone from being
+//    narrowed to their own branch even if they're also set as a manager
+//    somewhere.
 export interface ComplaintsPermission extends CrudPermission {
   viewAll: boolean;
   reassign: boolean;
+  editDetails: boolean;
 }
 
 // Same shape as ComplaintsPermission, but `create` is never actually
@@ -92,11 +102,11 @@ export function fullCrud(): CrudPermission {
 }
 
 function emptyComplaintsPermission(): ComplaintsPermission {
-  return { ...emptyCrud(), viewAll: false, reassign: false };
+  return { ...emptyCrud(), viewAll: false, reassign: false, editDetails: false };
 }
 
 function fullComplaintsPermission(): ComplaintsPermission {
-  return { ...fullCrud(), viewAll: true, reassign: true };
+  return { ...fullCrud(), viewAll: true, reassign: true, editDetails: true };
 }
 
 function emptyTicketsPermission(): TicketsPermission {
@@ -158,6 +168,7 @@ export function unionRolePermissions(rolePermissions: Partial<RolePermissions>[]
         const complaintsGrant = grant as Partial<ComplaintsPermission>;
         if (complaintsGrant.viewAll) result.complaints.viewAll = true;
         if (complaintsGrant.reassign) result.complaints.reassign = true;
+        if (complaintsGrant.editDetails) result.complaints.editDetails = true;
       }
       if (resource === "tickets") {
         const ticketsGrant = grant as Partial<TicketsPermission>;
@@ -176,7 +187,7 @@ export function unionRolePermissions(rolePermissions: Partial<RolePermissions>[]
 export function hasPermission(
   profile: { permissions?: RolePermissions } | null | undefined,
   resource: PermissionResource | "marketing",
-  action: CrudAction | "viewAll" | "reassign"
+  action: CrudAction | "viewAll" | "reassign" | "editDetails"
 ): boolean {
   const resourcePerms = profile?.permissions?.[resource as keyof RolePermissions];
   if (!resourcePerms) return false;
@@ -202,6 +213,7 @@ export function normalizeRolePermissionsInput(input: unknown): RolePermissions {
     if (resource === "complaints") {
       if (grantRecord.viewAll === true) result.complaints.viewAll = true;
       if (grantRecord.reassign === true) result.complaints.reassign = true;
+      if (grantRecord.editDetails === true) result.complaints.editDetails = true;
     }
     if (resource === "tickets") {
       if (grantRecord.viewAll === true) result.tickets.viewAll = true;

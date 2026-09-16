@@ -65,18 +65,26 @@ function fromDoc(id: string, data: DocumentData): Complaint {
 // — firestore.rules requires the query itself to be constrained to that
 // uid's own assigned complaints, since Firestore denies (rather than
 // silently filters) a list query that could return a document the rule
-// would reject.
+// would reject. That scoped query deliberately has no orderBy — combining
+// it with the equality filter above made the whole list request fail with
+// permission-denied (not a missing-index error) even though the rule
+// itself allows exactly this query shape; sorting is done client-side
+// below instead.
 export function subscribeToComplaints(
   callback: (complaints: Complaint[]) => void,
   onError?: (error: unknown) => void,
   scopeToUid?: string
 ) {
   const q = scopeToUid
-    ? query(collection(db, COLLECTION), where("assignedTo", "==", scopeToUid), orderBy("createdAt", "desc"))
+    ? query(collection(db, COLLECTION), where("assignedTo", "==", scopeToUid))
     : query(collection(db, COLLECTION), orderBy("createdAt", "desc"));
   return onSnapshot(
     q,
-    (snap) => callback(snap.docs.map((d) => fromDoc(d.id, d.data()))),
+    (snap) => {
+      const complaints = snap.docs.map((d) => fromDoc(d.id, d.data()));
+      if (scopeToUid) complaints.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+      callback(complaints);
+    },
     onError
   );
 }
@@ -185,13 +193,18 @@ export async function reassignComplaint(
   id: string,
   assignedTo: string | null,
   previousAssignedTo: string | null,
+  currentStatus: Complaint["status"] | null,
   byUid: string | null,
   reason: string,
   attachmentUrl?: string | null
 ): Promise<void> {
   const at = await resolveServerNowIso(COLLECTION, id);
+  // Reassigning to someone while still Open moves it to Assigned — mirrors
+  // ComplaintForm's identical rule for the initial assignment at creation.
+  const bumpToAssigned = Boolean(assignedTo) && currentStatus === "Open";
   await updateDoc(doc(db, COLLECTION, id), {
     assignedTo,
+    ...(bumpToAssigned ? { status: "Assigned" } : {}),
     updatedAt: serverTimestamp(),
     ...(assignedTo ? { everAssignedTo: arrayUnion(assignedTo) } : {}),
     history: arrayUnion({
