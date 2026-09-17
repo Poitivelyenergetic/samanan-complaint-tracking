@@ -437,9 +437,9 @@ export default function DashboardPage() {
               <th className="px-4 py-3 text-start">{t("table.type")}</th>
               <th className="px-4 py-3 text-start">{t("table.customer")}</th>
               <th className="px-4 py-3 text-start">{t("table.customerPhone")}</th>
-              <th className="px-4 py-3 text-start">{t("table.orderNumber")}</th>
               <th className="px-4 py-3 text-start">{t("table.source")}</th>
               <th className="px-4 py-3 text-start">{t("table.assignedTo")}</th>
+              <th className="px-4 py-3 text-start">{t("table.recordedBy")}</th>
               <th className="px-4 py-3 text-start">{t("table.status")}</th>
               <th className="px-4 py-3 text-start">{t("table.createdAt")}</th>
             </tr>
@@ -489,9 +489,6 @@ export default function DashboardPage() {
                   <td className="px-4 py-3 text-foreground/70" dir="ltr">
                     {c.customerPhone || "—"}
                   </td>
-                  <td className="px-4 py-3 text-foreground/70" dir="ltr">
-                    {c.customerOrderNumber || "—"}
-                  </td>
                   <td className="px-4 py-3 text-foreground/70">
                     {(() => {
                       const source = sourcesById.get(c.complaintSourceId);
@@ -500,6 +497,9 @@ export default function DashboardPage() {
                   </td>
                   <td className="px-4 py-3 text-foreground/70">
                     {c.assignedTo ? localizedName(staffById.get(c.assignedTo), locale) || c.assignedTo : tCommon("unassigned")}
+                  </td>
+                  <td className="px-4 py-3 text-foreground/70">
+                    {c.createdBy ? localizedName(staffById.get(c.createdBy), locale) || c.createdBy : tCommon("unassigned")}
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={c.status} />

@@ -200,9 +200,9 @@
       "issueId": "Issue ID",
       "customer": "Customer",
       "customerPhone": "Customer Phone",
-      "orderNumber": "Order Number",
       "source": "Source",
       "assignedTo": "Assigned To",
+      "recordedBy": "Recorded By",
       "status": "Status",
       "createdAt": "Created",
       "type": "Type"

@@ -200,9 +200,9 @@
       "issueId": "رقم الشكوى",
       "customer": "العميل",
       "customerPhone": "هاتف العميل",
-      "orderNumber": "رقم الطلب",
       "source": "المصدر",
       "assignedTo": "مسندة إلى",
+      "recordedBy": "سجّلها",
       "status": "الحالة",
       "createdAt": "تاريخ الإنشاء",
       "type": "النوع"
