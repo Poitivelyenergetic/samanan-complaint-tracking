@@ -813,7 +813,8 @@
       "status": "Status",
       "createdAt": "Created",
       "type": "Type",
-      "assignedTo": "Assigned To"
+      "assignedTo": "Assigned To",
+      "createdBy": "Created By"
     },
     "stats": {
       "total": "Total",

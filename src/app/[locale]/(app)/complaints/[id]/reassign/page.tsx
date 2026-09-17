@@ -141,9 +141,13 @@ export default function ReassignComplaintPage({
 
   return (
     <div className="mx-auto max-w-2xl">
-      <Link href={`/complaints/${id}`} className="text-sm text-brand hover:underline">
+      <button
+        type="button"
+        onClick={() => router.back()}
+        className="text-sm text-brand hover:underline"
+      >
         &larr; {tCommon("back")}
-      </Link>
+      </button>
       <h1 className="mt-1 text-xl font-bold text-foreground">{t("title")}</h1>
       <p className="mt-0.5 text-sm text-foreground/60">{t("subtitle")}</p>
 
@@ -263,9 +267,13 @@ export default function ReassignComplaintPage({
           >
             {submitting ? t("submitting") : t("submit")}
           </button>
-          <Link href={`/complaints/${id}`} className="text-sm text-foreground/60 hover:text-foreground">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="text-sm text-foreground/60 hover:text-foreground"
+          >
             {tCommon("cancel")}
-          </Link>
+          </button>
         </div>
       </form>
     </div>

@@ -243,6 +243,7 @@ export default function MyComplaintsPage() {
               <th className="px-4 py-3 text-start">{t("table.customer")}</th>
               <th className="px-4 py-3 text-start">{t("table.source")}</th>
               <th className="px-4 py-3 text-start">{t("table.assignedTo")}</th>
+              <th className="px-4 py-3 text-start">{t("table.createdBy")}</th>
               <th className="px-4 py-3 text-start">{t("table.status")}</th>
               <th className="px-4 py-3 text-start">{t("table.createdAt")}</th>
             </tr>
@@ -250,13 +251,13 @@ export default function MyComplaintsPage() {
           <tbody>
             {complaints === null ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={8} className="px-4 py-8 text-center text-foreground/50">
                   {tCommon("loading")}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={8} className="px-4 py-8 text-center text-foreground/50">
                   {t("noResults")}
                 </td>
               </tr>
@@ -285,6 +286,7 @@ export default function MyComplaintsPage() {
                     {localizedName(sourcesById.get(c.complaintSourceId), locale) || "—"}
                   </td>
                   <td className="px-4 py-3 text-foreground/70">{assigneeName(c.assignedTo)}</td>
+                  <td className="px-4 py-3 text-foreground/70">{assigneeName(c.createdBy)}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={c.status} />
                   </td>

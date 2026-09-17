@@ -813,7 +813,8 @@
       "status": "الحالة",
       "createdAt": "تاريخ الإنشاء",
       "type": "النوع",
-      "assignedTo": "مسندة إلى"
+      "assignedTo": "مسندة إلى",
+      "createdBy": "أنشأها"
     },
     "stats": {
       "total": "الإجمالي",
