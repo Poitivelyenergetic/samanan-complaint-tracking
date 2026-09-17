@@ -58,7 +58,7 @@ interface ComplaintFormProps {
   // statusNote is only passed when the status actually changed from what
   // this form started with — required by the caller (updateComplaint logs
   // it on the "status" history entry).
-  onSubmit: (values: ComplaintInput, statusNote?: string) => Promise<void>;
+  onSubmit: (values: ComplaintInput, statusNote?: string, statusAttachmentUrls?: string[]) => Promise<void>;
   // Renders every field disabled and hides the submit button — used for
   // roles that can view but not edit/reassign/change the status of a
   // complaint.
@@ -133,6 +133,15 @@ export default function ComplaintForm({
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  // Separate from the complaint's own attachmentUrls above — these attach
+  // to whatever the status note says was done (e.g. proof the customer was
+  // contacted before closing/cancelling), not to the complaint record
+  // itself, so they live on the "status" history entry instead.
+  const [statusAttachmentUrls, setStatusAttachmentUrls] = useState<string[]>([]);
+  const [statusAttachmentUploading, setStatusAttachmentUploading] = useState(false);
+  const [statusAttachmentError, setStatusAttachmentError] = useState<string | null>(null);
+  const statusAttachmentInputRef = useRef<HTMLInputElement>(null);
+  const [statusDragOver, setStatusDragOver] = useState(false);
   // Tracks real edits so clicking Cancel with nothing changed just leaves
   // immediately instead of asking the user to confirm discarding nothing.
   const isDirtyRef = useRef(false);
@@ -303,6 +312,44 @@ export default function ComplaintForm({
     if (e.dataTransfer.files.length) uploadAttachments(e.dataTransfer.files);
   }
 
+  async function uploadStatusAttachments(files: FileList | File[]) {
+    const fileList = Array.from(files);
+    if (!fileList.length) return;
+    setStatusAttachmentError(null);
+    setStatusAttachmentUploading(true);
+    try {
+      const urls = await Promise.all(
+        fileList.map(async (file) => {
+          const path = `complaints/${Date.now()}-${file.name}`;
+          const fileRef = ref(storage, path);
+          await uploadBytes(fileRef, file, { contentType: file.type });
+          return getDownloadURL(fileRef);
+        })
+      );
+      setStatusAttachmentUrls((prev) => [...prev, ...urls]);
+    } catch {
+      setStatusAttachmentError(tDetail("attachmentUploadFailed"));
+    } finally {
+      setStatusAttachmentUploading(false);
+    }
+  }
+
+  function removeStatusAttachment(url: string) {
+    setStatusAttachmentUrls((prev) => prev.filter((u) => u !== url));
+  }
+
+  function handleStatusAttachmentInputChange(e: ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    e.target.value = "";
+    if (files.length) uploadStatusAttachments(files);
+  }
+
+  function handleStatusAttachmentDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setStatusDragOver(false);
+    if (e.dataTransfer.files.length) uploadStatusAttachments(e.dataTransfer.files);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -312,7 +359,11 @@ export default function ComplaintForm({
     }
     setSubmitting(true);
     try {
-      await onSubmit(buildPayload(), statusChanged ? statusNote.trim() : undefined);
+      await onSubmit(
+        buildPayload(),
+        statusChanged ? statusNote.trim() : undefined,
+        statusChanged ? statusAttachmentUrls : undefined
+      );
     } catch {
       setError(tCommon("somethingWentWrong"));
     } finally {
@@ -641,6 +692,75 @@ export default function ComplaintForm({
             placeholder={tDetail("statusNotePlaceholder")}
             className={textInputClass}
           />
+
+          <div className="mt-3">
+            <span className="block text-sm font-medium text-foreground">{t("attachment")}</span>
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setStatusDragOver(true);
+              }}
+              onDragLeave={() => setStatusDragOver(false)}
+              onDrop={handleStatusAttachmentDrop}
+              className={`mt-1 flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed px-4 py-6 text-center text-sm transition-colors ${
+                statusDragOver ? "border-brand bg-brand/5" : "border-border"
+              }`}
+            >
+              {statusAttachmentUrls.length > 0 ? (
+                <>
+                  <ul className="w-full space-y-1">
+                    {statusAttachmentUrls.map((url, i) => (
+                      <li key={url} className="flex items-center justify-center gap-2">
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-brand hover:underline"
+                        >
+                          {statusAttachmentUrls.length > 1 ? `${tDetail("viewAttachment")} ${i + 1}` : tDetail("viewAttachment")}
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => removeStatusAttachment(url)}
+                          className="text-xs text-foreground/50 hover:text-red-600"
+                        >
+                          {t("removeAttachment")}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={() => statusAttachmentInputRef.current?.click()}
+                    disabled={statusAttachmentUploading}
+                    className="text-xs text-foreground/60 hover:text-foreground disabled:opacity-50"
+                  >
+                    {statusAttachmentUploading ? tCommon("saving") : t("addMoreFiles")}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-foreground/60">{t("attachmentDropHint")}</p>
+                  <button
+                    type="button"
+                    onClick={() => statusAttachmentInputRef.current?.click()}
+                    disabled={statusAttachmentUploading}
+                    className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground/80 hover:bg-black/5 disabled:opacity-50"
+                  >
+                    {statusAttachmentUploading ? tCommon("saving") : t("chooseFile")}
+                  </button>
+                </>
+              )}
+              <input
+                ref={statusAttachmentInputRef}
+                type="file"
+                multiple
+                onChange={handleStatusAttachmentInputChange}
+                className="hidden"
+              />
+            </div>
+            {statusAttachmentError && <p className="mt-1 text-xs text-red-600">{statusAttachmentError}</p>}
+          </div>
         </div>
       )}
 

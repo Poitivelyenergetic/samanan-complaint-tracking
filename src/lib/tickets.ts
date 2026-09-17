@@ -180,7 +180,8 @@ export async function updateTicket(
   updates: Partial<TicketInput>,
   previousStatus: string | null,
   byUid: string | null,
-  statusNote?: string
+  statusNote?: string,
+  statusAttachmentUrls?: string[]
 ): Promise<void> {
   const historyAppend: TicketHistoryEntry[] =
     updates.status && updates.status !== previousStatus
@@ -190,6 +191,7 @@ export async function updateTicket(
             status: updates.status,
             ...(previousStatus ? { previousStatus: previousStatus as Ticket["status"] } : {}),
             ...(statusNote ? { note: statusNote } : {}),
+            ...(statusAttachmentUrls && statusAttachmentUrls.length ? { attachmentUrls: statusAttachmentUrls } : {}),
             at: await resolveServerNowIso(COLLECTION, id),
             byUid,
           },
@@ -222,7 +224,8 @@ export async function reassignTicket(
   assignedTo: string | null,
   previousAssignedTo: string | null,
   byUid: string | null,
-  reason: string
+  reason: string,
+  attachmentUrls?: string[]
 ): Promise<void> {
   const at = await resolveServerNowIso(COLLECTION, id);
   await updateDoc(doc(db, COLLECTION, id), {
@@ -235,6 +238,7 @@ export async function reassignTicket(
       assignedTo,
       previousAssignedTo,
       reason,
+      ...(attachmentUrls && attachmentUrls.length ? { attachmentUrls } : {}),
       at,
       byUid,
     }),

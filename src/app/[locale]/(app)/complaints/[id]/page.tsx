@@ -75,7 +75,7 @@ export default function ComplaintDetailPage({
   useEffect(() => subscribeToComplaintTypes(setComplaintTypes), []);
   useEffect(() => subscribeToComplaintSources(setComplaintSources), []);
 
-  async function handleSubmit(values: ComplaintInput, statusNote?: string) {
+  async function handleSubmit(values: ComplaintInput, statusNote?: string, statusAttachmentUrls?: string[]) {
     // ComplaintForm always sends createdBy: null (it's not an editable
     // field) — restore the complaint's actual creator rather than letting
     // it get wiped out on every save. Likewise assignedTo: this form is
@@ -89,7 +89,8 @@ export default function ComplaintDetailPage({
       { ...values, createdBy: complaint?.createdBy ?? null, assignedTo: complaint?.assignedTo ?? null },
       complaint?.status ?? null,
       user?.uid ?? null,
-      statusNote
+      statusNote,
+      statusAttachmentUrls
     );
   }
 
@@ -300,7 +301,7 @@ export default function ComplaintDetailPage({
                     {isReassignEntry && entry.reason && (
                       <p className="text-foreground/60">{t("historyReassignedReason", { reason: entry.reason })}</p>
                     )}
-                    {isReassignEntry && entry.attachmentUrls && entry.attachmentUrls.length > 0 && (
+                    {(isReassignEntry || entry.type === "status") && entry.attachmentUrls && entry.attachmentUrls.length > 0 && (
                       <div className="flex flex-wrap gap-x-3 gap-y-1">
                         {entry.attachmentUrls.map((url, i) => (
                           <a

@@ -717,7 +717,12 @@
       "administration": "الإدارة",
       "department": "القسم",
       "selectDepartment": "اختر القسم",
-      "status": "الحالة"
+      "status": "الحالة",
+      "attachment": "المرفق",
+      "attachmentDropHint": "اسحب وأفلت الملفات هنا، أو",
+      "chooseFile": "اختر ملفات",
+      "addMoreFiles": "إضافة المزيد من الملفات",
+      "removeAttachment": "إزالة"
     },
     "new": {
       "title": "تذكرة IT جديدة",
@@ -730,6 +735,8 @@
       "statusNoteLabel": "ماذا فعلت؟",
       "statusNotePlaceholder": "صف ما تغيّر أو ما قمت به قبل تحديث الحالة...",
       "statusNoteRequired": "يرجى وصف ما قمت به قبل تغيير الحالة.",
+      "viewAttachment": "عرض المرفق",
+      "attachmentUploadFailed": "تعذّر رفع هذا الملف. يرجى المحاولة مرة أخرى.",
       "readOnlyNotice": "لديك صلاحية عرض فقط لهذه التذكرة.",
       "assignedTo": "مسندة إلى",
       "reassign": "إعادة الإسناد",
@@ -758,7 +765,12 @@
       "reasonPlaceholder": "لماذا يتم إعادة إسناد هذه التذكرة؟",
       "reasonRequired": "يرجى توضيح سبب إعادة إسناد هذه التذكرة.",
       "submit": "إعادة الإسناد",
-      "submitting": "جارٍ إعادة الإسناد..."
+      "submitting": "جارٍ إعادة الإسناد...",
+      "attachment": "المرفق",
+      "attachmentDropHint": "اسحب وأفلت الملفات هنا، أو",
+      "chooseFile": "اختر ملفات",
+      "addMoreFiles": "إضافة المزيد من الملفات",
+      "removeAttachment": "إزالة"
     }
   },
   "ticketInquiry": {

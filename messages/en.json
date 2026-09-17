@@ -717,7 +717,12 @@
       "administration": "Administration",
       "department": "Department",
       "selectDepartment": "Select a department",
-      "status": "Status"
+      "status": "Status",
+      "attachment": "Attachment",
+      "attachmentDropHint": "Drag and drop files here, or",
+      "chooseFile": "Choose Files",
+      "addMoreFiles": "Add more files",
+      "removeAttachment": "Remove"
     },
     "new": {
       "title": "New IT Ticket",
@@ -730,6 +735,8 @@
       "statusNoteLabel": "What did you do?",
       "statusNotePlaceholder": "Describe what changed or what you did before updating the status...",
       "statusNoteRequired": "Please describe what you did before changing the status.",
+      "viewAttachment": "View attachment",
+      "attachmentUploadFailed": "Could not upload that file. Please try again.",
       "readOnlyNotice": "You have view-only access to this ticket.",
       "assignedTo": "Assigned To",
       "reassign": "Reassign",
@@ -758,7 +765,12 @@
       "reasonPlaceholder": "Why is this ticket being reassigned?",
       "reasonRequired": "Please explain why this ticket is being reassigned.",
       "submit": "Reassign",
-      "submitting": "Reassigning..."
+      "submitting": "Reassigning...",
+      "attachment": "Attachment",
+      "attachmentDropHint": "Drag and drop files here, or",
+      "chooseFile": "Choose Files",
+      "addMoreFiles": "Add more files",
+      "removeAttachment": "Remove"
     }
   },
   "ticketInquiry": {

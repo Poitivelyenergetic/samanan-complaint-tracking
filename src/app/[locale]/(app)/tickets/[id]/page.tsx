@@ -64,7 +64,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
   const administration = administrations.find((a) => a.id === TICKET_ADMINISTRATION_ID);
   const administrationLabel = administration ? localizedName(administration, locale) : "";
 
-  async function handleSubmit(values: TicketInput, statusNote?: string) {
+  async function handleSubmit(values: TicketInput, statusNote?: string, statusAttachmentUrls?: string[]) {
     // TicketForm is mounted with hideAssignedTo, so its internal
     // assignedTo/departmentId are whatever the ticket's were when the form
     // first mounted — if someone else reassigns the ticket while this tab
@@ -82,7 +82,8 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
       },
       ticket?.status ?? null,
       user?.uid ?? null,
-      statusNote
+      statusNote,
+      statusAttachmentUrls
     );
   }
 
@@ -261,6 +262,23 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
                     {entry.type === "status" && entry.note && (
                       <p className="text-foreground/60">{t("historyStatusNote", { note: entry.note })}</p>
                     )}
+                    {(entry.type === "reassigned" || entry.type === "status") &&
+                      entry.attachmentUrls &&
+                      entry.attachmentUrls.length > 0 && (
+                        <div className="flex flex-wrap gap-x-3 gap-y-1">
+                          {entry.attachmentUrls.map((url, i) => (
+                            <a
+                              key={url}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-brand hover:underline"
+                            >
+                              {entry.attachmentUrls!.length > 1 ? `${t("viewAttachment")} ${i + 1}` : t("viewAttachment")}
+                            </a>
+                          ))}
+                        </div>
+                      )}
                     {entry.type === "note" && entry.note && (
                       <p className="whitespace-pre-wrap text-foreground/60">{entry.note}</p>
                     )}

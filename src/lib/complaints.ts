@@ -152,7 +152,8 @@ export async function updateComplaint(
   updates: Partial<ComplaintInput>,
   previousStatus: string | null,
   byUid: string | null,
-  statusNote?: string
+  statusNote?: string,
+  statusAttachmentUrls?: string[]
 ): Promise<void> {
   const historyAppend: ComplaintHistoryEntry[] =
     updates.status && updates.status !== previousStatus
@@ -162,6 +163,7 @@ export async function updateComplaint(
             status: updates.status,
             ...(previousStatus ? { previousStatus: previousStatus as Complaint["status"] } : {}),
             ...(statusNote ? { note: statusNote } : {}),
+            ...(statusAttachmentUrls && statusAttachmentUrls.length ? { attachmentUrls: statusAttachmentUrls } : {}),
             at: await resolveServerNowIso(COLLECTION, id),
             byUid,
           },
