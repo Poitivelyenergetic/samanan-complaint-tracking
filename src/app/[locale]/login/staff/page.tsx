@@ -106,8 +106,6 @@ export default function StaffLoginPage() {
           </Link>
         </p>
       </div>
-
-      <p className="mt-4 text-center text-xs text-foreground/50">{t("demoHint")}</p>
     </PublicShell>
   );
 }

@@ -67,7 +67,6 @@
     "submit": "Sign In",
     "signingIn": "Signing in...",
     "error": "Invalid username or password",
-    "demoHint": "Demo login: username \"mhmd\", password \"123456\"",
     "noAccount": "New staff member?",
     "signUp": "Request an account",
     "forgotPassword": "Forgot password?",
