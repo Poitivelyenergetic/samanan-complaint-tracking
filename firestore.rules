@@ -122,7 +122,14 @@ service cloud.firestore {
     function canReadComplaint() {
       return hasPermission("complaints", "viewAll")
         || (hasPermission("complaints", "view")
-            && (resource.data.assignedTo == request.auth.uid || request.auth.uid in resource.data.everAssignedTo));
+            && (resource.data.assignedTo == request.auth.uid
+                || request.auth.uid in resource.data.everAssignedTo
+                // Otherwise the creator of a complaint they leave
+                // unassigned (or reassign away from themselves) can never
+                // read it again — including the read-back inside
+                // createComplaint() itself, which broke every plain
+                // employee's ability to log an unassigned complaint at all.
+                || resource.data.createdBy == request.auth.uid));
     }
 
     match /complaints/{complaintId} {
