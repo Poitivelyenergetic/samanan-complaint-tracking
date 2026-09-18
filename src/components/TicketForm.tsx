@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   TICKET_STATUSES,
@@ -12,9 +12,9 @@ import {
   type TicketStatus,
   type TicketType,
 } from "@/lib/types";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase";
+import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 import SearchableSelect from "./SearchableSelect";
+import AttachmentUploader from "./AttachmentUploader";
 
 export interface TicketFormValues {
   subject: string;
@@ -110,11 +110,10 @@ export default function TicketForm({
   const isDirtyRef = useRef(false);
   // Attaches to whatever the status note says was done, not to the ticket
   // itself — lives on the "status" history entry (mirrors ComplaintForm).
-  const [statusAttachmentUrls, setStatusAttachmentUrls] = useState<string[]>([]);
-  const [statusAttachmentUploading, setStatusAttachmentUploading] = useState(false);
-  const [statusAttachmentError, setStatusAttachmentError] = useState<string | null>(null);
-  const statusAttachmentInputRef = useRef<HTMLInputElement>(null);
-  const [statusDragOver, setStatusDragOver] = useState(false);
+  const statusAttachments = useAttachmentUpload({
+    storagePathPrefix: "tickets",
+    errorMessage: tDetail("attachmentUploadFailed"),
+  });
 
   const departmentOptions = useMemo(
     () => departments.filter((d) => d.administrationId === administrationId),
@@ -172,44 +171,6 @@ export default function TicketForm({
     }
   }
 
-  async function uploadStatusAttachments(files: FileList | File[]) {
-    const fileList = Array.from(files);
-    if (!fileList.length) return;
-    setStatusAttachmentError(null);
-    setStatusAttachmentUploading(true);
-    try {
-      const urls = await Promise.all(
-        fileList.map(async (file) => {
-          const path = `tickets/${Date.now()}-${file.name}`;
-          const fileRef = ref(storage, path);
-          await uploadBytes(fileRef, file, { contentType: file.type });
-          return getDownloadURL(fileRef);
-        })
-      );
-      setStatusAttachmentUrls((prev) => [...prev, ...urls]);
-    } catch {
-      setStatusAttachmentError(tDetail("attachmentUploadFailed"));
-    } finally {
-      setStatusAttachmentUploading(false);
-    }
-  }
-
-  function removeStatusAttachment(url: string) {
-    setStatusAttachmentUrls((prev) => prev.filter((u) => u !== url));
-  }
-
-  function handleStatusAttachmentInputChange(e: ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files ? Array.from(e.target.files) : [];
-    e.target.value = "";
-    if (files.length) uploadStatusAttachments(files);
-  }
-
-  function handleStatusAttachmentDrop(e: DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    setStatusDragOver(false);
-    if (e.dataTransfer.files.length) uploadStatusAttachments(e.dataTransfer.files);
-  }
-
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -222,7 +183,7 @@ export default function TicketForm({
       await onSubmit(
         buildPayload(),
         statusChanged ? statusNote.trim() : undefined,
-        statusChanged ? statusAttachmentUrls : undefined
+        statusChanged ? statusAttachments.urls : undefined
       );
     } catch {
       setError(tCommon("somethingWentWrong"));
@@ -414,72 +375,26 @@ export default function TicketForm({
           />
 
           <div className="mt-3">
-            <span className="block text-sm font-medium text-foreground">{t("attachment")}</span>
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setStatusDragOver(true);
-              }}
-              onDragLeave={() => setStatusDragOver(false)}
-              onDrop={handleStatusAttachmentDrop}
-              className={`mt-1 flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed px-4 py-6 text-center text-sm transition-colors ${
-                statusDragOver ? "border-brand bg-brand/5" : "border-border"
-              }`}
-            >
-              {statusAttachmentUrls.length > 0 ? (
-                <>
-                  <ul className="w-full space-y-1">
-                    {statusAttachmentUrls.map((url, i) => (
-                      <li key={url} className="flex items-center justify-center gap-2">
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium text-brand hover:underline"
-                        >
-                          {statusAttachmentUrls.length > 1 ? `${tDetail("viewAttachment")} ${i + 1}` : tDetail("viewAttachment")}
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => removeStatusAttachment(url)}
-                          className="text-xs text-foreground/50 hover:text-red-600"
-                        >
-                          {t("removeAttachment")}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    type="button"
-                    onClick={() => statusAttachmentInputRef.current?.click()}
-                    disabled={statusAttachmentUploading}
-                    className="text-xs text-foreground/60 hover:text-foreground disabled:opacity-50"
-                  >
-                    {statusAttachmentUploading ? tCommon("saving") : t("addMoreFiles")}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <p className="text-foreground/60">{t("attachmentDropHint")}</p>
-                  <button
-                    type="button"
-                    onClick={() => statusAttachmentInputRef.current?.click()}
-                    disabled={statusAttachmentUploading}
-                    className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground/80 hover:bg-black/5 disabled:opacity-50"
-                  >
-                    {statusAttachmentUploading ? tCommon("saving") : t("chooseFile")}
-                  </button>
-                </>
-              )}
-              <input
-                ref={statusAttachmentInputRef}
-                type="file"
-                multiple
-                onChange={handleStatusAttachmentInputChange}
-                className="hidden"
-              />
-            </div>
-            {statusAttachmentError && <p className="mt-1 text-xs text-red-600">{statusAttachmentError}</p>}
+            <AttachmentUploader
+              label={t("attachment")}
+              urls={statusAttachments.urls}
+              uploading={statusAttachments.uploading}
+              error={statusAttachments.error}
+              dragOver={statusAttachments.dragOver}
+              inputRef={statusAttachments.inputRef}
+              onDragOver={statusAttachments.handleDragOver}
+              onDragLeave={statusAttachments.handleDragLeave}
+              onDrop={statusAttachments.handleDrop}
+              onInputChange={statusAttachments.handleInputChange}
+              onOpenPicker={statusAttachments.openFilePicker}
+              onRemove={statusAttachments.remove}
+              viewAttachmentLabel={tDetail("viewAttachment")}
+              removeLabel={t("removeAttachment")}
+              addMoreLabel={t("addMoreFiles")}
+              chooseFileLabel={t("chooseFile")}
+              dropHintLabel={t("attachmentDropHint")}
+              savingLabel={tCommon("saving")}
+            />
           </div>
         </div>
       )}
