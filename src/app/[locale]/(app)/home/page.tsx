@@ -1179,7 +1179,18 @@ export default function HomePage() {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="label" stroke="var(--foreground)" opacity={0.5} fontSize={11} />
-                    <YAxis allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
+                    <YAxis
+                      allowDecimals={false}
+                      stroke="var(--foreground)"
+                      opacity={0.5}
+                      fontSize={12}
+                      // Recharts' auto domain can round up to exactly match
+                      // the peak value, which then sits flush against the
+                      // top edge of the chart with no breathing room. Padding
+                      // the domain a bit above the max keeps the peak dot
+                      // clear of the top border.
+                      domain={[0, (max: number) => Math.max(max + 1, Math.ceil(max * 1.15))]}
+                    />
                     <Tooltip
                       contentStyle={TOOLTIP_CONTENT_STYLE}
                       labelStyle={TOOLTIP_LABEL_STYLE}
