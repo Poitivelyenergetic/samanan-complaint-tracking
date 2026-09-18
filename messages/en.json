@@ -182,7 +182,7 @@
     "tasksTitle": "Tasks",
     "tasksSubtitle": "Complaints assigned to you",
     "newButton": "New Complaint",
-    "searchPlaceholder": "Search by customer name/phone, order number, or reference number...",
+    "searchPlaceholder": "Search by customer name/phone, order number, reference number, or assignee...",
     "statusFilter": "Status",
     "assigneeFilter": "Assigned to",
     "recordedByFilter": "Recorded by",

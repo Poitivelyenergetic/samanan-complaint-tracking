@@ -15,7 +15,7 @@ import {
   type Department,
   type StaffUser,
 } from "@/lib/types";
-import { toLatinDigits } from "@/lib/phone";
+import { phoneDigitsOnly, toLatinDigits } from "@/lib/phone";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase";
 import SearchableSelect from "./SearchableSelect";
@@ -478,7 +478,7 @@ export default function ComplaintForm({
               dir="ltr"
               disabled={readOnly}
               value={values.customerPhone}
-              onChange={(e) => update("customerPhone", toLatinDigits(e.target.value))}
+              onChange={(e) => update("customerPhone", phoneDigitsOnly(toLatinDigits(e.target.value)))}
               className={textInputClass}
             />
           </div>
@@ -491,7 +491,7 @@ export default function ComplaintForm({
               required
               disabled={readOnly}
               value={values.customerName}
-              onChange={(e) => update("customerName", e.target.value)}
+              onChange={(e) => update("customerName", e.target.value.replace(/[0-9٠-٩۰-۹]/g, ""))}
               className={textInputClass}
             />
           </div>

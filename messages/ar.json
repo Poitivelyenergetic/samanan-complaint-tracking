@@ -182,7 +182,7 @@
     "tasksTitle": "المهام",
     "tasksSubtitle": "الشكاوى المسندة إليك",
     "newButton": "شكوى جديدة",
-    "searchPlaceholder": "ابحث باسم/هاتف العميل أو رقم الطلب أو الرقم المرجعي...",
+    "searchPlaceholder": "ابحث باسم/هاتف العميل أو رقم الطلب أو الرقم المرجعي أو الموظف المسند إليه...",
     "statusFilter": "الحالة",
     "assigneeFilter": "المسندة إلى",
     "recordedByFilter": "سجّلها",

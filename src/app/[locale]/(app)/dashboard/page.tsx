@@ -262,14 +262,18 @@ export default function DashboardPage() {
         if (from && created < from) return false;
         if (to && created > to) return false;
       }
-      if (
-        term &&
-        !c.customerName.toLowerCase().includes(term) &&
-        !c.customerPhone.toLowerCase().includes(term) &&
-        !c.customerOrderNumber.toLowerCase().includes(term) &&
-        !c.id.toLowerCase().includes(term)
-      ) {
-        return false;
+      if (term) {
+        const assignee = c.assignedTo ? staffById.get(c.assignedTo) : undefined;
+        const assigneeMatches = assignee ? localizedName(assignee, locale).toLowerCase().includes(term) : false;
+        if (
+          !c.customerName.toLowerCase().includes(term) &&
+          !c.customerPhone.toLowerCase().includes(term) &&
+          !c.customerOrderNumber.toLowerCase().includes(term) &&
+          !c.id.toLowerCase().includes(term) &&
+          !assigneeMatches
+        ) {
+          return false;
+        }
       }
       return true;
     });
@@ -283,6 +287,8 @@ export default function DashboardPage() {
     datePreset,
     fromFilter,
     toFilter,
+    staffById,
+    locale,
   ]);
 
   const statusCounts = useMemo(() => {
