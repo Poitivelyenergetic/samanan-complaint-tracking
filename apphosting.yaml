@@ -36,6 +36,14 @@ env:
       - RUNTIME
   - variable: RESEND_API_KEY
     secret: RESEND_API_KEY
+  # A DSN is a write-only ingest endpoint, not a secret — safe as a plain
+  # value rather than a Secret Manager entry (it's exposed to the browser
+  # bundle either way).
+  - variable: NEXT_PUBLIC_SENTRY_DSN
+    value: https://cd79f90fcea6d0a609eee6ec6d807da5@o4512108797886464.ingest.us.sentry.io/4512108918407168
+    availability:
+      - BUILD
+      - RUNTIME
 
 # No FIREBASE_PROJECT_ID/CLIENT_EMAIL/PRIVATE_KEY here — that prefix is
 # reserved by App Hosting and can't be set via this file. The Admin SDK

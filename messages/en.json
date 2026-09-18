@@ -116,6 +116,7 @@
     "categoryBreakdown": "By Category",
     "sourceBreakdown": "By Source",
     "trend": "New Complaints (Last 14 Days)",
+    "tooltipCount": "Count",
     "topAssignees": "Top Assignees",
     "topRecorders": "Top Recorders",
     "noData": "No data yet.",

@@ -349,6 +349,15 @@ function toLocalISODate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+// Formats a bar's hover tooltip as "12 (35%)" — the percentage is of
+// `total` (everything matching the chart's own current filter), not just
+// the sum of the bars actually drawn, so it stays meaningful when a chart
+// only plots its top N values.
+function countWithPercent(value: number, total: number): string {
+  if (!total) return String(value);
+  return `${value} (${Math.round((value / total) * 100)}%)`;
+}
+
 // Builds a link into the Complaints list pre-filtered to match exactly what
 // a clicked chart segment represents — same idea as the stat cards above,
 // which already link to `/dashboard?status=X`.
@@ -657,6 +666,14 @@ export default function HomePage() {
         .filter((row) => row.count > 0),
     [statusBreakdownList, tStatus]
   );
+  // The chart only plots the top 8 types/sources, but the percentage shown
+  // on hover is still out of every complaint matching the chart's own
+  // status filter — not just the sum of the bars actually drawn — so it
+  // stays meaningful even when there are more than 8 distinct values.
+  const categoryTotal = useMemo(
+    () => (categoryStatusFilter ? list.filter((c) => c.status === categoryStatusFilter) : list).length,
+    [list, categoryStatusFilter]
+  );
   const categoryData = useMemo(() => {
     const scoped = categoryStatusFilter ? list.filter((c) => c.status === categoryStatusFilter) : list;
     const counts = new Map<string, number>();
@@ -670,6 +687,10 @@ export default function HomePage() {
       .map(([id, count]) => ({ id, label: localizedName(typesById.get(id), locale) || id, count }));
   }, [list, categoryStatusFilter, typesById, locale]);
 
+  const sourceTotal = useMemo(
+    () => (sourceStatusFilter ? list.filter((c) => c.status === sourceStatusFilter) : list).length,
+    [list, sourceStatusFilter]
+  );
   const sourceData = useMemo(() => {
     const scoped = sourceStatusFilter ? list.filter((c) => c.status === sourceStatusFilter) : list;
     const counts = new Map<string, number>();
@@ -1052,6 +1073,7 @@ export default function HomePage() {
                         labelStyle={TOOLTIP_LABEL_STYLE}
                         itemStyle={TOOLTIP_ITEM_STYLE}
                         cursor={BAR_CURSOR}
+                        formatter={(value) => [countWithPercent(Number(value), categoryTotal), t("tooltipCount")]}
                       />
                       <Bar
                         dataKey="count"
@@ -1109,6 +1131,7 @@ export default function HomePage() {
                         labelStyle={TOOLTIP_LABEL_STYLE}
                         itemStyle={TOOLTIP_ITEM_STYLE}
                         cursor={BAR_CURSOR}
+                        formatter={(value) => [countWithPercent(Number(value), sourceTotal), t("tooltipCount")]}
                       />
                       <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={28}>
                         {sourceData.map((row) => (
@@ -1259,6 +1282,7 @@ export default function HomePage() {
                           labelStyle={TOOLTIP_LABEL_STYLE}
                           itemStyle={TOOLTIP_ITEM_STYLE}
                           cursor={BAR_CURSOR}
+                          formatter={(value) => [countWithPercent(Number(value), topAssigneesList.length), t("tooltipCount")]}
                         />
                         <Bar
                           dataKey="count"
@@ -1327,6 +1351,7 @@ export default function HomePage() {
                           labelStyle={TOOLTIP_LABEL_STYLE}
                           itemStyle={TOOLTIP_ITEM_STYLE}
                           cursor={BAR_CURSOR}
+                          formatter={(value) => [countWithPercent(Number(value), topRecordersList.length), t("tooltipCount")]}
                         />
                         <Bar
                           dataKey="count"
