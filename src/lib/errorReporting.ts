@@ -12,7 +12,16 @@ let client: ErrorReporting | undefined;
 
 function getClient(): ErrorReporting {
   if (!client) {
-    client = new ErrorReporting();
+    client = new ErrorReporting({
+      // Without this, the library's own project-id auto-detection silently
+      // fails on Cloud Run and every report gets sent to a literal,
+      // unresolved "{{projectId}}" URL instead of the real project — every
+      // event was rejected with "not a valid resource name" and nothing
+      // ever showed up in the console. NEXT_PUBLIC_FIREBASE_PROJECT_ID is
+      // already guaranteed present in every environment (see
+      // apphosting.yaml/.env.local) and holds this exact same project ID.
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    });
   }
   return client;
 }
