@@ -36,15 +36,27 @@ interface NavItem {
   href: string;
   label: string;
   icon: ReactNode;
+  // Each leaf nav item gets its own fixed accent color instead of the
+  // uniform gray outline every icon used to share — makes the sidebar
+  // scannable at a glance instead of every row looking identical. Only
+  // applied while the row is inactive; an active row keeps its existing
+  // solid brand background + white icon/text rather than fighting with it.
+  iconColor?: string;
   badge?: number;
 }
 
-const SETTINGS_RESOURCE_ITEMS: { href: string; key: string; resource: PermissionResource; icon: ReactNode }[] = [
-  { href: "/companies", key: "companies", resource: "companies", icon: <IconBuilding /> },
-  { href: "/administrations", key: "administrations", resource: "administrations", icon: <IconBriefcase /> },
-  { href: "/departments", key: "departments", resource: "departments", icon: <IconFolder /> },
-  { href: "/employees", key: "employees", resource: "employees", icon: <IconUsers /> },
-  { href: "/roles", key: "roles", resource: "roles", icon: <IconShieldCheck /> },
+const SETTINGS_RESOURCE_ITEMS: {
+  href: string;
+  key: string;
+  resource: PermissionResource;
+  icon: ReactNode;
+  iconColor: string;
+}[] = [
+  { href: "/companies", key: "companies", resource: "companies", icon: <IconBuilding />, iconColor: "#3b82f6" },
+  { href: "/administrations", key: "administrations", resource: "administrations", icon: <IconBriefcase />, iconColor: "#6366f1" },
+  { href: "/departments", key: "departments", resource: "departments", icon: <IconFolder />, iconColor: "#14b8a6" },
+  { href: "/employees", key: "employees", resource: "employees", icon: <IconUsers />, iconColor: "#0ea5e9" },
+  { href: "/roles", key: "roles", resource: "roles", icon: <IconShieldCheck />, iconColor: "#8b5cf6" },
 ];
 
 const LOCALE_LABELS: Record<string, string> = { ar: "العربية", en: "English" };
@@ -53,6 +65,7 @@ function SidebarLink({
   href,
   label,
   icon,
+  iconColor,
   active,
   onNavigate,
   badge,
@@ -60,6 +73,7 @@ function SidebarLink({
   href: string;
   label: string;
   icon: ReactNode;
+  iconColor?: string;
   active: boolean;
   onNavigate?: () => void;
   badge?: number;
@@ -72,7 +86,9 @@ function SidebarLink({
         active ? "bg-brand text-brand-foreground" : "text-[#aab2c5] hover:bg-white/5 hover:text-white"
       }`}
     >
-      <span className="shrink-0">{icon}</span>
+      <span className="shrink-0" style={!active && iconColor ? { color: iconColor } : undefined}>
+        {icon}
+      </span>
       <span className="flex-1">{label}</span>
       {!!badge && (
         <span className="ms-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/20 px-1 text-xs font-semibold text-white">
@@ -90,6 +106,7 @@ function SidebarIconLink({
   href,
   label,
   icon,
+  iconColor,
   active,
   onNavigate,
   badge,
@@ -97,6 +114,7 @@ function SidebarIconLink({
   href: string;
   label: string;
   icon: ReactNode;
+  iconColor?: string;
   active: boolean;
   onNavigate?: () => void;
   badge?: number;
@@ -110,6 +128,7 @@ function SidebarIconLink({
       className={`relative flex h-11 w-11 items-center justify-center rounded-md transition-colors ${
         active ? "bg-brand text-brand-foreground" : "text-[#aab2c5] hover:bg-white/5 hover:text-white"
       }`}
+      style={!active && iconColor ? { color: iconColor } : undefined}
     >
       {icon}
       {!!badge && <span className="absolute end-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />}
@@ -158,6 +177,7 @@ function NavGroup({
               href={item.href}
               label={item.label}
               icon={item.icon}
+              iconColor={item.iconColor}
               active={isActive(item.href)}
               onNavigate={onNavigate}
               badge={item.badge}
@@ -219,40 +239,73 @@ function SidebarContents({
   }, [canReviewAccountRequests]);
 
   const complaintsItems: NavItem[] = [
-    ...(canViewAllComplaints ? [{ href: "/dashboard", label: t("dashboard"), icon: <IconClipboardList /> }] : []),
-    ...(canViewOwnComplaints ? [{ href: "/my-complaints", label: t("myComplaints"), icon: <IconInbox /> }] : []),
-    ...(canCreateComplaints ? [{ href: "/complaints/new", label: t("newComplaint"), icon: <IconPlusCircle /> }] : []),
     ...(canViewAllComplaints
-      ? [{ href: "/complaints/inquiry", label: t("complaintInquiry"), icon: <IconSearch /> }]
+      ? [{ href: "/dashboard", label: t("dashboard"), icon: <IconClipboardList />, iconColor: "#6366f1" }]
       : []),
-    ...(canViewComplaintTypes ? [{ href: "/complaint-types", label: t("complaintTypes"), icon: <IconTag /> }] : []),
+    ...(canViewOwnComplaints
+      ? [{ href: "/my-complaints", label: t("myComplaints"), icon: <IconInbox />, iconColor: "#0ea5e9" }]
+      : []),
+    ...(canCreateComplaints
+      ? [{ href: "/complaints/new", label: t("newComplaint"), icon: <IconPlusCircle />, iconColor: "#22c55e" }]
+      : []),
+    ...(canViewAllComplaints
+      ? [{ href: "/complaints/inquiry", label: t("complaintInquiry"), icon: <IconSearch />, iconColor: "#8b5cf6" }]
+      : []),
+    ...(canViewComplaintTypes
+      ? [{ href: "/complaint-types", label: t("complaintTypes"), icon: <IconTag />, iconColor: "#ec4899" }]
+      : []),
     ...(canViewComplaintSources
-      ? [{ href: "/complaint-sources", label: t("complaintSources"), icon: <IconBroadcast /> }]
+      ? [{ href: "/complaint-sources", label: t("complaintSources"), icon: <IconBroadcast />, iconColor: "#f59e0b" }]
       : []),
   ];
 
   // Filing a ticket, "My Tickets", and Ticket Inquiry-of-your-own are open
-  // to every signed-in employee by design — see lib/tickets.ts.
+  // to every signed-in employee by design — see lib/tickets.ts. Colors
+  // mirror the Complaints group's role-for-role (list/mine/new/search/
+  // tag/source) so the same color always means the same kind of item.
   const ticketItems: NavItem[] = [
-    ...(canViewAllTickets ? [{ href: "/tickets", label: t("ticketsList"), icon: <IconClipboardList /> }] : []),
-    { href: "/my-tickets", label: t("myTickets"), icon: <IconInbox /> },
-    { href: "/tickets/new", label: t("newTicket"), icon: <IconPlusCircle /> },
-    ...(canViewAllTickets ? [{ href: "/tickets/inquiry", label: t("ticketInquiry"), icon: <IconSearch /> }] : []),
-    ...(canViewTicketTypes ? [{ href: "/ticket-types", label: t("ticketTypes"), icon: <IconTag /> }] : []),
-    ...(canViewTicketSources ? [{ href: "/ticket-sources", label: t("ticketSources"), icon: <IconBroadcast /> }] : []),
+    ...(canViewAllTickets
+      ? [{ href: "/tickets", label: t("ticketsList"), icon: <IconClipboardList />, iconColor: "#6366f1" }]
+      : []),
+    { href: "/my-tickets", label: t("myTickets"), icon: <IconInbox />, iconColor: "#0ea5e9" },
+    { href: "/tickets/new", label: t("newTicket"), icon: <IconPlusCircle />, iconColor: "#22c55e" },
+    ...(canViewAllTickets
+      ? [{ href: "/tickets/inquiry", label: t("ticketInquiry"), icon: <IconSearch />, iconColor: "#8b5cf6" }]
+      : []),
+    ...(canViewTicketTypes
+      ? [{ href: "/ticket-types", label: t("ticketTypes"), icon: <IconTag />, iconColor: "#ec4899" }]
+      : []),
+    ...(canViewTicketSources
+      ? [{ href: "/ticket-sources", label: t("ticketSources"), icon: <IconBroadcast />, iconColor: "#f59e0b" }]
+      : []),
   ];
 
   const serviceItems: NavItem[] = [
-    { href: "/receivables", label: t("receivables"), icon: <IconArrowDownCircle /> },
-    { href: "/payables", label: t("payables"), icon: <IconArrowUpCircle /> },
-    { href: "/sales-opportunities", label: t("salesOpportunities"), icon: <IconTrendingUp /> },
-    ...(canAccessMarketing ? [{ href: "/marketing", label: t("marketing"), icon: <IconMegaphone /> }] : []),
+    { href: "/receivables", label: t("receivables"), icon: <IconArrowDownCircle />, iconColor: "#22c55e" },
+    { href: "/payables", label: t("payables"), icon: <IconArrowUpCircle />, iconColor: "#ef4444" },
+    { href: "/sales-opportunities", label: t("salesOpportunities"), icon: <IconTrendingUp />, iconColor: "#3b82f6" },
+    ...(canAccessMarketing
+      ? [{ href: "/marketing", label: t("marketing"), icon: <IconMegaphone />, iconColor: "#ec4899" }]
+      : []),
   ];
 
   const settingsItems: NavItem[] = [
-    ...visibleSettingsItems.map((item) => ({ href: item.href, label: t(item.key), icon: item.icon })),
+    ...visibleSettingsItems.map((item) => ({
+      href: item.href,
+      label: t(item.key),
+      icon: item.icon,
+      iconColor: item.iconColor,
+    })),
     ...(canReviewAccountRequests
-      ? [{ href: "/requests", label: t("requests"), icon: <IconInbox />, badge: pendingAccountRequests }]
+      ? [
+          {
+            href: "/requests",
+            label: t("requests"),
+            icon: <IconInbox />,
+            iconColor: "#f59e0b",
+            badge: pendingAccountRequests,
+          },
+        ]
       : []),
   ];
 
@@ -278,11 +331,19 @@ function SidebarContents({
             href="/home"
             label={t("home")}
             icon={<IconHome />}
+            iconColor="#3b82f6"
             active={pathname === "/home"}
             onNavigate={onNavigate}
           />
         ) : (
-          <SidebarLink href="/home" label={t("home")} icon={<IconHome />} active={pathname === "/home"} onNavigate={onNavigate} />
+          <SidebarLink
+            href="/home"
+            label={t("home")}
+            icon={<IconHome />}
+            iconColor="#3b82f6"
+            active={pathname === "/home"}
+            onNavigate={onNavigate}
+          />
         )}
       </div>
 
@@ -295,6 +356,7 @@ function SidebarContents({
                 href={item.href}
                 label={item.label}
                 icon={item.icon}
+                iconColor={item.iconColor}
                 active={isActive(item.href)}
                 onNavigate={onNavigate}
                 badge={item.badge}
@@ -377,7 +439,18 @@ function SidebarContents({
               : "mt-2 w-full rounded-md border border-white/10 px-3 py-2 text-sm font-medium text-[#aab2c5] transition-colors hover:bg-white/5 hover:text-white"
           }
         >
-          {collapsed ? <IconLogout /> : t("logout")}
+          {collapsed ? (
+            <span style={{ color: "#ef4444" }}>
+              <IconLogout />
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+              <span style={{ color: "#ef4444" }}>
+                <IconLogout />
+              </span>
+              {t("logout")}
+            </span>
+          )}
         </button>
       </div>
 
