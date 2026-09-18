@@ -526,7 +526,27 @@ export default function ComplaintForm({
           />
         </div>
 
-        {!readOnly && (
+        {readOnly ? (
+          values.attachmentUrls.length > 0 && (
+            <div>
+              <span className="block text-sm font-medium text-foreground">{t("attachment")}</span>
+              <ul className="mt-1 space-y-1">
+                {values.attachmentUrls.map((url, i) => (
+                  <li key={url}>
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium text-brand hover:underline"
+                    >
+                      {values.attachmentUrls.length > 1 ? `${tDetail("viewAttachment")} ${i + 1}` : tDetail("viewAttachment")}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        ) : (
           <div>
             <span className="block text-sm font-medium text-foreground">{t("attachment")}</span>
             <div
