@@ -10,6 +10,7 @@
     "seed": "tsx scripts/seed.mts"
   },
   "dependencies": {
+    "@google-cloud/error-reporting": "^4.1.0",
     "firebase": "^12.18.0",
     "firebase-admin": "^14.3.0",
     "next": "16.3.4",

@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { AuthProvider } from "@/lib/auth-context";
 import { ThemeProvider } from "@/lib/theme-context";
+import ErrorReporter from "@/components/ErrorReporter";
 import "../globals.css";
 
 // Runs before React hydrates so a stored dark/light preference applies
@@ -58,6 +59,7 @@ export default async function LocaleLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        <ErrorReporter />
         <ThemeProvider>
           {/* timeZone must be passed explicitly — it isn't inherited from
               next-intl's server request config (see i18n/request.ts).

@@ -185,7 +185,12 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md">
+    // flex + h-full so every card in a grid row fills the row's full
+    // height (matching its tallest sibling) instead of just being as tall
+    // as its own content — a card whose filter is a single control would
+    // otherwise end up visibly shorter than one next to it whose filter
+    // wraps onto two lines (e.g. PersonChartFilters' status + date pair).
+    <div className="flex h-full flex-col rounded-xl border border-border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-start justify-between gap-2">
         <h2 className="pt-1 text-sm font-semibold text-foreground">{title}</h2>
         {filter}
@@ -195,7 +200,7 @@ function ChartCard({
           overlapping the bars instead of beside them). Forcing dir="ltr"
           here keeps chart internals laid out consistently regardless of
           the app's locale — recharts has no RTL layout mode of its own. */}
-      <div dir="ltr" className="mt-4 h-72">
+      <div dir="ltr" className="mt-4 min-h-72 flex-1">
         {children}
       </div>
     </div>
