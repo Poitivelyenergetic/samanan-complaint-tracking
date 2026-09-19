@@ -428,7 +428,6 @@ export default function ComplaintForm({
           </label>
           <input
             id="customerOrderNumber"
-            required
             disabled={readOnly}
             value={values.customerOrderNumber}
             onChange={(e) => update("customerOrderNumber", e.target.value)}
