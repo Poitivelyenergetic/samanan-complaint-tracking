@@ -1033,8 +1033,7 @@ export default function HomePage() {
                           ))}
                         </Pie>
                         <Tooltip
-                          animationDuration={100}
-                          animationEasing="ease-out"
+                          isAnimationActive={false}
                           position={statusPieMouse.position}
                           contentStyle={TOOLTIP_CONTENT_STYLE}
                           labelStyle={TOOLTIP_LABEL_STYLE}
@@ -1502,8 +1501,7 @@ export default function HomePage() {
                               ))}
                             </Pie>
                             <Tooltip
-                              animationDuration={100}
-                              animationEasing="ease-out"
+                              isAnimationActive={false}
                               position={ticketStatusPieMouse.position}
                               contentStyle={TOOLTIP_CONTENT_STYLE}
                               labelStyle={TOOLTIP_LABEL_STYLE}
