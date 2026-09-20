@@ -1007,6 +1007,7 @@ export default function HomePage() {
                           ))}
                         </Pie>
                         <Tooltip
+                          isAnimationActive={false}
                           contentStyle={TOOLTIP_CONTENT_STYLE}
                           labelStyle={TOOLTIP_LABEL_STYLE}
                           itemStyle={TOOLTIP_ITEM_STYLE}
@@ -1069,6 +1070,7 @@ export default function HomePage() {
                         tick={renderCategoryTick90}
                       />
                       <Tooltip
+                        isAnimationActive={false}
                         contentStyle={TOOLTIP_CONTENT_STYLE}
                         labelStyle={TOOLTIP_LABEL_STYLE}
                         itemStyle={TOOLTIP_ITEM_STYLE}
@@ -1127,6 +1129,7 @@ export default function HomePage() {
                         tick={renderCategoryTick90}
                       />
                       <Tooltip
+                        isAnimationActive={false}
                         contentStyle={TOOLTIP_CONTENT_STYLE}
                         labelStyle={TOOLTIP_LABEL_STYLE}
                         itemStyle={TOOLTIP_ITEM_STYLE}
@@ -1192,6 +1195,7 @@ export default function HomePage() {
                       domain={[0, (max: number) => Math.max(max + 1, Math.ceil(max * 1.15))]}
                     />
                     <Tooltip
+                      isAnimationActive={false}
                       contentStyle={TOOLTIP_CONTENT_STYLE}
                       labelStyle={TOOLTIP_LABEL_STYLE}
                       itemStyle={TOOLTIP_ITEM_STYLE}
@@ -1289,6 +1293,7 @@ export default function HomePage() {
                           tick={renderCategoryTick110}
                         />
                         <Tooltip
+                          isAnimationActive={false}
                           contentStyle={TOOLTIP_CONTENT_STYLE}
                           labelStyle={TOOLTIP_LABEL_STYLE}
                           itemStyle={TOOLTIP_ITEM_STYLE}
@@ -1358,6 +1363,7 @@ export default function HomePage() {
                           tick={renderCategoryTick110}
                         />
                         <Tooltip
+                          isAnimationActive={false}
                           contentStyle={TOOLTIP_CONTENT_STYLE}
                           labelStyle={TOOLTIP_LABEL_STYLE}
                           itemStyle={TOOLTIP_ITEM_STYLE}
@@ -1459,6 +1465,7 @@ export default function HomePage() {
                               ))}
                             </Pie>
                             <Tooltip
+                              isAnimationActive={false}
                               contentStyle={TOOLTIP_CONTENT_STYLE}
                               labelStyle={TOOLTIP_LABEL_STYLE}
                               itemStyle={TOOLTIP_ITEM_STYLE}
@@ -1501,6 +1508,7 @@ export default function HomePage() {
                         tick={renderCategoryTick90}
                       />
                           <Tooltip
+                            isAnimationActive={false}
                             contentStyle={TOOLTIP_CONTENT_STYLE}
                             labelStyle={TOOLTIP_LABEL_STYLE}
                             itemStyle={TOOLTIP_ITEM_STYLE}
@@ -1542,6 +1550,7 @@ export default function HomePage() {
                           tick={renderCategoryTick110}
                         />
                           <Tooltip
+                            isAnimationActive={false}
                             contentStyle={TOOLTIP_CONTENT_STYLE}
                             labelStyle={TOOLTIP_LABEL_STYLE}
                             itemStyle={TOOLTIP_ITEM_STYLE}
