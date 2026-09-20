@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "next-intl";
 import { useMemo, useRef, useState } from "react";
 
 interface SearchableSelectProps<T> {
@@ -41,6 +42,17 @@ export default function SearchableSelect<T>({
   allowClear = true,
   className,
 }: SearchableSelectProps<T>) {
+  // Alphabetized in the active locale's own order (a/b/c for English,
+  // أ/ب/ت for Arabic) rather than whatever order the source list happens
+  // to be in (Firestore's insertion order) — every consumer of this
+  // component gets this for free instead of having to sort its own list.
+  const locale = useLocale();
+  const collator = useMemo(() => new Intl.Collator(locale, { sensitivity: "base" }), [locale]);
+  const sortedItems = useMemo(
+    () => [...items].sort((a, b) => collator.compare(getLabel(a), getLabel(b))),
+    [items, getLabel, collator]
+  );
+
   // Lazily computed straight from props (not the selectedItem/selectedLabel
   // below) so the field shows the right text — the current selection's
   // label, "All statuses" and the like included — from its very first
@@ -94,9 +106,9 @@ export default function SearchableSelect<T>({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((item) => getLabel(item).toLowerCase().includes(q));
-  }, [items, query, getLabel]);
+    if (!q) return sortedItems;
+    return sortedItems.filter((item) => getLabel(item).toLowerCase().includes(q));
+  }, [sortedItems, query, getLabel]);
 
   function selectItem(item: T) {
     onChange(getId(item));
