@@ -104,10 +104,23 @@ export default function SearchableSelect<T>({
     setQuery(syncKey);
   }
 
+  // Names starting with what was typed are almost always what's being
+  // looked for — listing them ahead of names that merely contain the
+  // query somewhere in the middle (e.g. searching "m" should surface
+  // "Mohammed" before "Ahmed") makes the common case reachable without
+  // typing more. sortedItems is already alphabetized, so each group keeps
+  // that order internally.
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return sortedItems;
-    return sortedItems.filter((item) => getLabel(item).toLowerCase().includes(q));
+    const startsWith: T[] = [];
+    const containsOnly: T[] = [];
+    for (const item of sortedItems) {
+      const label = getLabel(item).toLowerCase();
+      if (label.startsWith(q)) startsWith.push(item);
+      else if (label.includes(q)) containsOnly.push(item);
+    }
+    return [...startsWith, ...containsOnly];
   }, [sortedItems, query, getLabel]);
 
   function selectItem(item: T) {
