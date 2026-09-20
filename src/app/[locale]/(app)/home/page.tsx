@@ -358,6 +358,26 @@ function countWithPercent(value: number, total: number): string {
   return `${value} (${Math.round((value / total) * 100)}%)`;
 }
 
+// Recharts anchors a Pie slice's tooltip to that slice's own fixed midpoint
+// coordinate rather than to the mouse — barely noticeable with many thin
+// slices, but on a donut with just a few wide arcs (Status Breakdown) it
+// means the tooltip can sit far from wherever you're actually hovering
+// within a big slice, unlike the bar/line charts on this page where the
+// tooltip already tracks the cursor closely. Tracking the raw mouse
+// position ourselves and feeding it to <Tooltip position> makes it follow
+// the cursor the same way.
+function usePieTooltipPosition() {
+  const [position, setPosition] = useState<{ x: number; y: number } | undefined>(undefined);
+  function onMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  }
+  function onMouseLeave() {
+    setPosition(undefined);
+  }
+  return { position, onMouseMove, onMouseLeave };
+}
+
 // Builds a link into the Complaints list pre-filtered to match exactly what
 // a clicked chart segment represents — same idea as the stat cards above,
 // which already link to `/dashboard?status=X`.
@@ -521,6 +541,8 @@ export default function HomePage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [administrations, setAdministrations] = useState<Administration[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const statusPieMouse = usePieTooltipPosition();
+  const ticketStatusPieMouse = usePieTooltipPosition();
   // "Who" stays a page-level filter (applies to every card and the top stat
   // row) — everything else is filtered per-card instead, by whichever
   // dimension makes sense for that specific chart. Status is already the
@@ -966,7 +988,11 @@ export default function HomePage() {
                 {statusPieData.length === 0 ? (
                   <EmptyChart text={t("noData")} />
                 ) : (
-                  <div className="relative h-full">
+                  <div
+                    className="relative h-full"
+                    onMouseMove={statusPieMouse.onMouseMove}
+                    onMouseLeave={statusPieMouse.onMouseLeave}
+                  >
                     {/* debounce throttles ResponsiveContainer's ResizeObserver
                         callback — without it, a resize triggered mid-animation
                         (e.g. by the arc's own growing bounding box) can
@@ -1008,6 +1034,7 @@ export default function HomePage() {
                         </Pie>
                         <Tooltip
                           isAnimationActive={false}
+                          position={statusPieMouse.position}
                           contentStyle={TOOLTIP_CONTENT_STYLE}
                           labelStyle={TOOLTIP_LABEL_STYLE}
                           itemStyle={TOOLTIP_ITEM_STYLE}
@@ -1441,7 +1468,11 @@ export default function HomePage() {
                     {ticketStatusPieData.length === 0 ? (
                       <EmptyChart text={t("noData")} />
                     ) : (
-                      <div className="relative h-full">
+                      <div
+                        className="relative h-full"
+                        onMouseMove={ticketStatusPieMouse.onMouseMove}
+                        onMouseLeave={ticketStatusPieMouse.onMouseLeave}
+                      >
                         <ResponsiveContainer width="100%" height="100%" debounce={200}>
                           <PieChart>
                             <Pie
@@ -1466,6 +1497,7 @@ export default function HomePage() {
                             </Pie>
                             <Tooltip
                               isAnimationActive={false}
+                              position={ticketStatusPieMouse.position}
                               contentStyle={TOOLTIP_CONTENT_STYLE}
                               labelStyle={TOOLTIP_LABEL_STYLE}
                               itemStyle={TOOLTIP_ITEM_STYLE}
