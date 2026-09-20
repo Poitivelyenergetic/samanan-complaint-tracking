@@ -358,26 +358,6 @@ function countWithPercent(value: number, total: number): string {
   return `${value} (${Math.round((value / total) * 100)}%)`;
 }
 
-// Recharts anchors a Pie slice's tooltip to that slice's own fixed midpoint
-// coordinate rather than to the mouse — barely noticeable with many thin
-// slices, but on a donut with just a few wide arcs (Status Breakdown) it
-// means the tooltip can sit far from wherever you're actually hovering
-// within a big slice, unlike the bar/line charts on this page where the
-// tooltip already tracks the cursor closely. Tracking the raw mouse
-// position ourselves and feeding it to <Tooltip position> makes it follow
-// the cursor the same way.
-function usePieTooltipPosition() {
-  const [position, setPosition] = useState<{ x: number; y: number } | undefined>(undefined);
-  function onMouseMove(e: React.MouseEvent<HTMLDivElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  }
-  function onMouseLeave() {
-    setPosition(undefined);
-  }
-  return { position, onMouseMove, onMouseLeave };
-}
-
 // Builds a link into the Complaints list pre-filtered to match exactly what
 // a clicked chart segment represents — same idea as the stat cards above,
 // which already link to `/dashboard?status=X`.
@@ -541,8 +521,6 @@ export default function HomePage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [administrations, setAdministrations] = useState<Administration[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const statusPieMouse = usePieTooltipPosition();
-  const ticketStatusPieMouse = usePieTooltipPosition();
   // "Who" stays a page-level filter (applies to every card and the top stat
   // row) — everything else is filtered per-card instead, by whichever
   // dimension makes sense for that specific chart. Status is already the
@@ -988,76 +966,76 @@ export default function HomePage() {
                 {statusPieData.length === 0 ? (
                   <EmptyChart text={t("noData")} />
                 ) : (
-                  <div
-                    className="relative h-full"
-                    onMouseMove={statusPieMouse.onMouseMove}
-                    onMouseLeave={statusPieMouse.onMouseLeave}
-                  >
-                    {/* debounce throttles ResponsiveContainer's ResizeObserver
-                        callback — without it, a resize triggered mid-animation
-                        (e.g. by the arc's own growing bounding box) can
-                        retrigger another render before the browser settles,
-                        spiraling into a hang. This was reproducible before
-                        adding debounce. */}
-                    <ResponsiveContainer width="100%" height="100%" debounce={200}>
-                      <PieChart>
-                        <Pie
-                          data={statusPieData}
-                          dataKey="count"
-                          nameKey="label"
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={85}
-                          // Tried a debounced ResponsiveContainer and a
-                          // stable label callback (below) to fix this
-                          // properly, but the pie's animation still gets
-                          // permanently stuck mid-arc instead of completing
-                          // — worse than no animation. Disabling it is the
-                          // only reliable option found so far.
-                          isAnimationActive={false}
-                          // No outer percentage labels — in this card's
-                          // (now-narrower, uniform-grid) width they clipped
-                          // against the edge. The legend below plus the
-                          // hover tooltip already cover the same info more
-                          // cleanly.
-                        >
-                          {statusPieData.map((row) => (
-                            <Cell
-                              key={row.status}
-                              fill={STATUS_COLORS[row.status]}
-                              stroke="none"
-                              cursor="pointer"
-                              onClick={() => router.push(dashboardHref({ status: row.status }))}
+                  <PieTooltipTracker>
+                    {(position) => (
+                      <>
+                        {/* debounce throttles ResponsiveContainer's ResizeObserver
+                            callback — without it, a resize triggered mid-animation
+                            (e.g. by the arc's own growing bounding box) can
+                            retrigger another render before the browser settles,
+                            spiraling into a hang. This was reproducible before
+                            adding debounce. */}
+                        <ResponsiveContainer width="100%" height="100%" debounce={200}>
+                          <PieChart>
+                            <Pie
+                              data={statusPieData}
+                              dataKey="count"
+                              nameKey="label"
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={55}
+                              outerRadius={85}
+                              // Tried a debounced ResponsiveContainer and a
+                              // stable label callback (below) to fix this
+                              // properly, but the pie's animation still gets
+                              // permanently stuck mid-arc instead of completing
+                              // — worse than no animation. Disabling it is the
+                              // only reliable option found so far.
+                              isAnimationActive={false}
+                              // No outer percentage labels — in this card's
+                              // (now-narrower, uniform-grid) width they clipped
+                              // against the edge. The legend below plus the
+                              // hover tooltip already cover the same info more
+                              // cleanly.
+                            >
+                              {statusPieData.map((row) => (
+                                <Cell
+                                  key={row.status}
+                                  fill={STATUS_COLORS[row.status]}
+                                  stroke="none"
+                                  cursor="pointer"
+                                  onClick={() => router.push(dashboardHref({ status: row.status }))}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              isAnimationActive={false}
+                              position={position}
+                              contentStyle={TOOLTIP_CONTENT_STYLE}
+                              labelStyle={TOOLTIP_LABEL_STYLE}
+                              itemStyle={TOOLTIP_ITEM_STYLE}
                             />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          isAnimationActive={false}
-                          position={statusPieMouse.position}
-                          contentStyle={TOOLTIP_CONTENT_STYLE}
-                          labelStyle={TOOLTIP_LABEL_STYLE}
-                          itemStyle={TOOLTIP_ITEM_STYLE}
-                        />
-                        <Legend
-                          verticalAlign="bottom"
-                          height={36}
-                          wrapperStyle={LEGEND_WRAPPER_STYLE}
-                          formatter={renderLegendLabel}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    {/* Centered in the donut's hole — the ring alone left
-                        that space empty; a total count gives it a purpose
-                        instead of just being a hole. Shifted up 18px to sit
-                        above the legend row rendered below the chart. */}
-                    <div className="pointer-events-none absolute inset-0 flex -translate-y-[18px] flex-col items-center justify-center">
-                      <span className="text-2xl font-bold text-foreground">{statusBreakdownList.length}</span>
-                      <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/40">
-                        {t("totalShort")}
-                      </span>
-                    </div>
-                  </div>
+                            <Legend
+                              verticalAlign="bottom"
+                              height={36}
+                              wrapperStyle={LEGEND_WRAPPER_STYLE}
+                              formatter={renderLegendLabel}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        {/* Centered in the donut's hole — the ring alone left
+                            that space empty; a total count gives it a purpose
+                            instead of just being a hole. Shifted up 18px to sit
+                            above the legend row rendered below the chart. */}
+                        <div className="pointer-events-none absolute inset-0 flex -translate-y-[18px] flex-col items-center justify-center">
+                          <span className="text-2xl font-bold text-foreground">{statusBreakdownList.length}</span>
+                          <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/40">
+                            {t("totalShort")}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </PieTooltipTracker>
                 )}
               </ChartCard>
             </Reveal>
@@ -1473,55 +1451,55 @@ export default function HomePage() {
                     {ticketStatusPieData.length === 0 ? (
                       <EmptyChart text={t("noData")} />
                     ) : (
-                      <div
-                        className="relative h-full"
-                        onMouseMove={ticketStatusPieMouse.onMouseMove}
-                        onMouseLeave={ticketStatusPieMouse.onMouseLeave}
-                      >
-                        <ResponsiveContainer width="100%" height="100%" debounce={200}>
-                          <PieChart>
-                            <Pie
-                              data={ticketStatusPieData}
-                              dataKey="count"
-                              nameKey="label"
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={55}
-                              outerRadius={85}
-                              isAnimationActive={false}
-                            >
-                              {ticketStatusPieData.map((row) => (
-                                <Cell
-                                  key={row.status}
-                                  fill={STATUS_COLORS[row.status]}
-                                  stroke="none"
-                                  cursor="pointer"
-                                  onClick={() => router.push(ticketsHref({ status: row.status }))}
+                      <PieTooltipTracker>
+                        {(position) => (
+                          <>
+                            <ResponsiveContainer width="100%" height="100%" debounce={200}>
+                              <PieChart>
+                                <Pie
+                                  data={ticketStatusPieData}
+                                  dataKey="count"
+                                  nameKey="label"
+                                  cx="50%"
+                                  cy="50%"
+                                  innerRadius={55}
+                                  outerRadius={85}
+                                  isAnimationActive={false}
+                                >
+                                  {ticketStatusPieData.map((row) => (
+                                    <Cell
+                                      key={row.status}
+                                      fill={STATUS_COLORS[row.status]}
+                                      stroke="none"
+                                      cursor="pointer"
+                                      onClick={() => router.push(ticketsHref({ status: row.status }))}
+                                    />
+                                  ))}
+                                </Pie>
+                                <Tooltip
+                                  isAnimationActive={false}
+                                  position={position}
+                                  contentStyle={TOOLTIP_CONTENT_STYLE}
+                                  labelStyle={TOOLTIP_LABEL_STYLE}
+                                  itemStyle={TOOLTIP_ITEM_STYLE}
                                 />
-                              ))}
-                            </Pie>
-                            <Tooltip
-                              isAnimationActive={false}
-                              position={ticketStatusPieMouse.position}
-                              contentStyle={TOOLTIP_CONTENT_STYLE}
-                              labelStyle={TOOLTIP_LABEL_STYLE}
-                              itemStyle={TOOLTIP_ITEM_STYLE}
-                            />
-                            <Legend
-                          verticalAlign="bottom"
-                          height={36}
-                          wrapperStyle={LEGEND_WRAPPER_STYLE}
-                          formatter={renderLegendLabel}
-                        />
-                          </PieChart>
-                        </ResponsiveContainer>
-                        <div className="pointer-events-none absolute inset-0 flex -translate-y-[18px] flex-col items-center justify-center">
-                          <span className="text-2xl font-bold text-foreground">{ticketList.length}</span>
-                          <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/40">
-                            {t("totalShort")}
-                          </span>
-                        </div>
-                      </div>
+                                <Legend
+                                  verticalAlign="bottom"
+                                  height={36}
+                                  wrapperStyle={LEGEND_WRAPPER_STYLE}
+                                  formatter={renderLegendLabel}
+                                />
+                              </PieChart>
+                            </ResponsiveContainer>
+                            <div className="pointer-events-none absolute inset-0 flex -translate-y-[18px] flex-col items-center justify-center">
+                              <span className="text-2xl font-bold text-foreground">{ticketList.length}</span>
+                              <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/40">
+                                {t("totalShort")}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                      </PieTooltipTracker>
                     )}
                   </ChartCard>
                 </Reveal>
@@ -1622,4 +1600,54 @@ export default function HomePage() {
 
 function EmptyChart({ text }: { text: string }) {
   return <div className="flex h-full items-center justify-center text-sm text-foreground/40">{text}</div>;
+}
+
+// Recharts anchors a Pie slice's tooltip to that slice's own fixed midpoint
+// rather than the mouse — barely noticeable with many thin slices, but on a
+// donut with just a few wide arcs (Status Breakdown) the tooltip can sit far
+// from wherever you're actually hovering within a big slice. Tracking the
+// raw mouse position ourselves and feeding it to <Tooltip position> makes it
+// follow the cursor instead.
+//
+// The position state lives in this small dedicated component rather than
+// the page component itself — mousemove fires far too often to re-render
+// the whole (large, chart-heavy) home page on every event without visibly
+// janking, which read as the tooltip "jiggling" rather than following
+// smoothly. Isolating it here means a mouse move only re-renders this one
+// subtree, and throttling the actual state update to one per animation
+// frame (rather than one per raw mousemove) keeps it smooth without firing
+// far more updates than the screen can even show.
+function PieTooltipTracker({
+  children,
+}: {
+  children: (position: { x: number; y: number } | undefined) => React.ReactNode;
+}) {
+  const [position, setPosition] = useState<{ x: number; y: number } | undefined>(undefined);
+  const latestRef = useRef<{ x: number; y: number } | undefined>(undefined);
+  const frameRef = useRef<number | null>(null);
+
+  function scheduleUpdate() {
+    if (frameRef.current !== null) return;
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null;
+      setPosition(latestRef.current);
+    });
+  }
+
+  function onMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    latestRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    scheduleUpdate();
+  }
+
+  function onMouseLeave() {
+    latestRef.current = undefined;
+    scheduleUpdate();
+  }
+
+  return (
+    <div className="relative h-full" onMouseMove={onMouseMove} onMouseLeave={onMouseLeave}>
+      {children(position)}
+    </div>
+  );
 }
