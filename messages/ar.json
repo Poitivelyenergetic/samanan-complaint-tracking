@@ -821,6 +821,7 @@
     "table": {
       "issueId": "رقم الشكوى",
       "customer": "العميل",
+      "customerPhone": "هاتف العميل",
       "source": "المصدر",
       "status": "الحالة",
       "createdAt": "تاريخ الإنشاء",

@@ -821,6 +821,7 @@
     "table": {
       "issueId": "Issue ID",
       "customer": "Customer",
+      "customerPhone": "Customer Phone",
       "source": "Source",
       "status": "Status",
       "createdAt": "Created",

@@ -241,6 +241,7 @@ export default function MyComplaintsPage() {
               <th className="px-4 py-3 text-start">{t("table.issueId")}</th>
               <th className="px-4 py-3 text-start">{t("table.type")}</th>
               <th className="px-4 py-3 text-start">{t("table.customer")}</th>
+              <th className="px-4 py-3 text-start">{t("table.customerPhone")}</th>
               <th className="px-4 py-3 text-start">{t("table.source")}</th>
               <th className="px-4 py-3 text-start">{t("table.assignedTo")}</th>
               <th className="px-4 py-3 text-start">{t("table.createdBy")}</th>
@@ -251,13 +252,13 @@ export default function MyComplaintsPage() {
           <tbody>
             {complaints === null ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={9} className="px-4 py-8 text-center text-foreground/50">
                   {tCommon("loading")}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={9} className="px-4 py-8 text-center text-foreground/50">
                   {t("noResults")}
                 </td>
               </tr>
@@ -282,6 +283,9 @@ export default function MyComplaintsPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-foreground/70">{c.customerName || "—"}</td>
+                  <td className="px-4 py-3 text-foreground/70" dir="ltr">
+                    {c.customerPhone || "—"}
+                  </td>
                   <td className="px-4 py-3 text-foreground/70">
                     {localizedName(sourcesById.get(c.complaintSourceId), locale) || "—"}
                   </td>
