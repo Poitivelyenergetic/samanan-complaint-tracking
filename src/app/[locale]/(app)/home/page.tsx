@@ -128,6 +128,14 @@ const TOOLTIP_CONTENT_STYLE: React.CSSProperties = {
 };
 const TOOLTIP_LABEL_STYLE: React.CSSProperties = { color: "var(--foreground)", fontWeight: 600, marginBottom: 4 };
 const TOOLTIP_ITEM_STYLE: React.CSSProperties = { color: "var(--foreground)" };
+// A pie/donut's tooltip jumps straight to each newly-hovered slice's anchor
+// point with no animation of its own (isAnimationActive only covers the
+// arcs' entrance animation) — Recharts sets the wrapper's position via an
+// inline transform: translate(x, y), so transitioning that one property is
+// enough to turn the jump into a smooth glide between slices without
+// touching Recharts' own active-slice detection, which is what caused this
+// chart's tooltip to get stuck on custom `position` logic in the past.
+const PIE_TOOLTIP_WRAPPER_STYLE: React.CSSProperties = { transition: "transform 150ms ease-out" };
 // The default hover cursor on bar charts is a harsh solid gray rectangle —
 // tone it down to a faint themed highlight instead.
 const BAR_CURSOR = { fill: "var(--border)", opacity: 0.4 };
@@ -1008,6 +1016,7 @@ export default function HomePage() {
                         </Pie>
                         <Tooltip
                           isAnimationActive={false}
+                          wrapperStyle={PIE_TOOLTIP_WRAPPER_STYLE}
                           contentStyle={TOOLTIP_CONTENT_STYLE}
                           labelStyle={TOOLTIP_LABEL_STYLE}
                           itemStyle={TOOLTIP_ITEM_STYLE}
@@ -1471,6 +1480,7 @@ export default function HomePage() {
                             </Pie>
                             <Tooltip
                               isAnimationActive={false}
+                              wrapperStyle={PIE_TOOLTIP_WRAPPER_STYLE}
                               contentStyle={TOOLTIP_CONTENT_STYLE}
                               labelStyle={TOOLTIP_LABEL_STYLE}
                               itemStyle={TOOLTIP_ITEM_STYLE}
