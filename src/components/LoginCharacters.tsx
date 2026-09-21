@@ -16,7 +16,13 @@ interface Point {
 }
 
 function useMousePosition(): Point {
-  const [pos, setPos] = useState<Point>({ x: 0, y: 0 });
+  // Starting at (0, 0) — the top-left corner — made every character lean
+  // sharply toward it until the cursor actually moved over the page, which
+  // read as them all leaning "at nothing" on load. The center of the
+  // viewport is a much more neutral resting point.
+  const [pos, setPos] = useState<Point>(() =>
+    typeof window === "undefined" ? { x: 0, y: 0 } : { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+  );
   useEffect(() => {
     function onMove(e: MouseEvent) {
       setPos({ x: e.clientX, y: e.clientY });
@@ -26,6 +32,17 @@ function useMousePosition(): Point {
   }, []);
   return pos;
 }
+
+// A family of Samnan-brand blues instead of the source's unrelated
+// purple/black/orange/yellow palette — darkest (brand blue) at the back,
+// lightening toward the front, so the four still read as distinct shapes
+// without introducing colors that don't belong to the app.
+export const LOGIN_CHARACTER_COLORS = {
+  purple: "#385bc1",
+  black: "#1f2430",
+  orange: "#5b7fc7",
+  yellow: "#9db8e8",
+} as const;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -147,6 +164,17 @@ function useRandomInterval(run: () => void, minMs: number, spreadMs: number, act
   }, [active]);
 }
 
+// A quick squish-and-recover on click — the only feedback these characters
+// give to being clicked at all, so there's something to notice when you do.
+function useSquish(): [boolean, () => void] {
+  const [active, setActive] = useState(false);
+  function trigger() {
+    setActive(true);
+    setTimeout(() => setActive(false), 260);
+  }
+  return [active, trigger];
+}
+
 function useBlink(): boolean {
   const [blinking, setBlinking] = useState(false);
   useRandomInterval(
@@ -247,6 +275,11 @@ export default function LoginCharacters({ isTyping, showPassword, passwordLength
   const orange = useBodyTracking(orangeRef, mouse);
   const yellow = useBodyTracking(yellowRef, mouse);
 
+  const [purpleSquish, squishPurple] = useSquish();
+  const [blackSquish, squishBlack] = useSquish();
+  const [orangeSquish, squishOrange] = useSquish();
+  const [yellowSquish, squishYellow] = useSquish();
+
   // Every character shares the same downward "sad" gaze and the same frown
   // — the four differ in scale and stance, not in what a given expression
   // looks like on them.
@@ -261,19 +294,22 @@ export default function LoginCharacters({ isTyping, showPassword, passwordLength
           password is hidden, as if peering over to check. */}
       <div
         ref={purpleRef}
-        className="absolute bottom-0 transition-all duration-700 ease-in-out"
+        onClick={squishPurple}
+        className="absolute bottom-0 cursor-pointer transition-all duration-700 ease-in-out"
         style={{
           left: 70,
           width: 180,
           height: isTyping || isHidingPassword ? 440 : 400,
-          backgroundColor: "#6C3FF5",
+          backgroundColor: LOGIN_CHARACTER_COLORS.purple,
           borderRadius: "10px 10px 0 0",
           zIndex: 1,
-          transform: passwordVisible
-            ? "skewX(0deg)"
-            : isTyping || isHidingPassword
-              ? `skewX(${purple.bodySkew - 12}deg) translateX(40px)`
-              : `skewX(${purple.bodySkew}deg)`,
+          transform: `${
+            passwordVisible
+              ? "skewX(0deg)"
+              : isTyping || isHidingPassword
+                ? `skewX(${purple.bodySkew - 12}deg) translateX(40px)`
+                : `skewX(${purple.bodySkew}deg)`
+          } ${purpleSquish ? "scaleY(0.85) scaleX(1.06)" : "scaleY(1) scaleX(1)"}`,
           transformOrigin: "bottom center",
         }}
       >
@@ -321,21 +357,24 @@ export default function LoginCharacters({ isTyping, showPassword, passwordLength
           if the two are looking at each other. */}
       <div
         ref={blackRef}
-        className="absolute bottom-0 transition-all duration-700 ease-in-out"
+        onClick={squishBlack}
+        className="absolute bottom-0 cursor-pointer transition-all duration-700 ease-in-out"
         style={{
           left: 240,
           width: 120,
           height: 310,
-          backgroundColor: "#2D2D2D",
+          backgroundColor: LOGIN_CHARACTER_COLORS.black,
           borderRadius: "8px 8px 0 0",
           zIndex: 2,
-          transform: passwordVisible
-            ? "skewX(0deg)"
-            : lookingAtEachOther
-              ? `skewX(${black.bodySkew * 1.5 + 10}deg) translateX(20px)`
-              : isTyping || isHidingPassword
-                ? `skewX(${black.bodySkew * 1.5}deg)`
-                : `skewX(${black.bodySkew}deg)`,
+          transform: `${
+            passwordVisible
+              ? "skewX(0deg)"
+              : lookingAtEachOther
+                ? `skewX(${black.bodySkew * 1.5 + 10}deg) translateX(20px)`
+                : isTyping || isHidingPassword
+                  ? `skewX(${black.bodySkew * 1.5}deg)`
+                  : `skewX(${black.bodySkew}deg)`
+          } ${blackSquish ? "scaleY(0.85) scaleX(1.06)" : "scaleY(1) scaleX(1)"}`,
           transformOrigin: "bottom center",
         }}
       >
@@ -373,15 +412,18 @@ export default function LoginCharacters({ isTyping, showPassword, passwordLength
       {/* Orange — short rounded dome in front. */}
       <div
         ref={orangeRef}
-        className="absolute bottom-0 transition-all duration-700 ease-in-out"
+        onClick={squishOrange}
+        className="absolute bottom-0 cursor-pointer transition-all duration-700 ease-in-out"
         style={{
           left: 0,
           width: 240,
           height: 200,
           zIndex: 3,
-          backgroundColor: "#FF9B6B",
+          backgroundColor: LOGIN_CHARACTER_COLORS.orange,
           borderRadius: "120px 120px 0 0",
-          transform: passwordVisible ? "skewX(0deg)" : `skewX(${orange.bodySkew}deg)`,
+          transform: `${passwordVisible ? "skewX(0deg)" : `skewX(${orange.bodySkew}deg)`} ${
+            orangeSquish ? "scaleY(0.85) scaleX(1.06)" : "scaleY(1) scaleX(1)"
+          }`,
           transformOrigin: "bottom center",
         }}
       >
@@ -417,15 +459,18 @@ export default function LoginCharacters({ isTyping, showPassword, passwordLength
       {/* Yellow. */}
       <div
         ref={yellowRef}
-        className="absolute bottom-0 transition-all duration-700 ease-in-out"
+        onClick={squishYellow}
+        className="absolute bottom-0 cursor-pointer transition-all duration-700 ease-in-out"
         style={{
           left: 310,
           width: 140,
           height: 230,
-          backgroundColor: "#E8D754",
+          backgroundColor: LOGIN_CHARACTER_COLORS.yellow,
           borderRadius: "70px 70px 0 0",
           zIndex: 4,
-          transform: passwordVisible ? "skewX(0deg)" : `skewX(${yellow.bodySkew}deg)`,
+          transform: `${passwordVisible ? "skewX(0deg)" : `skewX(${yellow.bodySkew}deg)`} ${
+            yellowSquish ? "scaleY(0.85) scaleX(1.06)" : "scaleY(1) scaleX(1)"
+          }`,
           transformOrigin: "bottom center",
         }}
       >

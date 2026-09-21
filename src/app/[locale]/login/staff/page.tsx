@@ -9,8 +9,47 @@ import { useAuth } from "@/lib/auth-context";
 import { auth } from "@/lib/firebase";
 import { Link, useRouter } from "@/i18n/navigation";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
-import LoginCharacters from "@/components/LoginCharacters";
+import LoginCharacters, { LOGIN_CHARACTER_COLORS } from "@/components/LoginCharacters";
 import { IconEye, IconEyeOff } from "@/components/icons";
+
+// The Samnan Holding Group's subsidiary companies, shown above the
+// illustration's characters — mirrors the "Our Companies" section on
+// samnan.com.sa (full-color logos, each one a real link to that company's
+// page there) rather than leaving that space empty.
+const SUBSIDIARY_LOGOS = [
+  { src: "/subsidiary-logos/rezeq.webp", alt: "Rezeq", href: "https://samnan.com.sa/en/Company/com2" },
+  {
+    src: "/subsidiary-logos/sanam-aljazeera.png",
+    alt: "Sanam Aljazeera",
+    href: "https://samnan.com.sa/en/Company/SANAM%20ALJAZEERA%20COMPANY%20FOR%20PROJECTS%20LTD",
+  },
+  { src: "/subsidiary-logos/samnan-pools.png", alt: "Samnan Pools", href: "https://samnan.com.sa/en/Company/SMP" },
+  {
+    src: "/subsidiary-logos/samnan-petroleum.webp",
+    alt: "Samnan Petroleum Services",
+    href: "https://samnan.com.sa/en/Company/Samnan%20petroleum",
+  },
+  {
+    src: "/subsidiary-logos/water-environment.png",
+    alt: "Water & Environment Technology",
+    href: "https://samnan.com.sa/en/Company/Miyah%20for%20water%20&%20environment%20technology",
+  },
+  {
+    src: "/subsidiary-logos/alhufi-contracting.png",
+    alt: "Alhufi Contracting",
+    href: "https://samnan.com.sa/en/Company/ALHUFI%20CONTRACTING%20LIMITED",
+  },
+  {
+    src: "/subsidiary-logos/samnan-real-estate.webp",
+    alt: "Samnan Real Estate Investment",
+    href: "https://samnan.com.sa/en/Company/SAMNAN%20REAL%20ESTATE%20INVESTMENT",
+  },
+  {
+    src: "/subsidiary-logos/samnan-tech.webp",
+    alt: "Samnan Technology Solutions",
+    href: "https://samnan.com.sa/en/Company/com11",
+  },
+];
 
 // A simple cartoon hand — three overlapping circles as fingers sitting on a
 // rounded-rectangle palm. Anchored to the illustration panel's trailing
@@ -105,7 +144,9 @@ export default function StaffLoginPage() {
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       await signIn(username, password);
       setRevealing(true);
-      setTimeout(() => router.replace("/home"), 700);
+      // Matches the reveal's own transition duration below — the pull needs
+      // to actually finish, not just start, before the route swaps to /home.
+      setTimeout(() => router.replace("/home"), 2000);
     } catch {
       setError(t("error"));
       setSubmitting(false);
@@ -117,33 +158,56 @@ export default function StaffLoginPage() {
     <div className="fixed inset-0 flex items-center justify-center overflow-hidden bg-[#f5f6f8]">
       <div className="relative flex h-full w-full">
         <div
-          className={`login-pull-illustration relative hidden items-end justify-center overflow-hidden bg-[#eef1f8] transition-[flex-basis] duration-700 ease-in-out md:flex ${
+          className={`login-pull-illustration relative hidden items-end justify-center overflow-hidden bg-[#eef1f8] transition-[flex-basis] duration-[2000ms] ease-in-out md:flex ${
             revealing ? "is-revealing" : ""
           }`}
         >
+          <div className="absolute top-8 start-10 end-10 flex flex-col items-center gap-5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/samnan-icon.svg" alt="Samnan Holding Group" className="h-16 w-16" />
+            <div className="grid grid-cols-4 gap-x-6 gap-y-4">
+              {SUBSIDIARY_LOGOS.map((logo) => (
+                <a
+                  key={logo.href}
+                  href={logo.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center transition-transform duration-150 ease-out hover:scale-110"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={logo.src} alt={logo.alt} className="h-8 w-auto object-contain" />
+                </a>
+              ))}
+            </div>
+          </div>
           <LoginCharacters
             isTyping={isTyping}
             showPassword={showPassword}
             passwordLength={password.length}
             loginFailedSignal={loginFailedSignal}
           />
-          {/* Purple's arm — hidden (zero-length) at rest, then genuinely
-              extends toward the divider as the pull starts: the sleeve's
-              own width grows, pushing the hand out ahead of it, rather than
-              the hand just fading in already in place. */}
-          <div className="pointer-events-none absolute bottom-72 end-0 z-20 flex items-center">
-            <div
-              className="h-10 shrink-0 rounded-full bg-[#6C3FF5] transition-[width] duration-700 ease-in-out"
-              style={{ width: revealing ? 380 : 0 }}
-            />
-            <div className="-ms-6 shrink-0 -rotate-[14deg] transition-opacity duration-500 ease-in-out" style={{ opacity: revealing ? 1 : 0 }}>
-              <Hand color="#6C3FF5" />
+          {/* Purple's arm — invisible at rest. Rather than growing outward
+              (which read as pushing, not pulling), it's already at full
+              length and just fades in gripping the divider, then rides
+              along with it — pinned to the illustration panel's own edge —
+              for the whole pull, the same way you'd actually drag something
+              by holding on to one spot rather than stretching toward it.
+              The sleeve and hand rotate together as one straight piece —
+              rotating only the hand at the tip left a visible kink where a
+              perfectly horizontal sleeve met an angled hand. */}
+          <div
+            className="pointer-events-none absolute bottom-72 end-0 z-20 flex items-center -rotate-[8deg] transition-opacity duration-500 ease-out"
+            style={{ opacity: revealing ? 1 : 0, transformOrigin: "100% 50%" }}
+          >
+            <div className="h-10 w-[380px] shrink-0 rounded-full" style={{ backgroundColor: LOGIN_CHARACTER_COLORS.purple }} />
+            <div className="-ms-6 shrink-0">
+              <Hand color={LOGIN_CHARACTER_COLORS.purple} />
             </div>
           </div>
         </div>
 
         <div
-          className={`login-pull-form relative flex min-w-0 basis-full flex-col justify-center bg-white px-6 py-12 transition-[flex-basis,opacity] duration-700 ease-in-out sm:px-10 md:px-16 lg:px-24 ${
+          className={`login-pull-form relative flex min-w-0 basis-full flex-col justify-center bg-white px-6 py-12 transition-[flex-basis,opacity] duration-[2000ms] ease-in-out sm:px-10 md:px-16 lg:px-24 ${
             revealing ? "is-revealing" : ""
           }`}
         >
