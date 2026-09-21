@@ -45,6 +45,35 @@ export function IconPaperclip(props: IconProps) {
   );
 }
 
+export function IconEye(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path
+        d="M2.5 10S5.5 4.5 10 4.5 17.5 10 17.5 10 14.5 15.5 10 15.5 2.5 10 2.5 10Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+    </Base>
+  );
+}
+
+export function IconEyeOff(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path
+        d="M3.5 3.5l13 13M8.3 8.4a2.5 2.5 0 0 0 3.4 3.4M6.2 6.1C4.2 7.3 2.5 10 2.5 10s3 5.5 7.5 5.5c1.2 0 2.2-.3 3.1-.8M13.9 13.9C15.9 12.6 17.5 10 17.5 10S14.5 4.5 10 4.5c-.6 0-1.2.1-1.7.2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Base>
+  );
+}
+
 export function IconPlusCircle(props: IconProps) {
   return (
     <Base {...props}>

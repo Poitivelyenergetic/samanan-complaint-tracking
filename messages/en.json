@@ -62,8 +62,13 @@
   "login": {
     "title": "Staff Login",
     "subtitle": "Sign in to manage customer complaints",
+    "welcomeBack": "Welcome back!",
+    "enterDetails": "Please enter your details to sign in.",
     "username": "Username",
     "password": "Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "rememberMe": "Remember me for 30 days",
     "submit": "Sign In",
     "signingIn": "Signing in...",
     "error": "Invalid username or password",
