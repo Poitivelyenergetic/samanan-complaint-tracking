@@ -36,6 +36,7 @@ yarn-error.log*
 
 # local Claude Code dev-server config (browser preview only, not app code)
 .claude/
+CLAUDE.local.md
 
 # vercel
 .vercel
