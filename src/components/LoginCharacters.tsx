@@ -99,47 +99,28 @@ function EyeBall({
   );
 }
 
-// A bare pupil dot with no surrounding eyeball — used for the two simpler
-// characters whose eyes are just dark dots directly on their body color.
-function Pupil({
-  mouse,
-  size,
-  maxDistance,
-  pupilColor,
-  forceLook,
-}: {
-  mouse: Point;
-  size: number;
-  maxDistance: number;
-  pupilColor: string;
-  forceLook?: Point;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [look, setLook] = useState<Point>({ x: 0, y: 0 });
-
-  useEffect(() => {
-    if (forceLook) {
-      setLook(forceLook);
-      return;
-    }
-    if (!ref.current) return;
-    setLook(lookOffset(ref.current.getBoundingClientRect(), mouse, maxDistance));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mouse, maxDistance, forceLook?.x, forceLook?.y]);
-
-  return (
-    <div
-      ref={ref}
-      className="rounded-full"
-      style={{
-        width: size,
-        height: size,
-        backgroundColor: pupilColor,
-        transform: `translate(${look.x}px, ${look.y}px)`,
-        transition: "transform 0.1s ease-out",
-      }}
-    />
-  );
+// A closed-mouth line, shared by all four characters so their faces read as
+// the same "style" rather than only one of them having a mouth at all. Turns
+// into a downward-curving frown for the "sad" reaction to a rejected sign-in
+// — the classic CSS trick of a colored bottom border on a circular box,
+// flipped upside down.
+function Mouth({ sad, width }: { sad: boolean; width: number }) {
+  if (sad) {
+    return (
+      <div
+        className="transition-all duration-200"
+        style={{
+          width,
+          height: width / 2,
+          borderRadius: "50%",
+          border: "3px solid transparent",
+          borderBottomColor: "#2D2D2D",
+          transform: "rotate(180deg)",
+        }}
+      />
+    );
+  }
+  return <div className="h-1 rounded-full bg-[#2D2D2D] transition-all duration-200" style={{ width }} />;
 }
 
 // Repeats `run` after a random delay in [minMs, minMs+spreadMs), forever,
@@ -202,9 +183,13 @@ export interface LoginCharactersProps {
   isTyping: boolean;
   showPassword: boolean;
   passwordLength: number;
+  // Bumped (to any new value) each time sign-in is rejected — not a boolean,
+  // since two failures in a row need to retrigger the reaction even though
+  // the "value" driving it (wrong credentials) hasn't visibly changed.
+  loginFailedSignal?: number;
 }
 
-export default function LoginCharacters({ isTyping, showPassword, passwordLength }: LoginCharactersProps) {
+export default function LoginCharacters({ isTyping, showPassword, passwordLength, loginFailedSignal }: LoginCharactersProps) {
   const mouse = useMousePosition();
   const purpleRef = useRef<HTMLDivElement>(null);
   const blackRef = useRef<HTMLDivElement>(null);
@@ -213,6 +198,21 @@ export default function LoginCharacters({ isTyping, showPassword, passwordLength
 
   const purpleBlinking = useBlink();
   const blackBlinking = useBlink();
+  const orangeBlinking = useBlink();
+  const yellowBlinking = useBlink();
+
+  // Disappointed reaction to a rejected sign-in: every character looks down
+  // for a beat and the whole group gives a brief headshake. Skips the very
+  // first render (signal starts at 0/undefined with nothing to react to).
+  const [sad, setSad] = useState(false);
+  const previousSignal = useRef(loginFailedSignal);
+  useEffect(() => {
+    if (loginFailedSignal === undefined || loginFailedSignal === previousSignal.current) return;
+    previousSignal.current = loginFailedSignal;
+    setSad(true);
+    const timer = setTimeout(() => setSad(false), 900);
+    return () => clearTimeout(timer);
+  }, [loginFailedSignal]);
 
   const [lookingAtEachOther, setLookingAtEachOther] = useState(false);
   useEffect(() => {
@@ -247,8 +247,16 @@ export default function LoginCharacters({ isTyping, showPassword, passwordLength
   const orange = useBodyTracking(orangeRef, mouse);
   const yellow = useBodyTracking(yellowRef, mouse);
 
+  // Every character shares the same downward "sad" gaze and the same frown
+  // — the four differ in scale and stance, not in what a given expression
+  // looks like on them.
+  const sadLook = { x: 0, y: 6 };
+
   return (
-    <div className="relative" style={{ width: 550, height: 400 }}>
+    <div
+      className={`relative ${sad ? "animate-sad-shake" : ""}`}
+      style={{ width: 550, height: 400 }}
+    >
       {/* Purple — tallest character, stands up taller while a typed
           password is hidden, as if peering over to check. */}
       <div
@@ -287,14 +295,25 @@ export default function LoginCharacters({ isTyping, showPassword, passwordLength
               pupilColor="#2D2D2D"
               isBlinking={purpleBlinking}
               forceLook={
-                passwordVisible
-                  ? { x: purplePeeking ? 4 : -4, y: purplePeeking ? 5 : -4 }
-                  : lookingAtEachOther
-                    ? { x: 3, y: 4 }
-                    : undefined
+                sad
+                  ? sadLook
+                  : passwordVisible
+                    ? { x: purplePeeking ? 4 : -4, y: purplePeeking ? 5 : -4 }
+                    : lookingAtEachOther
+                      ? { x: 3, y: 4 }
+                      : undefined
               }
             />
           ))}
+        </div>
+        <div
+          className="absolute transition-all duration-700 ease-in-out"
+          style={{
+            left: passwordVisible ? 20 : lookingAtEachOther ? 55 : 45 + purple.faceX,
+            top: passwordVisible ? 63 : lookingAtEachOther ? 95 : 68 + purple.faceY,
+          }}
+        >
+          <Mouth sad={sad} width={30} />
         </div>
       </div>
 
@@ -337,13 +356,21 @@ export default function LoginCharacters({ isTyping, showPassword, passwordLength
               eyeColor="white"
               pupilColor="#2D2D2D"
               isBlinking={blackBlinking}
-              forceLook={passwordVisible ? { x: -4, y: -4 } : lookingAtEachOther ? { x: 0, y: -4 } : undefined}
+              forceLook={
+                sad ? sadLook : passwordVisible ? { x: -4, y: -4 } : lookingAtEachOther ? { x: 0, y: -4 } : undefined
+              }
             />
           ))}
         </div>
+        <div
+          className="absolute transition-all duration-700 ease-in-out"
+          style={{ left: passwordVisible ? 10 : 26 + black.faceX, top: passwordVisible ? 60 : 58 + black.faceY }}
+        >
+          <Mouth sad={sad} width={26} />
+        </div>
       </div>
 
-      {/* Orange — short rounded dome in front, plain dot eyes. */}
+      {/* Orange — short rounded dome in front. */}
       <div
         ref={orangeRef}
         className="absolute bottom-0 transition-all duration-700 ease-in-out"
@@ -366,19 +393,28 @@ export default function LoginCharacters({ isTyping, showPassword, passwordLength
           }}
         >
           {[0, 1].map((i) => (
-            <Pupil
+            <EyeBall
               key={i}
               mouse={mouse}
-              size={12}
+              size={16}
+              pupilSize={6}
               maxDistance={5}
+              eyeColor="white"
               pupilColor="#2D2D2D"
-              forceLook={passwordVisible ? { x: -5, y: -4 } : undefined}
+              isBlinking={orangeBlinking}
+              forceLook={sad ? sadLook : passwordVisible ? { x: -5, y: -4 } : undefined}
             />
           ))}
         </div>
+        <div
+          className="absolute transition-all duration-200 ease-out"
+          style={{ left: passwordVisible ? 50 : 76 + orange.faceX, top: passwordVisible ? 120 : 125 + orange.faceY }}
+        >
+          <Mouth sad={sad} width={40} />
+        </div>
       </div>
 
-      {/* Yellow — has a little closed-mouth line in addition to eyes. */}
+      {/* Yellow. */}
       <div
         ref={yellowRef}
         className="absolute bottom-0 transition-all duration-700 ease-in-out"
@@ -401,23 +437,28 @@ export default function LoginCharacters({ isTyping, showPassword, passwordLength
           }}
         >
           {[0, 1].map((i) => (
-            <Pupil
+            <EyeBall
               key={i}
               mouse={mouse}
-              size={12}
+              size={16}
+              pupilSize={6}
               maxDistance={5}
+              eyeColor="white"
               pupilColor="#2D2D2D"
-              forceLook={passwordVisible ? { x: -5, y: -4 } : undefined}
+              isBlinking={yellowBlinking}
+              forceLook={sad ? sadLook : passwordVisible ? { x: -5, y: -4 } : undefined}
             />
           ))}
         </div>
         <div
-          className="absolute h-1 w-20 rounded-full bg-[#2D2D2D] transition-all duration-200 ease-out"
+          className="absolute transition-all duration-200 ease-out"
           style={{
             left: passwordVisible ? 10 : 40 + yellow.faceX,
             top: passwordVisible ? 88 : 88 + yellow.faceY,
           }}
-        />
+        >
+          <Mouth sad={sad} width={20} />
+        </div>
       </div>
     </div>
   );

@@ -13,8 +13,9 @@ import LoginCharacters from "@/components/LoginCharacters";
 import { IconEye, IconEyeOff } from "@/components/icons";
 
 // A simple cartoon hand — three overlapping circles as fingers sitting on a
-// rounded-rectangle palm. Sits at the outer corners of the card, as if
-// holding it open; travels with the card during the sign-in reveal below.
+// rounded-rectangle palm. Anchored to the illustration panel's trailing
+// edge as purple's own arm, reaching across to grip the divider — see the
+// reveal animation below.
 function Hand({ color, flip = false }: { color: string; flip?: boolean }) {
   return (
     <svg width="70" height="100" viewBox="0 0 90 130" className={flip ? "-scale-x-100" : ""} aria-hidden="true">
@@ -76,17 +77,25 @@ export default function StaffLoginPage() {
   const [rememberMe, setRememberMe] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // On success the card shrinks into a corner (as if the two hands gripping
-  // its edges were tucking it aside) rather than navigating instantly —
-  // router.replace happens after that animation finishes, not before, so
-  // it's actually visible rather than skipped by the route change.
+  const [loginFailedSignal, setLoginFailedSignal] = useState(0);
+  // On success, purple pulls the divider all the way across — the
+  // illustration side grows from half the screen to the whole thing, as if
+  // he'd dragged the form panel out of the way — before actually navigating,
+  // so the pull is visible rather than skipped by the route change.
   const [revealing, setRevealing] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) {
+    // Skipped for the whole span of a form-triggered sign-in (submitting
+    // stays true from the first line of handleSubmit through to the
+    // pull animation's own navigation) — its setTimeout below owns
+    // navigation for that flow. Guarding on `revealing` alone isn't enough:
+    // the auth context's `user` can flip true (via Firebase's own listener)
+    // before this component's setRevealing(true) line even runs, and this
+    // effect firing in that gap can't be undone once it does.
+    if (!loading && user && !submitting) {
       router.replace("/home");
     }
-  }, [loading, user, router]);
+  }, [loading, user, submitting, router]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -100,40 +109,40 @@ export default function StaffLoginPage() {
     } catch {
       setError(t("error"));
       setSubmitting(false);
+      setLoginFailedSignal((n) => n + 1);
     }
   }
 
   return (
     <div className="fixed inset-0 flex items-center justify-center overflow-hidden bg-[#f5f6f8]">
-      <div
-        className={`relative flex h-full w-full transition-all duration-700 ease-in ${
-          revealing ? "translate-x-[42%] translate-y-[42%] scale-[0.12] opacity-0" : "translate-x-0 translate-y-0 scale-100 opacity-100"
-        }`}
-        style={{ transformOrigin: "90% 90%" }}
-      >
-        <div className="pointer-events-none absolute -top-8 -start-8 z-20 rotate-[18deg]">
-          <Hand color="#385bc1" />
-        </div>
-        <div className="pointer-events-none absolute -top-8 -end-8 z-20 -rotate-[18deg]">
-          <Hand color="#1f2430" flip />
-        </div>
-
-        <div className="relative hidden w-1/2 items-end justify-center overflow-hidden bg-[#eef1f8] md:flex">
-          <svg
-            className="absolute start-10 top-10 h-7 w-7 text-[#385bc1]/60"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            aria-hidden="true"
+      <div className="relative flex h-full w-full">
+        <div
+          className={`login-pull-illustration relative hidden items-end justify-center overflow-hidden bg-[#eef1f8] transition-[flex-basis] duration-700 ease-in-out md:flex ${
+            revealing ? "is-revealing" : ""
+          }`}
+        >
+          <LoginCharacters
+            isTyping={isTyping}
+            showPassword={showPassword}
+            passwordLength={password.length}
+            loginFailedSignal={loginFailedSignal}
+          />
+          {/* Purple's arm, gripping the divider — hidden at rest, and only
+              reaches out to grip it as the pull itself starts. */}
+          <div
+            className={`pointer-events-none absolute bottom-72 z-20 -rotate-[14deg] transition-all duration-700 ease-in-out ${
+              revealing ? "end-[-10px] opacity-100" : "end-4 opacity-0"
+            }`}
           >
-            <path d="M12 2c.6 4.2 2.8 6.4 7 7-4.2.6-6.4 2.8-7 7-.6-4.2-2.8-6.4-7-7 4.2-.6 6.4-2.8 7-7Z" />
-          </svg>
-          <span className="pointer-events-none absolute start-10 top-[18%] select-none text-6xl font-black tracking-tight text-[#385bc1]/[0.08]">
-            SAMNAN
-          </span>
-          <LoginCharacters isTyping={isTyping} showPassword={showPassword} passwordLength={password.length} />
+            <Hand color="#6C3FF5" />
+          </div>
         </div>
 
-        <div className="relative flex w-full flex-col justify-center bg-white px-6 py-12 sm:px-10 md:w-1/2 md:px-16 lg:px-24">
+        <div
+          className={`login-pull-form relative flex min-w-0 basis-full flex-col justify-center bg-white px-6 py-12 transition-[flex-basis,opacity] duration-700 ease-in-out sm:px-10 md:px-16 lg:px-24 ${
+            revealing ? "is-revealing" : ""
+          }`}
+        >
           <div className="absolute top-6 end-6">
             <LanguageSwitcher />
           </div>

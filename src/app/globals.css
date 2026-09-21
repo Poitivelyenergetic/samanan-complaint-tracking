@@ -107,6 +107,54 @@ body {
   }
 }
 
+/* Login characters' reaction to a rejected sign-in — a quick disappointed
+   headshake rather than anything that reads as a jarring error state. */
+@keyframes sad-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20%, 60% {
+    transform: translateX(-6px);
+  }
+  40%, 80% {
+    transform: translateX(6px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-sad-shake {
+    animation: sad-shake 500ms ease-in-out;
+  }
+}
+
+/* Staff login's sign-in reveal: the illustration panel grows to fill the
+   screen while the form panel collapses away. Two Tailwind utility classes
+   for the same property (e.g. basis-1/2 and a conditionally-added basis-0)
+   can both end up present in the class list at once — which one wins is
+   decided by their order in the generated stylesheet, not by the order
+   they're written in the class string, and that order doesn't reliably
+   favor the later one. Plain classes here sidestep that: `.is-revealing`
+   has higher specificity than the base rule regardless of source order. */
+@media (min-width: 768px) {
+  .login-pull-illustration {
+    flex-basis: 50%;
+    flex-grow: 1;
+  }
+  .login-pull-illustration.is-revealing {
+    flex-basis: 100%;
+  }
+  .login-pull-form {
+    flex-basis: 50%;
+    flex-grow: 1;
+  }
+  .login-pull-form.is-revealing {
+    flex-basis: 0%;
+    flex-grow: 0;
+    overflow: hidden;
+    opacity: 0;
+  }
+}
+
 /* A small universal press-down on every button — most buttons in this app
    already have their own hover color/shadow transitions, but none had any
    feedback for the actual click/tap itself. Scoped to :not(:disabled) so a
