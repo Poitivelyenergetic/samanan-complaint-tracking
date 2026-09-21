@@ -127,14 +127,18 @@ export default function StaffLoginPage() {
             passwordLength={password.length}
             loginFailedSignal={loginFailedSignal}
           />
-          {/* Purple's arm, gripping the divider — hidden at rest, and only
-              reaches out to grip it as the pull itself starts. */}
-          <div
-            className={`pointer-events-none absolute bottom-72 z-20 -rotate-[14deg] transition-all duration-700 ease-in-out ${
-              revealing ? "end-[-10px] opacity-100" : "end-4 opacity-0"
-            }`}
-          >
-            <Hand color="#6C3FF5" />
+          {/* Purple's arm — hidden (zero-length) at rest, then genuinely
+              extends toward the divider as the pull starts: the sleeve's
+              own width grows, pushing the hand out ahead of it, rather than
+              the hand just fading in already in place. */}
+          <div className="pointer-events-none absolute bottom-72 end-0 z-20 flex items-center">
+            <div
+              className="h-10 shrink-0 rounded-full bg-[#6C3FF5] transition-[width] duration-700 ease-in-out"
+              style={{ width: revealing ? 380 : 0 }}
+            />
+            <div className="-ms-6 shrink-0 -rotate-[14deg] transition-opacity duration-500 ease-in-out" style={{ opacity: revealing ? 1 : 0 }}>
+              <Hand color="#6C3FF5" />
+            </div>
           </div>
         </div>
 
