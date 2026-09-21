@@ -30,7 +30,7 @@ import { dateRangeFor, type DateFilter } from "@/lib/dateRange";
 import StatusBadge from "@/components/StatusBadge";
 import SearchableSelect from "@/components/SearchableSelect";
 import DateRangeFilter from "@/components/DateRangeFilter";
-import { IconClipboardList, IconInbox, IconPaperclip, IconRefreshCw, IconShieldCheck } from "@/components/icons";
+import { IconClipboardList, IconInbox, IconPaperclip, IconRefreshCw, IconShieldCheck, IconUsers } from "@/components/icons";
 
 function StatCard({
   icon,
@@ -399,7 +399,7 @@ export default function DashboardPage() {
       </div>
 
       {visibleComplaints !== null && (
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-5">
           <StatCard
             icon={<IconClipboardList />}
             color="#475569"
@@ -415,6 +415,14 @@ export default function DashboardPage() {
             value={statusCounts.Open}
             active={statusFilter === "Open"}
             onClick={() => router.push(statusFilter === "Open" ? "/dashboard" : "/dashboard?status=Open")}
+          />
+          <StatCard
+            icon={<IconUsers />}
+            color="#7c3aed"
+            label={t("stats.assigned")}
+            value={statusCounts.Assigned}
+            active={statusFilter === "Assigned"}
+            onClick={() => router.push(statusFilter === "Assigned" ? "/dashboard" : "/dashboard?status=Assigned")}
           />
           <StatCard
             icon={<IconRefreshCw />}

@@ -198,6 +198,7 @@
     "stats": {
       "total": "Total Complaints",
       "open": "Open",
+      "assigned": "Assigned",
       "processing": "Processing",
       "closed": "Closed"
     },
