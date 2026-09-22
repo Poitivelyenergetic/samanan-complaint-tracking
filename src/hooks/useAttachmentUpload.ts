@@ -27,6 +27,7 @@ export interface UseAttachmentUploadResult {
   dragOver: boolean;
   inputRef: React.RefObject<HTMLInputElement | null>;
   remove: (url: string) => void;
+  reset: () => void;
   handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
   handleDrop: (e: DragEvent<HTMLDivElement>) => void;
   handleDragOver: (e: DragEvent<HTMLDivElement>) => void;
@@ -56,7 +57,15 @@ export function useAttachmentUpload({
     try {
       const uploaded = await Promise.all(
         fileList.map(async (file) => {
-          const path = `${storagePathPrefix}/${Date.now()}-${file.name}`;
+          // A plain Date.now() prefix collides when several files (often
+          // sharing a generic camera/screenshot name) are selected in the
+          // same batch — the map callbacks all run synchronously up to this
+          // point, so they can get the identical millisecond. That made
+          // concurrent uploadBytes calls race to write the same Storage
+          // path, silently overwriting all but the last file even though
+          // every entry looked "uploaded" in the UI. A random id per file
+          // guarantees distinct paths regardless of timing or filename.
+          const path = `${storagePathPrefix}/${Date.now()}-${crypto.randomUUID()}-${file.name}`;
           const fileRef = ref(storage, path);
           await uploadBytes(fileRef, file, { contentType: file.type });
           return getDownloadURL(fileRef);
@@ -72,6 +81,10 @@ export function useAttachmentUpload({
 
   function remove(url: string) {
     setUrls((prev) => prev.filter((u) => u !== url));
+  }
+
+  function reset() {
+    setUrls(() => []);
   }
 
   function handleInputChange(e: ChangeEvent<HTMLInputElement>) {
@@ -106,6 +119,7 @@ export function useAttachmentUpload({
     dragOver,
     inputRef,
     remove,
+    reset,
     handleInputChange,
     handleDrop,
     handleDragOver,

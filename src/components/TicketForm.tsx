@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   TICKET_STATUSES,
@@ -100,7 +100,7 @@ export default function TicketForm({
   const locale = useLocale();
 
   const [values, setValues] = useState<TicketFormValues>({ ...DEFAULT_VALUES, ...initialValues });
-  const [initialStatus] = useState<TicketStatus | null>(initialValues?.status ?? null);
+  const [initialStatus, setInitialStatus] = useState<TicketStatus | null>(initialValues?.status ?? null);
   const [statusNote, setStatusNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,6 +114,19 @@ export default function TicketForm({
     storagePathPrefix: "tickets",
     errorMessage: tDetail("attachmentUploadFailed"),
   });
+
+  // This form stays mounted (keyed only on ticket id) across repeated status
+  // changes on the same ticket. Without this, initialStatus froze at
+  // whatever status the page first loaded with, so statusChanged stayed true
+  // forever after the first edit — forcing every later save to demand a new
+  // status note while silently resubmitting whatever attachments were left
+  // over in statusAttachments from the previous status change.
+  useEffect(() => {
+    setInitialStatus(initialValues?.status ?? null);
+    setStatusNote("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    statusAttachments.reset();
+  }, [initialValues?.status]);
 
   const departmentOptions = useMemo(
     () => departments.filter((d) => d.administrationId === administrationId),

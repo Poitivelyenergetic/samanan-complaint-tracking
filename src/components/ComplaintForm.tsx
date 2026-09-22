@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   COMPLAINT_STATUSES,
@@ -124,7 +124,7 @@ export default function ComplaintForm({
   const locale = useLocale();
 
   const [values, setValues] = useState<ComplaintFormValues>({ ...DEFAULT_VALUES, ...initialValues });
-  const [initialStatus] = useState<ComplaintStatus | null>(initialValues?.status ?? null);
+  const [initialStatus, setInitialStatus] = useState<ComplaintStatus | null>(initialValues?.status ?? null);
   const [statusNote, setStatusNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -149,6 +149,19 @@ export default function ComplaintForm({
     storagePathPrefix: "complaints",
     errorMessage: tDetail("attachmentUploadFailed"),
   });
+
+  // This form stays mounted (keyed only on complaint id) across repeated
+  // status changes on the same complaint. Without this, initialStatus froze
+  // at whatever status the page first loaded with, so statusChanged stayed
+  // true forever after the first edit — forcing every later save to demand
+  // a new status note while silently resubmitting whatever attachments were
+  // left over in statusAttachments from the previous status change.
+  useEffect(() => {
+    setInitialStatus(initialValues?.status ?? null);
+    setStatusNote("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    statusAttachments.reset();
+  }, [initialValues?.status]);
 
   // Administration/department are transient UI filters that narrow the
   // employee picker — only companyId and assignedTo actually get submitted.
