@@ -266,7 +266,7 @@ export default function StaffLoginPage() {
       {/* Illustration overlay — starts covering its own half of the screen
           and grows to cover all of it, on top of the form above. */}
       <div
-        className={`login-pull-illustration absolute inset-y-0 start-0 z-20 hidden items-end justify-center overflow-hidden bg-[#eef1f8] transition-[width] duration-[1500ms] ease-in-out md:flex ${
+        className={`login-pull-illustration absolute inset-y-0 start-0 z-20 hidden items-end justify-end overflow-hidden bg-[#eef1f8] pe-6 transition-[width] duration-[1500ms] ease-in-out md:flex ${
           revealing ? "is-revealing" : ""
         }`}
       >

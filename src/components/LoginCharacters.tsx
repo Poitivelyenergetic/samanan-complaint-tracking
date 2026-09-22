@@ -191,10 +191,15 @@ function useBlink(): boolean {
 // Purple's reaching arm during the sign-in reveal — a tapered forearm
 // ending in a gripping fist (three curled knuckles on top, a thumb tucked
 // underneath) rather than fanned-open fingers, which at this size read as
-// a messy claw instead of a hand actually holding onto something.
+// a messy claw instead of a hand actually holding onto something. Scaled
+// up (width/height bigger than the viewBox) rather than redrawn bigger,
+// so the proportions — and the "not obese" fist — stay the same; it just
+// needs the extra length to actually reach the illustration's own edge,
+// which now sits a fixed distance from him (see the character group's
+// justify-end below) instead of drifting with the viewport.
 function Arm({ color }: { color: string }) {
   return (
-    <svg width="210" height="56" viewBox="0 0 210 56" aria-hidden="true">
+    <svg width="325" height="87" viewBox="0 0 210 56" aria-hidden="true">
       <path d="M0,12 C60,12 110,16 150,20 L150,38 C110,42 60,46 0,46 Z" fill={color} />
       <path
         d="M148,10 C170,4 191,9 195,21 C197,29 192,37 181,41 C168,45 151,42 145,32 C141,24 142,15 148,10 Z"
@@ -403,7 +408,7 @@ export default function LoginCharacters({
         className="pointer-events-none absolute transition-transform duration-500 ease-out"
         style={{
           left: 245,
-          top: 95,
+          top: 80,
           zIndex: 10,
           transform: `scaleX(${(reaching || revealing ? 1 : 0) * (isRtl ? -1 : 1)}) rotate(-4deg)`,
           transformOrigin: "0% 50%",
