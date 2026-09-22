@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { browserLocalPersistence, browserSessionPersistence, setPersistence } from "firebase/auth";
 import { useAuth } from "@/lib/auth-context";
 import { auth } from "@/lib/firebase";
@@ -51,17 +51,25 @@ const SUBSIDIARY_LOGOS = [
   },
 ];
 
-// A simple cartoon hand — three overlapping circles as fingers sitting on a
-// rounded-rectangle palm. Anchored to the illustration panel's trailing
-// edge as purple's own arm, reaching across to grip the divider — see the
-// reveal animation below.
-function Hand({ color, flip = false }: { color: string; flip?: boolean }) {
+// Purple's arm and hand as a single continuous shape — a slender forearm
+// that tapers from shoulder to wrist, ending in a palm with three fanned
+// fingers. Drawing it as one SVG (rather than a separate "sleeve" div plus
+// a bare hand icon) is what keeps the joint between them looking like an
+// actual limb instead of two mismatched pieces bolted together.
+function Arm({ color }: { color: string }) {
   return (
-    <svg width="70" height="100" viewBox="0 0 90 130" className={flip ? "-scale-x-100" : ""} aria-hidden="true">
-      <rect x="10" y="50" width="70" height="80" rx="30" fill={color} />
-      <circle cx="25" cy="35" r="16" fill={color} />
-      <circle cx="45" cy="25" r="18" fill={color} />
-      <circle cx="65" cy="35" r="16" fill={color} />
+    <svg width="420" height="60" viewBox="0 0 420 60" aria-hidden="true">
+      <path d="M0,6 C130,6 235,12 338,17 L338,43 C235,48 130,54 0,54 Z" fill={color} />
+      <ellipse cx="348" cy="30" rx="24" ry="21" fill={color} />
+      <g transform="translate(362,10) rotate(-20)">
+        <rect x="0" y="-7" width="38" height="14" rx="7" fill={color} />
+      </g>
+      <g transform="translate(365,23)">
+        <rect x="0" y="-7" width="42" height="14" rx="7" fill={color} />
+      </g>
+      <g transform="translate(362,36) rotate(20)">
+        <rect x="0" y="-7" width="38" height="14" rx="7" fill={color} />
+      </g>
     </svg>
   );
 }
@@ -106,6 +114,8 @@ function HoverButton({
 export default function StaffLoginPage() {
   const t = useTranslations("login");
   const tCommon = useTranslations("common");
+  const locale = useLocale();
+  const isRtl = locale === "ar";
   const { user, loading, signIn } = useAuth();
   const router = useRouter();
 
@@ -117,10 +127,18 @@ export default function StaffLoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loginFailedSignal, setLoginFailedSignal] = useState(0);
-  // On success, purple pulls the divider all the way across — the
-  // illustration side grows from half the screen to the whole thing, as if
-  // he'd dragged the form panel out of the way — before actually navigating,
-  // so the pull is visible rather than skipped by the route change.
+  // The reveal is three beats, not one:
+  //   1. the form's own content clears out — an empty white panel, not a
+  //      shrinking one with text still on it.
+  //   2. purple reaches out and grabs the (still-resting) divider — his arm
+  //      extends from his own shoulder, not from the divider itself, so
+  //      it stays visually attached to his body instead of the moving edge.
+  //   3. only once he's actually holding it does the pull happen: the
+  //      illustration grows to fill the whole screen.
+  // All three happen before the actual route change, so the sequence is
+  // visible rather than skipped by it.
+  const [formCleared, setFormCleared] = useState(false);
+  const [reaching, setReaching] = useState(false);
   const [revealing, setRevealing] = useState(false);
 
   useEffect(() => {
@@ -143,10 +161,20 @@ export default function StaffLoginPage() {
     try {
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       await signIn(username, password);
-      setRevealing(true);
-      // Matches the reveal's own transition duration below — the pull needs
-      // to actually finish, not just start, before the route swaps to /home.
-      setTimeout(() => router.replace("/home"), 2000);
+      // Beat 1: the form's own content fades out, leaving a blank white
+      // panel rather than shrinking a panel that still has text on it.
+      setFormCleared(true);
+      setTimeout(() => {
+        // Beat 2: purple reaches out and grabs the divider.
+        setReaching(true);
+        setTimeout(() => {
+          // Beat 3: now that he's holding it, the actual pull happens.
+          setRevealing(true);
+          // Matches the pull's own transition duration below — it needs to
+          // actually finish, not just start, before the route swaps to /home.
+          setTimeout(() => router.replace("/home"), 1500);
+        }, 550);
+      }, 350);
     } catch {
       setError(t("error"));
       setSubmitting(false);
@@ -158,7 +186,7 @@ export default function StaffLoginPage() {
     <div className="fixed inset-0 flex items-center justify-center overflow-hidden bg-[#f5f6f8]">
       <div className="relative flex h-full w-full">
         <div
-          className={`login-pull-illustration relative hidden items-end justify-center overflow-hidden bg-[#eef1f8] transition-[flex-basis] duration-[2000ms] ease-in-out md:flex ${
+          className={`login-pull-illustration relative hidden items-end justify-center overflow-hidden bg-[#eef1f8] transition-[flex-basis] duration-[1500ms] ease-in-out md:flex ${
             revealing ? "is-revealing" : ""
           }`}
         >
@@ -186,28 +214,28 @@ export default function StaffLoginPage() {
             passwordLength={password.length}
             loginFailedSignal={loginFailedSignal}
           />
-          {/* Purple's arm — invisible at rest. Rather than growing outward
-              (which read as pushing, not pulling), it's already at full
-              length and just fades in gripping the divider, then rides
-              along with it — pinned to the illustration panel's own edge —
-              for the whole pull, the same way you'd actually drag something
-              by holding on to one spot rather than stretching toward it.
-              The sleeve and hand rotate together as one straight piece —
-              rotating only the hand at the tip left a visible kink where a
-              perfectly horizontal sleeve met an angled hand. */}
+          {/* Purple's arm — anchored near his own shoulder (roughly where
+              he stands at rest), not to the divider itself. Reaches out by
+              growing from zero width (beat 2, "reaching") to full length —
+              an actual extend-to-grab motion — then just stays put at full
+              length once the pull starts (beat 3): the illustration grows
+              past his fixed grip point rather than the arm re-stretching to
+              chase a moving edge, which was reading as pushing and made the
+              arm look detached from his body mid-pull. Mirrored in Arabic,
+              where he (and the divider) sit on the opposite side. */}
           <div
-            className="pointer-events-none absolute bottom-72 end-0 z-20 flex items-center -rotate-[8deg] transition-opacity duration-500 ease-out"
-            style={{ opacity: revealing ? 1 : 0, transformOrigin: "100% 50%" }}
+            className="pointer-events-none absolute bottom-72 start-64 z-20 transition-transform duration-500 ease-out"
+            style={{
+              transform: `scaleX(${(reaching || revealing ? 1 : 0) * (isRtl ? -1 : 1)}) rotate(-8deg)`,
+              transformOrigin: "0% 50%",
+            }}
           >
-            <div className="h-10 w-[380px] shrink-0 rounded-full" style={{ backgroundColor: LOGIN_CHARACTER_COLORS.purple }} />
-            <div className="-ms-6 shrink-0">
-              <Hand color={LOGIN_CHARACTER_COLORS.purple} />
-            </div>
+            <Arm color={LOGIN_CHARACTER_COLORS.purple} />
           </div>
         </div>
 
         <div
-          className={`login-pull-form relative flex min-w-0 basis-full flex-col justify-center bg-white px-6 py-12 transition-[flex-basis,opacity] duration-[2000ms] ease-in-out sm:px-10 md:px-16 lg:px-24 ${
+          className={`login-pull-form relative flex min-w-0 basis-full flex-col justify-center bg-white px-6 py-12 transition-[flex-basis,opacity] duration-[1500ms] ease-in-out sm:px-10 md:px-16 lg:px-24 ${
             revealing ? "is-revealing" : ""
           }`}
         >
@@ -215,7 +243,12 @@ export default function StaffLoginPage() {
             <LanguageSwitcher />
           </div>
 
-          <div className="mx-auto w-full max-w-sm">
+          {/* Fades out on success before the pull starts — a blank panel
+              gets pulled away, not one that still has the form on it. */}
+          <div
+            className="mx-auto w-full max-w-sm transition-opacity duration-300 ease-out"
+            style={{ opacity: formCleared ? 0 : 1 }}
+          >
             <div className="mb-8 flex items-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/samnan-icon.svg" alt={tCommon("appName")} className="h-8 w-8" />
