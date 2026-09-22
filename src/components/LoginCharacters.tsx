@@ -410,11 +410,21 @@ export default function LoginCharacters({
           left: 245,
           top: 80,
           zIndex: 10,
-          transform: `scaleX(${(reaching || revealing ? 1 : 0) * (isRtl ? -1 : 1)}) rotate(-4deg)`,
+          transform: `scaleX(${(reaching || revealing ? 1 : 0) * (isRtl ? -1 : 1)})`,
           transformOrigin: "0% 50%",
         }}
       >
-        <Arm color={LOGIN_CHARACTER_COLORS.purple} />
+        {/* The actual tug — a repeated bend-and-release rotation timed to
+            the same 1500ms as the panel's own width transition (see the
+            login page), so the motion visibly drives the cover rather than
+            the panel just growing on its own schedule while his arm sits
+            frozen in the grabbed pose. */}
+        <div
+          className={revealing ? "animate-arm-tug" : ""}
+          style={{ transform: "rotate(-4deg)", transformOrigin: "0% 50%" }}
+        >
+          <Arm color={LOGIN_CHARACTER_COLORS.purple} />
+        </div>
       </div>
 
       {/* Black — leans toward purple while the username is being typed, as

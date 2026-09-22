@@ -127,6 +127,30 @@ body {
   }
 }
 
+/* Purple's tug during the sign-in reveal — a repeated bend-and-release so
+   the login panel visibly getting dragged over the screen reads as caused
+   by his pulling, not as something that just happens to grow while his arm
+   sits frozen in the grabbed pose. Duration matches the panel's own width
+   transition (see the login page) so the last release lands right as the
+   cover finishes. */
+@keyframes arm-tug {
+  0%, 100% {
+    transform: rotate(-4deg);
+  }
+  20%, 60% {
+    transform: rotate(-32deg) scale(0.94);
+  }
+  40%, 80% {
+    transform: rotate(-4deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-arm-tug {
+    animation: arm-tug 1500ms ease-in-out;
+  }
+}
+
 /* Staff login's sign-in reveal: the login form is an overlay that starts
    covering its own half of the screen and grows OVER the illustration
    (which stays put underneath it) — purple reaches for it, then it grows
