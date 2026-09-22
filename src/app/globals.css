@@ -127,31 +127,22 @@ body {
   }
 }
 
-/* Staff login's sign-in reveal: the illustration panel grows to fill the
-   screen while the form panel collapses away. Two Tailwind utility classes
-   for the same property (e.g. basis-1/2 and a conditionally-added basis-0)
-   can both end up present in the class list at once — which one wins is
-   decided by their order in the generated stylesheet, not by the order
-   they're written in the class string, and that order doesn't reliably
-   favor the later one. Plain classes here sidestep that: `.is-revealing`
-   has higher specificity than the base rule regardless of source order. */
+/* Staff login's sign-in reveal: the illustration is an overlay that starts
+   covering its own half of the screen and grows OVER the login form
+   (which stays put, full-bleed, underneath it) rather than the two
+   panels resizing side by side — that read as the form being pushed away
+   instead of purple pulling the scene across to cover it. A plain class
+   for the width, rather than a Tailwind utility toggled conditionally,
+   sidesteps the usual risk of two same-property utility classes (e.g.
+   w-1/2 and a conditionally-added w-full) both landing in the class list
+   at once, where whichever wins depends on generation order in the
+   compiled stylesheet rather than source order. */
 @media (min-width: 768px) {
   .login-pull-illustration {
-    flex-basis: 50%;
-    flex-grow: 1;
+    width: 50%;
   }
   .login-pull-illustration.is-revealing {
-    flex-basis: 100%;
-  }
-  .login-pull-form {
-    flex-basis: 50%;
-    flex-grow: 1;
-  }
-  .login-pull-form.is-revealing {
-    flex-basis: 0%;
-    flex-grow: 0;
-    overflow: hidden;
-    opacity: 0;
+    width: 100%;
   }
 }
 

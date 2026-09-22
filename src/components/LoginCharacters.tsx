@@ -188,6 +188,26 @@ function useBlink(): boolean {
   return blinking;
 }
 
+// Purple's reaching arm during the sign-in reveal — a tapered forearm
+// ending in a gripping fist (three curled knuckles on top, a thumb tucked
+// underneath) rather than fanned-open fingers, which at this size read as
+// a messy claw instead of a hand actually holding onto something.
+function Arm({ color }: { color: string }) {
+  return (
+    <svg width="210" height="56" viewBox="0 0 210 56" aria-hidden="true">
+      <path d="M0,12 C60,12 110,16 150,20 L150,38 C110,42 60,46 0,46 Z" fill={color} />
+      <path
+        d="M148,10 C170,4 191,9 195,21 C197,29 192,37 181,41 C168,45 151,42 145,32 C141,24 142,15 148,10 Z"
+        fill={color}
+      />
+      <circle cx="161" cy="12" r="7.5" fill={color} />
+      <circle cx="176" cy="9" r="7.5" fill={color} />
+      <circle cx="190" cy="14" r="7" fill={color} />
+      <ellipse cx="151" cy="40" rx="10" ry="7.5" fill={color} transform="rotate(22 151 40)" />
+    </svg>
+  );
+}
+
 function useBodyTracking(ref: RefObject<HTMLDivElement | null>, mouse: Point) {
   const [state, setState] = useState({ faceX: 0, faceY: 0, bodySkew: 0 });
   useEffect(() => {
@@ -215,9 +235,27 @@ export interface LoginCharactersProps {
   // since two failures in a row need to retrigger the reaction even though
   // the "value" driving it (wrong credentials) hasn't visibly changed.
   loginFailedSignal?: number;
+  // Drives purple's reaching arm during the sign-in reveal — see the page
+  // that renders this component for the full three-beat sequence. Both
+  // false/undefined outside that flow, which keeps the arm invisible.
+  reaching?: boolean;
+  revealing?: boolean;
+  // Only the arm mirrors for Arabic — the rest of the illustration is a
+  // fixed piece of art regardless of locale, but the arm has to point
+  // toward whichever physical side the illustration grows toward, which
+  // flips with direction.
+  isRtl?: boolean;
 }
 
-export default function LoginCharacters({ isTyping, showPassword, passwordLength, loginFailedSignal }: LoginCharactersProps) {
+export default function LoginCharacters({
+  isTyping,
+  showPassword,
+  passwordLength,
+  loginFailedSignal,
+  reaching,
+  revealing,
+  isRtl,
+}: LoginCharactersProps) {
   const mouse = useMousePosition();
   const purpleRef = useRef<HTMLDivElement>(null);
   const blackRef = useRef<HTMLDivElement>(null);
@@ -351,6 +389,27 @@ export default function LoginCharacters({ isTyping, showPassword, passwordLength
         >
           <Mouth sad={sad} width={30} />
         </div>
+      </div>
+
+      {/* Purple's reaching arm — anchored to his own actual right edge
+          (left:70 + width:180) rather than a guessed pixel offset from the
+          illustration panel, so it stays attached to his body regardless
+          of how the panel around him is laid out. Sits as a sibling of the
+          characters (not a child of purple's own div) purely so its
+          z-index isn't capped by purple's own stacking context — purple is
+          z-index 1, behind black/orange/yellow, but the arm still needs to
+          render in front of all three as it reaches across them. */}
+      <div
+        className="pointer-events-none absolute transition-transform duration-500 ease-out"
+        style={{
+          left: 245,
+          top: 95,
+          zIndex: 10,
+          transform: `scaleX(${(reaching || revealing ? 1 : 0) * (isRtl ? -1 : 1)}) rotate(-4deg)`,
+          transformOrigin: "0% 50%",
+        }}
+      >
+        <Arm color={LOGIN_CHARACTER_COLORS.purple} />
       </div>
 
       {/* Black — leans toward purple while the username is being typed, as

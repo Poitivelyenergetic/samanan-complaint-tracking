@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { auth } from "@/lib/firebase";
 import { Link, useRouter } from "@/i18n/navigation";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
-import LoginCharacters, { LOGIN_CHARACTER_COLORS } from "@/components/LoginCharacters";
+import LoginCharacters from "@/components/LoginCharacters";
 import { IconEye, IconEyeOff } from "@/components/icons";
 
 // The Samnan Holding Group's subsidiary companies, shown above the
@@ -50,29 +50,6 @@ const SUBSIDIARY_LOGOS = [
     href: "https://samnan.com.sa/en/Company/com11",
   },
 ];
-
-// Purple's arm and hand as a single continuous shape — a slender forearm
-// that tapers from shoulder to wrist, ending in a palm with three fanned
-// fingers. Drawing it as one SVG (rather than a separate "sleeve" div plus
-// a bare hand icon) is what keeps the joint between them looking like an
-// actual limb instead of two mismatched pieces bolted together.
-function Arm({ color }: { color: string }) {
-  return (
-    <svg width="420" height="60" viewBox="0 0 420 60" aria-hidden="true">
-      <path d="M0,6 C130,6 235,12 338,17 L338,43 C235,48 130,54 0,54 Z" fill={color} />
-      <ellipse cx="348" cy="30" rx="24" ry="21" fill={color} />
-      <g transform="translate(362,10) rotate(-20)">
-        <rect x="0" y="-7" width="38" height="14" rx="7" fill={color} />
-      </g>
-      <g transform="translate(365,23)">
-        <rect x="0" y="-7" width="42" height="14" rx="7" fill={color} />
-      </g>
-      <g transform="translate(362,36) rotate(20)">
-        <rect x="0" y="-7" width="38" height="14" rx="7" fill={color} />
-      </g>
-    </svg>
-  );
-}
 
 // Pill button whose label slides out to the side on hover while a filled
 // version (with an arrow) slides in underneath — same interaction as the
@@ -183,158 +160,143 @@ export default function StaffLoginPage() {
   }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center overflow-hidden bg-[#f5f6f8]">
-      <div className="relative flex h-full w-full">
+    <div className="fixed inset-0 overflow-hidden bg-[#f5f6f8]">
+      {/* Login form — full-bleed and static. It doesn't shrink or move; the
+          illustration overlay (below, on top of it in z-order) grows to
+          cover it, so the reveal reads as purple pulling the scene across
+          over the login rather than the login being pushed out of the way. */}
+      <div className="relative z-10 flex h-full w-full flex-col justify-center bg-white px-6 py-12 sm:px-10 md:w-1/2 md:ms-[50%] md:px-16 lg:px-24">
+        <div className="absolute top-6 end-6">
+          <LanguageSwitcher />
+        </div>
+
+        {/* Fades out on success before the pull starts — a blank panel
+            gets covered, not one that still has the form on it. */}
         <div
-          className={`login-pull-illustration relative hidden items-end justify-center overflow-hidden bg-[#eef1f8] transition-[flex-basis] duration-[1500ms] ease-in-out md:flex ${
-            revealing ? "is-revealing" : ""
-          }`}
+          className="mx-auto w-full max-w-sm transition-opacity duration-300 ease-out"
+          style={{ opacity: formCleared ? 0 : 1 }}
         >
-          <div className="absolute top-8 start-10 end-10 flex flex-col items-center gap-5">
+          <div className="mb-8 flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/samnan-icon.svg" alt="Samnan Holding Group" className="h-16 w-16" />
-            <div className="grid grid-cols-4 gap-x-6 gap-y-4">
-              {SUBSIDIARY_LOGOS.map((logo) => (
-                <a
-                  key={logo.href}
-                  href={logo.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center transition-transform duration-150 ease-out hover:scale-110"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={logo.src} alt={logo.alt} className="h-8 w-auto object-contain" />
-                </a>
-              ))}
-            </div>
-          </div>
-          <LoginCharacters
-            isTyping={isTyping}
-            showPassword={showPassword}
-            passwordLength={password.length}
-            loginFailedSignal={loginFailedSignal}
-          />
-          {/* Purple's arm — anchored near his own shoulder (roughly where
-              he stands at rest), not to the divider itself. Reaches out by
-              growing from zero width (beat 2, "reaching") to full length —
-              an actual extend-to-grab motion — then just stays put at full
-              length once the pull starts (beat 3): the illustration grows
-              past his fixed grip point rather than the arm re-stretching to
-              chase a moving edge, which was reading as pushing and made the
-              arm look detached from his body mid-pull. Mirrored in Arabic,
-              where he (and the divider) sit on the opposite side. */}
-          <div
-            className="pointer-events-none absolute bottom-72 start-64 z-20 transition-transform duration-500 ease-out"
-            style={{
-              transform: `scaleX(${(reaching || revealing ? 1 : 0) * (isRtl ? -1 : 1)}) rotate(-8deg)`,
-              transformOrigin: "0% 50%",
-            }}
-          >
-            <Arm color={LOGIN_CHARACTER_COLORS.purple} />
-          </div>
-        </div>
-
-        <div
-          className={`login-pull-form relative flex min-w-0 basis-full flex-col justify-center bg-white px-6 py-12 transition-[flex-basis,opacity] duration-[1500ms] ease-in-out sm:px-10 md:px-16 lg:px-24 ${
-            revealing ? "is-revealing" : ""
-          }`}
-        >
-          <div className="absolute top-6 end-6">
-            <LanguageSwitcher />
+            <img src="/samnan-icon.svg" alt={tCommon("appName")} className="h-8 w-8" />
+            <span className="text-sm font-semibold text-[#171a21]">{tCommon("appName")}</span>
           </div>
 
-          {/* Fades out on success before the pull starts — a blank panel
-              gets pulled away, not one that still has the form on it. */}
-          <div
-            className="mx-auto w-full max-w-sm transition-opacity duration-300 ease-out"
-            style={{ opacity: formCleared ? 0 : 1 }}
-          >
-            <div className="mb-8 flex items-center gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/samnan-icon.svg" alt={tCommon("appName")} className="h-8 w-8" />
-              <span className="text-sm font-semibold text-[#171a21]">{tCommon("appName")}</span>
+          <h1 className="text-2xl font-bold text-[#171a21]">{t("welcomeBack")}</h1>
+          <p className="mt-1 text-sm text-[#6b7280]">{t("enterDetails")}</p>
+
+          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-[#171a21]">
+                {t("username")}
+              </label>
+              <input
+                id="username"
+                type="text"
+                required
+                autoComplete="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onFocus={() => setIsTyping(true)}
+                onBlur={() => setIsTyping(false)}
+                className="mt-1 w-full rounded-full border border-[#e2e5eb] bg-white px-4 py-2.5 text-sm text-[#171a21] outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+              />
             </div>
 
-            <h1 className="text-2xl font-bold text-[#171a21]">{t("welcomeBack")}</h1>
-            <p className="mt-1 text-sm text-[#6b7280]">{t("enterDetails")}</p>
-
-            <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-[#171a21]">
-                  {t("username")}
-                </label>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-[#171a21]">
+                {t("password")}
+              </label>
+              <div className="relative mt-1">
                 <input
-                  id="username"
-                  type="text"
+                  id="password"
+                  type={showPassword ? "text" : "password"}
                   required
-                  autoComplete="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  onFocus={() => setIsTyping(true)}
-                  onBlur={() => setIsTyping(false)}
-                  className="mt-1 w-full rounded-full border border-[#e2e5eb] bg-white px-4 py-2.5 text-sm text-[#171a21] outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-full border border-[#e2e5eb] bg-white px-4 py-2.5 pe-10 text-sm text-[#171a21] outline-none focus:border-brand focus:ring-1 focus:ring-brand"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? t("hidePassword") : t("showPassword")}
+                  className="absolute end-3 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#6b7280]"
+                >
+                  {showPassword ? <IconEyeOff /> : <IconEye />}
+                </button>
               </div>
+            </div>
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-[#171a21]">
-                  {t("password")}
-                </label>
-                <div className="relative mt-1">
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    required
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-full border border-[#e2e5eb] bg-white px-4 py-2.5 pe-10 text-sm text-[#171a21] outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? t("hidePassword") : t("showPassword")}
-                    className="absolute end-3 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#6b7280]"
-                  >
-                    {showPassword ? <IconEyeOff /> : <IconEye />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <label className="flex items-center gap-2 text-[#374151]">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="h-4 w-4 rounded border-[#d1d5db] text-brand focus:ring-brand"
-                  />
-                  {t("rememberMe")}
-                </label>
-                <Link href="/login/staff/reset-password" className="font-medium text-brand hover:underline">
-                  {t("forgotPassword")}
-                </Link>
-              </div>
-
-              {error && (
-                <p role="alert" className="text-sm text-red-600">
-                  {error}
-                </p>
-              )}
-
-              <HoverButton type="submit" disabled={submitting}>
-                {submitting ? t("signingIn") : t("submit")}
-              </HoverButton>
-            </form>
-
-            <p className="mt-6 text-center text-sm text-[#6b7280]">
-              {t("noAccount")}{" "}
-              <Link href="/login/staff/signup" className="font-medium text-brand hover:underline">
-                {t("signUp")}
+            <div className="flex items-center justify-between text-sm">
+              <label className="flex items-center gap-2 text-[#374151]">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 rounded border-[#d1d5db] text-brand focus:ring-brand"
+                />
+                {t("rememberMe")}
+              </label>
+              <Link href="/login/staff/reset-password" className="font-medium text-brand hover:underline">
+                {t("forgotPassword")}
               </Link>
-            </p>
+            </div>
+
+            {error && (
+              <p role="alert" className="text-sm text-red-600">
+                {error}
+              </p>
+            )}
+
+            <HoverButton type="submit" disabled={submitting}>
+              {submitting ? t("signingIn") : t("submit")}
+            </HoverButton>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-[#6b7280]">
+            {t("noAccount")}{" "}
+            <Link href="/login/staff/signup" className="font-medium text-brand hover:underline">
+              {t("signUp")}
+            </Link>
+          </p>
+        </div>
+      </div>
+
+      {/* Illustration overlay — starts covering its own half of the screen
+          and grows to cover all of it, on top of the form above. */}
+      <div
+        className={`login-pull-illustration absolute inset-y-0 start-0 z-20 hidden items-end justify-center overflow-hidden bg-[#eef1f8] transition-[width] duration-[1500ms] ease-in-out md:flex ${
+          revealing ? "is-revealing" : ""
+        }`}
+      >
+        <div className="absolute top-8 start-10 end-10 flex flex-col items-center gap-5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/samnan-icon.svg" alt="Samnan Holding Group" className="h-16 w-16" />
+          <div className="grid grid-cols-4 gap-x-6 gap-y-4">
+            {SUBSIDIARY_LOGOS.map((logo) => (
+              <a
+                key={logo.href}
+                href={logo.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center transition-transform duration-150 ease-out hover:scale-110"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={logo.src} alt={logo.alt} className="h-8 w-auto object-contain" />
+              </a>
+            ))}
           </div>
         </div>
+        <LoginCharacters
+          isTyping={isTyping}
+          showPassword={showPassword}
+          passwordLength={password.length}
+          loginFailedSignal={loginFailedSignal}
+          reaching={reaching}
+          revealing={revealing}
+          isRtl={isRtl}
+        />
       </div>
     </div>
   );
