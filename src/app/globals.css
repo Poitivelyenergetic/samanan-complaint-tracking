@@ -127,21 +127,23 @@ body {
   }
 }
 
-/* Staff login's sign-in reveal: the illustration is an overlay that starts
-   covering its own half of the screen and grows OVER the login form
-   (which stays put, full-bleed, underneath it) rather than the two
-   panels resizing side by side — that read as the form being pushed away
-   instead of purple pulling the scene across to cover it. A plain class
-   for the width, rather than a Tailwind utility toggled conditionally,
-   sidesteps the usual risk of two same-property utility classes (e.g.
-   w-1/2 and a conditionally-added w-full) both landing in the class list
-   at once, where whichever wins depends on generation order in the
-   compiled stylesheet rather than source order. */
+/* Staff login's sign-in reveal: the login form is an overlay that starts
+   covering its own half of the screen and grows OVER the illustration
+   (which stays put underneath it) — purple reaches for it, then it grows
+   past his grip and covers him too, matching the reference interaction.
+   A plain class for the width, rather than a Tailwind utility toggled
+   conditionally, sidesteps the usual risk of two same-property utility
+   classes (e.g. w-1/2 and a conditionally-added w-full) both landing in
+   the class list at once, where whichever wins depends on generation
+   order in the compiled stylesheet rather than source order. */
+.login-pull-form {
+  width: 100%;
+}
 @media (min-width: 768px) {
-  .login-pull-illustration {
+  .login-pull-form {
     width: 50%;
   }
-  .login-pull-illustration.is-revealing {
+  .login-pull-form.is-revealing {
     width: 100%;
   }
 }

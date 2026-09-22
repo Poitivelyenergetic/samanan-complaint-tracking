@@ -11,6 +11,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import LoginCharacters from "@/components/LoginCharacters";
 import { IconEye, IconEyeOff } from "@/components/icons";
+import { localizedName } from "@/lib/types";
 
 // The Samnan Holding Group's subsidiary companies, shown above the
 // illustration's characters — mirrors the "Our Companies" section on
@@ -93,7 +94,8 @@ export default function StaffLoginPage() {
   const tCommon = useTranslations("common");
   const locale = useLocale();
   const isRtl = locale === "ar";
-  const { user, loading, signIn } = useAuth();
+  const { user, profile, loading, signIn } = useAuth();
+  const welcomeName = profile ? localizedName(profile, locale) || profile.username : "";
   const router = useRouter();
 
   const [username, setUsername] = useState("");
@@ -117,6 +119,10 @@ export default function StaffLoginPage() {
   const [formCleared, setFormCleared] = useState(false);
   const [reaching, setReaching] = useState(false);
   const [revealing, setRevealing] = useState(false);
+  // Beat 4: once the pull has actually finished covering the screen, hold
+  // on a personalized greeting for a moment before navigating — the payoff
+  // the pull was building to, not something the route change cuts off.
+  const [welcomeShown, setWelcomeShown] = useState(false);
 
   useEffect(() => {
     // Skipped for the whole span of a form-triggered sign-in (submitting
@@ -147,9 +153,12 @@ export default function StaffLoginPage() {
         setTimeout(() => {
           // Beat 3: now that he's holding it, the actual pull happens.
           setRevealing(true);
-          // Matches the pull's own transition duration below — it needs to
-          // actually finish, not just start, before the route swaps to /home.
-          setTimeout(() => router.replace("/home"), 1500);
+          // Matches the pull's own transition duration below — waits for it
+          // to actually finish covering the screen before showing beat 4.
+          setTimeout(() => {
+            setWelcomeShown(true);
+            setTimeout(() => router.replace("/home"), 800);
+          }, 1500);
         }, 550);
       }, 350);
     } catch {
@@ -161,11 +170,16 @@ export default function StaffLoginPage() {
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#f5f6f8]">
-      {/* Login form — full-bleed and static. It doesn't shrink or move; the
-          illustration overlay (below, on top of it in z-order) grows to
-          cover it, so the reveal reads as purple pulling the scene across
-          over the login rather than the login being pushed out of the way. */}
-      <div className="relative z-10 flex h-full w-full flex-col justify-center bg-white px-6 py-12 sm:px-10 md:w-1/2 md:ms-[50%] md:px-16 lg:px-24">
+      {/* Login form — the overlay. Starts covering its own half of the
+          screen and grows over the illustration below it, so the reveal
+          reads as the login being pulled/dragged across to cover the
+          characters — purple reaches for it first (below), then it grows
+          past his grip and covers him too. */}
+      <div
+        className={`login-pull-form absolute inset-y-0 end-0 z-20 flex flex-col justify-center bg-white px-6 py-12 transition-[width] duration-[1500ms] ease-in-out sm:px-10 md:px-16 lg:px-24 ${
+          revealing ? "is-revealing" : ""
+        }`}
+      >
         <div className="absolute top-6 end-6">
           <LanguageSwitcher />
         </div>
@@ -261,15 +275,22 @@ export default function StaffLoginPage() {
             </Link>
           </p>
         </div>
+
+        {/* Beat 4's payoff — a personalized greeting once the pull has
+            actually finished covering the screen, the way the reference
+            interaction holds on "Welcome Back, {name}" before moving on
+            rather than cutting straight to the next screen. */}
+        <div
+          className="pointer-events-none absolute inset-0 flex items-center justify-center transition-opacity duration-300 ease-out"
+          style={{ opacity: welcomeShown ? 1 : 0 }}
+        >
+          <h1 className="text-2xl font-bold text-[#171a21]">{t("welcomeName", { name: welcomeName })}</h1>
+        </div>
       </div>
 
-      {/* Illustration overlay — starts covering its own half of the screen
-          and grows to cover all of it, on top of the form above. */}
-      <div
-        className={`login-pull-illustration absolute inset-y-0 start-0 z-20 hidden items-end justify-end overflow-hidden bg-[#eef1f8] pe-6 transition-[width] duration-[1500ms] ease-in-out md:flex ${
-          revealing ? "is-revealing" : ""
-        }`}
-      >
+      {/* Illustration — static, always its own half of the screen. The
+          login form (above, in z-order) grows over it during the reveal. */}
+      <div className="relative hidden h-full items-end justify-end overflow-hidden bg-[#eef1f8] pe-6 md:flex md:w-1/2">
         <div className="absolute top-8 start-10 end-10 flex flex-col items-center gap-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/samnan-icon.svg" alt="Samnan Holding Group" className="h-16 w-16" />
