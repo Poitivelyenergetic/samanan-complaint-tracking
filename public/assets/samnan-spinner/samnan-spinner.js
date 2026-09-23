@@ -68,15 +68,41 @@
       paint();
     }
 
-    function paint() {
-      var i = Math.floor(frame) % N; if (i < 0) i += N;
-      var im = imgs[i];
-      if (!im || !im.complete || !im.naturalWidth) return;
-      ctx.clearRect(0, 0, cv.width, cv.height);          // keep the alpha, do not fill
-      // contain-fit: the whole pump stays visible whatever box the host gives us
+    function usable(im) { return im && im.complete && im.naturalWidth; }
+
+    // Nearest frame that has actually finished loading, so it can be shown
+    // (and dragged) before all 72 are in.
+    function nearest(i) {
+      for (var d = 0; d < N; d++) {
+        var a = imgs[(i + d) % N], b = imgs[((i - d) % N + N) % N];
+        if (usable(a)) return a;
+        if (usable(b)) return b;
+      }
+      return null;
+    }
+
+    function draw(im, alpha) {
       var s = Math.min(cv.width / im.naturalWidth, cv.height / im.naturalHeight);
       var dw = im.naturalWidth * s, dh = im.naturalHeight * s;
+      ctx.globalAlpha = alpha;
       ctx.drawImage(im, (cv.width - dw) / 2, (cv.height - dh) / 2, dw, dh);
+    }
+
+    function paint() {
+      var base = Math.floor(frame);
+      var i = ((base % N) + N) % N, j = (i + 1) % N;
+      var t = frame - base;                               // 0..1 between frames
+      var a = usable(imgs[i]) ? imgs[i] : nearest(i);
+      if (!a) return;
+      ctx.clearRect(0, 0, cv.width, cv.height);          // keep the alpha, do not fill
+      // contain-fit: the whole pump stays visible whatever box the host gives us
+      draw(a, 1);
+      // Blend in the next frame by how far we are between the two, so the
+      // turn reads as continuous rotation instead of visibly stepping 5 degrees
+      // at a time. Drawn over a fully-opaque base so the pump never goes
+      // see-through mid-blend.
+      if (t > 0.01 && usable(imgs[j])) draw(imgs[j], t);
+      ctx.globalAlpha = 1;
     }
 
     // ------------------------------------------------------------- motion
@@ -102,7 +128,8 @@
     function perFrame() { return (el.clientWidth * o.dragTurns) / N; }
 
     el.addEventListener('pointerdown', function (e) {
-      if (!ready) return;
+      if (!loaded) return;
+      e.preventDefault();
       dragging = true; vel = 0;
       lastX = e.clientX; lastT = performance.now();
       cv.style.cursor = 'grabbing';
@@ -150,10 +177,13 @@
           im.decoding = 'async';
           im.onload = im.onerror = function () {
             loaded++;
-            if (i === 0) size();                          // show something immediately
+            if (i === 0) {                                // show something immediately
+              size();
+              if (!raf) raf = global.requestAnimationFrame(tick);
+            }
             if (loaded === N) {
               ready = true; size();
-              raf = global.requestAnimationFrame(tick);
+              if (!raf) raf = global.requestAnimationFrame(tick);
               el.dispatchEvent(new CustomEvent('samnan-spinner:ready'));
             }
           };

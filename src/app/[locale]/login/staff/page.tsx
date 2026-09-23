@@ -47,6 +47,11 @@ const SUBSIDIARY_LOGOS = [
     href: "https://samnan.com.sa/en/Company/SAMNAN%20REAL%20ESTATE%20INVESTMENT",
   },
   {
+    src: "/subsidiary-logos/samnan-water-solutions.svg",
+    alt: "Samnan Water Solutions",
+    href: "https://samnan.com.sa/en",
+  },
+  {
     src: "/subsidiary-logos/samnan-tech.webp",
     alt: "Samnan Technology Solutions",
     href: "https://samnan.com.sa/en/Company/com11",
@@ -191,9 +196,10 @@ export default function StaffLoginPage() {
           className="mx-auto w-full max-w-sm transition-opacity duration-300 ease-out"
           style={{ opacity: formCleared ? 0 : 1 }}
         >
-          <div className="mb-8 flex items-center gap-2">
+          <div className="mb-8 flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/samnan-icon.svg" alt={tCommon("appName")} className="h-8 w-8" />
+            <img src="/samnan-logo.svg" alt="Samnan" className="h-9 w-auto" />
+            <span className="h-7 w-px bg-[#e2e5eb]" />
             <span className="text-sm font-semibold text-[#171a21]">{tCommon("appName")}</span>
           </div>
 
@@ -275,6 +281,27 @@ export default function StaffLoginPage() {
               {t("signUp")}
             </Link>
           </p>
+
+          {/* Samnan Holding Group and its companies. */}
+          <div className="mt-8 flex flex-col items-center gap-3 border-t border-[#eef0f4] pt-6">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/samnan-icon.svg" alt="Samnan Holding Group" className="h-10 w-10" />
+            <div className="grid grid-cols-5 items-center gap-x-5 gap-y-4">
+              {SUBSIDIARY_LOGOS.map((logo) => (
+                <a
+                  key={logo.src}
+                  href={logo.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={logo.alt}
+                  className="flex items-center justify-center transition-transform duration-150 ease-out hover:scale-110"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={logo.src} alt={logo.alt} className="h-7 w-auto object-contain" />
+                </a>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Beat 4's payoff — a personalized greeting once the pull has
@@ -292,28 +319,10 @@ export default function StaffLoginPage() {
       {/* Illustration — static, always its own half of the screen. The
           login form (above, in z-order) grows over it during the reveal. */}
       <div className="relative hidden h-full items-end justify-end overflow-hidden bg-[#eef1f8] pe-24 md:flex md:w-1/2">
-        {/* The drag-to-rotate 360° pump, tucked into the corner beside the
-            logo group — only from xl up, where the panel is wide enough that
-            it doesn't crowd the centered subsidiary grid. */}
-        <SamnanPumpSpinner className="absolute top-6 start-6 z-10 hidden h-[135px] w-[180px] xl:block" />
-        <div className="absolute top-8 start-10 end-10 flex flex-col items-center gap-5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/samnan-icon.svg" alt="Samnan Holding Group" className="h-16 w-16" />
-          <div className="grid grid-cols-4 gap-x-6 gap-y-4">
-            {SUBSIDIARY_LOGOS.map((logo) => (
-              <a
-                key={logo.href}
-                href={logo.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center transition-transform duration-150 ease-out hover:scale-110"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={logo.src} alt={logo.alt} className="h-8 w-auto object-contain" />
-              </a>
-            ))}
-          </div>
-        </div>
+        {/* The drag-to-rotate 360° pump, big in the open space above the
+            characters. Sized off the viewport height so it always clears the
+            tallest character (purple, up to 440px, stretching when typing). */}
+        <SamnanPumpSpinner className="absolute left-1/2 top-[5vh] z-10 h-[36vh] max-h-[400px] w-[48vh] max-w-[90%] -translate-x-1/2 cursor-grab" />
         <LoginCharacters
           isTyping={isTyping}
           showPassword={showPassword}
