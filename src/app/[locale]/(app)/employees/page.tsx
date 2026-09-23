@@ -20,6 +20,11 @@ import {
 } from "@/lib/types";
 import { computeManagerScope, scopeStaff } from "@/lib/orgScope";
 import SearchableSelect from "@/components/SearchableSelect";
+import { IconUsers } from "@/components/icons";
+
+// The live head-count card above the table is a personal tool for the
+// app's owner account only — everyone else sees the page as before.
+const HEADCOUNT_VIEWER_USERNAME = "mhmd";
 
 export default function EmployeesPage() {
   const t = useTranslations("employees");
@@ -83,6 +88,10 @@ export default function EmployeesPage() {
     () => computeManagerScope(user?.uid, companies, administrations, departments, hasBroaderAccess),
     [user?.uid, companies, administrations, departments, hasBroaderAccess]
   );
+
+  const inScopeCount = useMemo(() => (staff ? scopeStaff(staff, managerScope).length : 0), [staff, managerScope]);
+  const showHeadcount = profile?.username === HEADCOUNT_VIEWER_USERNAME;
+  const filtersActive = Boolean(search.trim() || companyFilter || administrationFilter || departmentFilter);
 
   const filtered = useMemo(() => {
     if (!staff) return [];
@@ -188,6 +197,26 @@ export default function EmployeesPage() {
           />
         </div>
       </div>
+
+      {showHeadcount && staff !== null && (
+        // Counts whatever the search and filters above currently show.
+        <div className="mt-4 inline-flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-4 shadow-sm">
+          <div className="inline-flex rounded-lg p-2" style={{ backgroundColor: "#385bc11f", color: "#385bc1" }}>
+            <IconUsers />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-foreground/60">{t("countLabel")}</p>
+            <p className="mt-0.5 flex items-baseline gap-2">
+              <span key={filtered.length} className="animate-page-enter text-2xl font-bold text-foreground">
+                {filtered.length}
+              </span>
+              {filtersActive && (
+                <span className="text-sm text-foreground/50">{t("countOfTotal", { total: inScopeCount })}</span>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-surface">
         <table className="w-full min-w-[720px] text-start text-sm">

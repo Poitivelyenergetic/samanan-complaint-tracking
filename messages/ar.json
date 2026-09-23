@@ -467,6 +467,8 @@
     "newButton": "موظف جديد",
     "noResults": "لا يوجد موظفون.",
     "searchPlaceholder": "ابحث بالاسم أو اسم المستخدم أو الرقم...",
+    "countLabel": "الموظفون المعروضون",
+    "countOfTotal": "من أصل {total}",
     "filterAllCompanies": "جميع الشركات",
     "filterAllAdministrations": "جميع الإدارات",
     "filterAllDepartments": "جميع الأقسام",

@@ -467,6 +467,8 @@
     "newButton": "New Employee",
     "noResults": "No employees found.",
     "searchPlaceholder": "Search by name, username, or number...",
+    "countLabel": "Employees shown",
+    "countOfTotal": "of {total} in total",
     "filterAllCompanies": "All companies",
     "filterAllAdministrations": "All administrations",
     "filterAllDepartments": "All departments",
