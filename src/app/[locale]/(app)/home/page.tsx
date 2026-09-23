@@ -11,9 +11,6 @@ import {
   CartesianGrid,
   Cell,
   Dot,
-  Legend,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -31,6 +28,7 @@ import { subscribeToDepartments } from "@/lib/departments";
 import { useAuth } from "@/lib/auth-context";
 import DateRangeFilter from "@/components/DateRangeFilter";
 import IdleDustWiper from "@/components/IdleDustWiper";
+import StatusDonut from "@/components/StatusDonut";
 import { useCrewHeldValue } from "@/lib/crewCards";
 import {
   COMPLAINT_STATUSES,
@@ -130,26 +128,9 @@ const TOOLTIP_CONTENT_STYLE: React.CSSProperties = {
 };
 const TOOLTIP_LABEL_STYLE: React.CSSProperties = { color: "var(--foreground)", fontWeight: 600, marginBottom: 4 };
 const TOOLTIP_ITEM_STYLE: React.CSSProperties = { color: "var(--foreground)" };
-// A pie/donut's tooltip jumps straight to each newly-hovered slice's anchor
-// point with no animation of its own (isAnimationActive only covers the
-// arcs' entrance animation) — Recharts sets the wrapper's position via an
-// inline transform: translate(x, y), so transitioning that one property is
-// enough to turn the jump into a smooth glide between slices without
-// touching Recharts' own active-slice detection, which is what caused this
-// chart's tooltip to get stuck on custom `position` logic in the past.
-const PIE_TOOLTIP_WRAPPER_STYLE: React.CSSProperties = { transition: "transform 150ms ease-out" };
 // The default hover cursor on bar charts is a harsh solid gray rectangle —
 // tone it down to a faint themed highlight instead.
 const BAR_CURSOR = { fill: "var(--border)", opacity: 0.4 };
-// Recharts' default pie legend renders each label in that slice's own
-// (fully saturated) color at 16px — reads as garish and oversized next to
-// the rest of the page's muted, small chart text. Keeping the colored dot
-// but rendering the label itself in the same faint foreground tone as
-// every axis/tooltip label keeps the legend from standing out.
-const LEGEND_WRAPPER_STYLE: React.CSSProperties = { fontSize: 12 };
-function renderLegendLabel(value: string) {
-  return <span style={{ color: "var(--foreground)", opacity: 0.7 }}>{value}</span>;
-}
 
 // Recharts wraps a category-axis tick onto multiple lines once its text
 // exceeds the axis width, and those wrapped lines then overflow into the
@@ -990,72 +971,17 @@ export default function HomePage() {
                 {statusPieData.length === 0 ? (
                   <EmptyChart text={t("noData")} />
                 ) : (
-                  <div className="relative h-full">
-                    {/* debounce throttles ResponsiveContainer's ResizeObserver
-                        callback — without it, a resize triggered mid-animation
-                        (e.g. by the arc's own growing bounding box) can
-                        retrigger another render before the browser settles,
-                        spiraling into a hang. This was reproducible before
-                        adding debounce. */}
-                    <ResponsiveContainer width="100%" height="100%" debounce={200}>
-                      <PieChart>
-                        <Pie
-                          data={statusPieData}
-                          dataKey="count"
-                          nameKey="label"
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={85}
-                          // Tried a debounced ResponsiveContainer and a
-                          // stable label callback (below) to fix this
-                          // properly, but the pie's animation still gets
-                          // permanently stuck mid-arc instead of completing
-                          // — worse than no animation. Disabling it is the
-                          // only reliable option found so far.
-                          isAnimationActive={false}
-                          // No outer percentage labels — in this card's
-                          // (now-narrower, uniform-grid) width they clipped
-                          // against the edge. The legend below plus the
-                          // hover tooltip already cover the same info more
-                          // cleanly.
-                        >
-                          {statusPieData.map((row) => (
-                            <Cell
-                              key={row.status}
-                              fill={STATUS_COLORS[row.status]}
-                              stroke="none"
-                              cursor="pointer"
-                              onClick={() => router.push(dashboardHref({ status: row.status }))}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          isAnimationActive={false}
-                          wrapperStyle={PIE_TOOLTIP_WRAPPER_STYLE}
-                          contentStyle={TOOLTIP_CONTENT_STYLE}
-                          labelStyle={TOOLTIP_LABEL_STYLE}
-                          itemStyle={TOOLTIP_ITEM_STYLE}
-                        />
-                        <Legend
-                          verticalAlign="bottom"
-                          height={36}
-                          wrapperStyle={LEGEND_WRAPPER_STYLE}
-                          formatter={renderLegendLabel}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    {/* Centered in the donut's hole — the ring alone left
-                        that space empty; a total count gives it a purpose
-                        instead of just being a hole. Shifted up 18px to sit
-                        above the legend row rendered below the chart. */}
-                    <div className="pointer-events-none absolute inset-0 flex -translate-y-[18px] flex-col items-center justify-center">
-                      <span className="text-2xl font-bold text-foreground">{statusBreakdownList.length}</span>
-                      <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/40">
-                        {t("totalShort")}
-                      </span>
-                    </div>
-                  </div>
+                  <StatusDonut
+                    data={statusPieData.map((row) => ({
+                      key: row.status,
+                      label: row.label,
+                      count: row.count,
+                      color: STATUS_COLORS[row.status],
+                    }))}
+                    total={statusBreakdownList.length}
+                    totalLabel={t("totalShort")}
+                    onSliceClick={(slice) => router.push(dashboardHref({ status: slice.key as ComplaintStatus }))}
+                  />
                 )}
               </ChartCard>
             </Reveal>
@@ -1473,51 +1399,17 @@ export default function HomePage() {
                     {ticketStatusPieData.length === 0 ? (
                       <EmptyChart text={t("noData")} />
                     ) : (
-                      <div className="relative h-full">
-                        <ResponsiveContainer width="100%" height="100%" debounce={200}>
-                          <PieChart>
-                            <Pie
-                              data={ticketStatusPieData}
-                              dataKey="count"
-                              nameKey="label"
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={55}
-                              outerRadius={85}
-                              isAnimationActive={false}
-                            >
-                              {ticketStatusPieData.map((row) => (
-                                <Cell
-                                  key={row.status}
-                                  fill={STATUS_COLORS[row.status]}
-                                  stroke="none"
-                                  cursor="pointer"
-                                  onClick={() => router.push(ticketsHref({ status: row.status }))}
-                                />
-                              ))}
-                            </Pie>
-                            <Tooltip
-                              isAnimationActive={false}
-                              wrapperStyle={PIE_TOOLTIP_WRAPPER_STYLE}
-                              contentStyle={TOOLTIP_CONTENT_STYLE}
-                              labelStyle={TOOLTIP_LABEL_STYLE}
-                              itemStyle={TOOLTIP_ITEM_STYLE}
-                            />
-                            <Legend
-                              verticalAlign="bottom"
-                              height={36}
-                              wrapperStyle={LEGEND_WRAPPER_STYLE}
-                              formatter={renderLegendLabel}
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
-                        <div className="pointer-events-none absolute inset-0 flex -translate-y-[18px] flex-col items-center justify-center">
-                          <span className="text-2xl font-bold text-foreground">{ticketList.length}</span>
-                          <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/40">
-                            {t("totalShort")}
-                          </span>
-                        </div>
-                      </div>
+                      <StatusDonut
+                        data={ticketStatusPieData.map((row) => ({
+                          key: row.status,
+                          label: row.label,
+                          count: row.count,
+                          color: STATUS_COLORS[row.status],
+                        }))}
+                        total={ticketList.length}
+                        totalLabel={t("totalShort")}
+                        onSliceClick={(slice) => router.push(ticketsHref({ status: slice.key }))}
+                      />
                     )}
                   </ChartCard>
                 </Reveal>
