@@ -14,51 +14,131 @@ const IDLE_MS = 60_000;
 // together for a full clean instead.
 const FULL_CREW_CHANCE = 1 / 3;
 
-const CREW = [
-  { color: LOGIN_CHARACTER_COLORS.orange, width: 90, height: 74, headTop: 14 },
-  { color: LOGIN_CHARACTER_COLORS.yellow, width: 72, height: 92, headTop: 10 },
-  { color: LOGIN_CHARACTER_COLORS.black, width: 66, height: 104, headTop: 8 },
-  { color: LOGIN_CHARACTER_COLORS.purple, width: 88, height: 128, headTop: 6 },
+type Shape = "tower" | "dome";
+
+interface CrewMember {
+  color: string;
+  width: number;
+  height: number;
+  shape: Shape;
+  bounceDelay: string;
+  marginBottom: number;
+}
+
+// Two silhouettes, not one rectangle resized four ways — matches the
+// login screen's own mix of tall rectangles (purple, black) and wide
+// rounded domes (orange, yellow) instead of everyone reading as the same
+// shape in different sizes.
+const CREW: CrewMember[] = [
+  { color: LOGIN_CHARACTER_COLORS.orange, width: 110, height: 66, shape: "dome", bounceDelay: "0ms", marginBottom: 0 },
+  { color: LOGIN_CHARACTER_COLORS.yellow, width: 84, height: 84, shape: "dome", bounceDelay: "90ms", marginBottom: 4 },
+  { color: LOGIN_CHARACTER_COLORS.black, width: 62, height: 108, shape: "tower", bounceDelay: "180ms", marginBottom: 0 },
+  { color: LOGIN_CHARACTER_COLORS.purple, width: 84, height: 130, shape: "tower", bounceDelay: "270ms", marginBottom: 0 },
 ];
 
-// A face + body, sized differently per character but otherwise identical —
-// same eyes-and-smile language as the main login characters, just simple
-// enough to read at a glance while walking past.
-function Walker({ color, width, height, headTop }: (typeof CREW)[number]) {
+// A face + body — bouncing in place (a marching cartoon hop, not a flat
+// glide), pupils that blink, and a big red singing/cheering mouth that
+// keeps opening and closing rather than sitting in one fixed expression.
+function Walker({ color, width, height, shape, bounceDelay, marginBottom }: CrewMember) {
+  const domeTop = shape === "dome" ? height * 0.28 : 10;
   return (
-    <div className="relative" style={{ width, height }}>
-      <div
-        className="absolute bottom-0 left-1/2 -translate-x-1/2 rounded-t-2xl"
-        style={{ width, height, backgroundColor: color }}
-      />
-      <div
-        className="absolute flex"
-        style={{ left: "50%", top: headTop, transform: "translateX(-50%)", gap: width * 0.12 }}
-      >
-        {[0, 1].map((i) => (
+    <div style={{ width, height, perspective: 400 }}>
+      {/* The turn-around — rotating the whole body on the Y axis rather
+          than just the flat face, with the eyes/mouth hidden via
+          backface-visibility while they'd be looking the wrong way. Nested
+          outside the bounce div so the two transforms don't fight over the
+          same style property. */}
+      <div className="animate-idle-turn h-full w-full" style={{ transformStyle: "preserve-3d" }}>
+        <div
+          className="animate-idle-bounce relative h-full w-full"
+          style={{ animationDelay: bounceDelay, marginBottom }}
+        >
           <div
-            key={i}
-            className="animate-idle-blink flex items-center justify-center overflow-hidden rounded-full bg-white"
-            style={{ width: width * 0.16, height: width * 0.16 }}
-          >
-            <div className="rounded-full" style={{ width: width * 0.07, height: width * 0.07, backgroundColor: "#2D2D2D" }} />
+            className="absolute bottom-0 left-1/2 -translate-x-1/2"
+            style={{
+              width,
+              height,
+              backgroundColor: color,
+              borderRadius: shape === "dome" ? "999px 999px 0 0" : "14px 14px 0 0",
+            }}
+          />
+          <div style={{ backfaceVisibility: "hidden" }}>
+            <div
+              className="absolute flex"
+              style={{ left: "50%", top: domeTop, transform: "translateX(-50%)", gap: width * 0.12 }}
+            >
+              {[0, 1].map((i) => (
+                <div
+                  key={i}
+                  className="animate-idle-blink flex items-center justify-center overflow-hidden rounded-full bg-white"
+                  style={{ width: width * 0.17, height: width * 0.17 }}
+                >
+                  <div
+                    className="rounded-full"
+                    style={{ width: width * 0.075, height: width * 0.075, backgroundColor: "#2D2D2D" }}
+                  />
+                </div>
+              ))}
+            </div>
+            {/* The "Roblox grin" — a big red, filled smile instead of a
+                thin outline, that keeps flapping open and shut like it's
+                mid-"yeah!" */}
+            <div
+              className="animate-idle-sing absolute rounded-b-full bg-[#d1453b]"
+              style={{
+                left: "50%",
+                top: domeTop + width * 0.26,
+                transform: "translateX(-50%)",
+                width: width * 0.26,
+              }}
+            />
           </div>
-        ))}
+        </div>
       </div>
-      <div
-        className="absolute"
-        style={{
-          left: "50%",
-          top: headTop + width * 0.25,
-          transform: "translateX(-50%)",
-          width: width * 0.24,
-          height: width * 0.12,
-          borderRadius: "50%",
-          border: "3px solid transparent",
-          borderBottomColor: "#2D2D2D",
-        }}
-      />
     </div>
+  );
+}
+
+function Mop({ color }: { color: string }) {
+  return (
+    <svg width="80" height="40" viewBox="0 0 80 40" aria-hidden="true">
+      <path d="M0,12 C22,12 38,15 50,18 L50,24 C38,27 22,30 0,30 Z" fill={color} />
+      <g stroke="#c7cede" strokeWidth="3.5" strokeLinecap="round">
+        <path d="M52,14 L60,4" />
+        <path d="M56,17 L66,9" />
+        <path d="M58,21 L70,17" />
+        <path d="M58,25 L70,29" />
+        <path d="M56,29 L64,37" />
+        <path d="M52,32 L58,40" />
+      </g>
+    </svg>
+  );
+}
+
+function Bucket() {
+  return (
+    <svg width="48" height="44" viewBox="0 0 48 44" aria-hidden="true">
+      <path d="M14,0 C14,-8 34,-8 34,0" fill="none" stroke="#c7cede" strokeWidth="3" />
+      <path d="M6,8 L42,8 L36,40 L12,40 Z" fill="#8fa3cc" stroke="#c7cede" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function SprayBottle() {
+  return (
+    <svg width="40" height="46" viewBox="0 0 40 46" aria-hidden="true">
+      <rect x="10" y="16" width="20" height="28" rx="5" fill="#8fa3cc" />
+      <rect x="14" y="6" width="7" height="12" rx="2" fill="#c7cede" />
+      <rect
+        x="17"
+        y="-2"
+        width="14"
+        height="7"
+        rx="2.5"
+        fill="#c7cede"
+        transform="rotate(30 17 -2)"
+      />
+    </svg>
   );
 }
 
@@ -82,8 +162,7 @@ export default function IdleDustWiper() {
   return createPortal(
     <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
       {/* The actual "wipe down the whole screen" — a soft shine band
-          sweeping the full width in lockstep with them, rather than the
-          cleaning motion being just a small local gesture near an arm. */}
+          sweeping the full width in lockstep with them. */}
       <div
         className="animate-idle-wipe-streak absolute inset-y-0 w-80"
         style={{
@@ -120,39 +199,65 @@ export default function IdleDustWiper() {
       </div>
 
       <div className="animate-idle-walk-across absolute bottom-0">
-        <div className="flex items-end" style={{ gap: 14 }}>
+        {/* Overlapping, not lined up shoulder to shoulder — negative
+            margins let each one tuck slightly behind/beside the last, the
+            way the login screen's own cluster of characters overlaps
+            instead of standing in a neat row. */}
+        <div className="flex items-end">
           {walkers.map((walker, i) => {
             const isLead = i === walkers.length - 1;
+            const carriesBucket = fullCrew && i === 0;
+            const carriesSpray = fullCrew && i === 1;
             return (
-              <div key={i} className="relative">
+              <div key={i} className="relative" style={{ marginInlineStart: i === 0 ? 0 : -18 }}>
                 <Walker {...walker} />
+                {carriesBucket && (
+                  <div className="absolute" style={{ left: -30, bottom: 0 }}>
+                    <Bucket />
+                  </div>
+                )}
+                {carriesSpray && (
+                  <div className="absolute" style={{ right: -20, bottom: 4 }}>
+                    <SprayBottle />
+                    {/* The actual spray — a little burst of mist puffing
+                        out of the nozzle, not just a bottle being held. */}
+                    <div
+                      className="animate-idle-spray absolute text-xs"
+                      style={{ left: 30, top: -6, color: "#cfe0f5" }}
+                    >
+                       °
+                    </div>
+                    <div
+                      className="animate-idle-spray absolute text-sm"
+                      style={{ left: 36, top: 2, color: "#cfe0f5", animationDelay: "150ms" }}
+                    >
+                      °
+                    </div>
+                    <div
+                      className="animate-idle-spray absolute text-xs"
+                      style={{ left: 32, top: 10, color: "#cfe0f5", animationDelay: "300ms" }}
+                    >
+                      °
+                    </div>
+                  </div>
+                )}
                 {isLead && (
                   <>
-                    {/* Wiping arm — a tapered forearm ending in a rag,
-                        swinging back and forth across whatever it passes
-                        over. Only the lead character carries it. */}
                     <div
                       className="animate-idle-wipe absolute"
-                      style={{ left: walker.width - 10, top: walker.headTop + walker.width * 0.5, transformOrigin: "0% 50%" }}
+                      style={{ left: walker.width - 14, top: walker.height * 0.32, transformOrigin: "0% 50%" }}
                     >
-                      <svg width="78" height="34" viewBox="0 0 78 34" aria-hidden="true">
-                        <path
-                          d="M0,10 C22,10 40,13 54,16 L54,24 C40,27 22,30 0,30 Z"
-                          fill={walker.color}
-                        />
-                        <circle cx="60" cy="20" r="17" fill="#f4f6fa" stroke="#c7cede" strokeWidth="2" />
-                        <path d="M50,20 L70,20 M60,10 L60,30" stroke="#c7cede" strokeWidth="2" strokeLinecap="round" />
-                      </svg>
+                      <Mop color={walker.color} />
                     </div>
                     <div
                       className="animate-idle-sparkle absolute text-lg"
-                      style={{ left: walker.width + 50, top: walker.headTop + walker.width * 0.3 }}
+                      style={{ left: walker.width + 52, top: walker.height * 0.18 }}
                     >
                       ✦
                     </div>
                     <div
                       className="animate-idle-sparkle absolute text-sm"
-                      style={{ left: walker.width + 30, top: walker.headTop + walker.width * 0.55, animationDelay: "600ms" }}
+                      style={{ left: walker.width + 30, top: walker.height * 0.45, animationDelay: "600ms" }}
                     >
                       ✦
                     </div>
