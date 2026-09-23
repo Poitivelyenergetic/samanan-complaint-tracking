@@ -218,7 +218,10 @@
       dragging = true; vel = 0;
       lastX = e.clientX; lastY = e.clientY; lastT = performance.now();
       cv.style.cursor = 'grabbing';
-      if (el.setPointerCapture) el.setPointerCapture(e.pointerId);
+      // Throws NotFoundError if the pointer is no longer active by the time this runs -
+      // a fast tap, or a synthetic event. Uncaught it aborts the rest of the handler,
+      // so the drag would start with the loop in a half-configured state.
+      try { if (el.setPointerCapture) el.setPointerCapture(e.pointerId); } catch (err) {}
     }
 
     function onMove(e) {
@@ -239,6 +242,11 @@
       var dt = (now - lastT) / 1000;
       if (dt > 0.004) { vel = da / dt; lastT = now; }
       lastX = e.clientX; lastY = e.clientY;
+      // Queue the row being tilted into from here as well as from the loop. A
+      // background tab throttles requestAnimationFrame to about once a second, and
+      // relying on the loop alone meant a drag could reach a new elevation and wait
+      // that long before anything was even requested.
+      want(elev);
       paint();
     }
 
@@ -355,7 +363,18 @@
           loaded: 0, any: false, ready: false, started: false,
           // The home row waits until it can spin smoothly; a tilt row is under a
           // finger, so it draws the moment the first frame lands.
-          need: r.home ? Math.max(1, Math.ceil(o.startAt * r.count)) : 1
+          //
+          // A row can override the fraction, and for a 480-frame ring that override
+          // matters more than it looks. The fetch order runs every 16th frame, then
+          // every 8th, 4th, 2nd, and finally the odd ones - so at exactly 50% loaded
+          // the frames in hand are precisely the even indices, which is a complete,
+          // evenly spaced 240-frame ring. Starting there gives a flawless 30 fps
+          // immediately that upgrades to 60 as the rest arrive. Starting at 25% would
+          // instead give every 4th frame, which is 15 fps, and looks like the
+          // slideshow this component exists to avoid.
+          need: r.home
+            ? Math.max(1, Math.ceil((r.startAt || o.startAt) * r.count))
+            : 1
         };
       }).sort(function (a, b) { return a.elev - b.elev; });
 
@@ -397,7 +416,14 @@
       // No rows given: ask for a manifest, and if there isn't one fall back to probing
       // for the flat single-ring layout the first version of this shipped.
       if (!global.fetch) { probeFlat(0); return; }
-      global.fetch(base + '/manifest.json', { cache: 'force-cache' })
+      // Revalidate the manifest, never serve it blind from cache. The frames are
+      // immutable and should be cached as hard as the host likes, but the manifest is
+      // the index that says which rows exist - and rows get ADDED. This shipped with
+      // one row while the tilt elevations were still rendering, so a returning visitor
+      // holding a cached copy would have kept a spinner that could not tilt, with no
+      // way to find out otherwise. 'no-cache' still allows a 304, and the file is well
+      // under a kilobyte.
+      global.fetch(base + '/manifest.json', { cache: 'no-cache' })
         .then(function (res) { return res.ok ? res.json() : null; })
         .then(function (m) {
           if (!m || !m.rows || !m.rows.length) { probeFlat(0); return; }
@@ -405,6 +431,7 @@
           var list = m.rows.map(function (r) {
             return {
               elev: r.elev, dir: r.dir, count: r.count, pad: r.pad,
+              startAt: r.startAt,
               home: r.home || (m.home != null && r.elev === m.home)
             };
           });
@@ -432,6 +459,19 @@
 
     return {
       el: el,
+      // Read-only snapshot. Everything above lives in a closure, so without this there
+      // is no way to tell a spinner that is ignoring a drag from one whose frames are
+      // simply missing - they look identical from outside.
+      state: function () {
+        return {
+          elev: elev, ang: ang, dragging: dragging, tilt: o.tilt,
+          elevMin: elevMin, elevMax: elevMax, home: home,
+          rows: rows.map(function (r) {
+            return { dir: r.dir, elev: r.elev, count: r.count,
+                     started: !!r.started, loaded: r.loaded, any: !!r.any };
+          })
+        };
+      },
       destroy: function () {
         dead = true;
         queue.length = 0;
