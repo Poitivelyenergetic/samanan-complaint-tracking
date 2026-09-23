@@ -290,7 +290,7 @@ export default function StaffLoginPage() {
 
       {/* Illustration — static, always its own half of the screen. The
           login form (above, in z-order) grows over it during the reveal. */}
-      <div className="relative hidden h-full items-end justify-end overflow-hidden bg-[#eef1f8] pe-6 md:flex md:w-1/2">
+      <div className="relative hidden h-full items-end justify-end overflow-hidden bg-[#eef1f8] pe-24 md:flex md:w-1/2">
         <div className="absolute top-8 start-10 end-10 flex flex-col items-center gap-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/samnan-icon.svg" alt="Samnan Holding Group" className="h-16 w-16" />

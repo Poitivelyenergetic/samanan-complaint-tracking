@@ -199,7 +199,7 @@ function useBlink(): boolean {
 // justify-end below) instead of drifting with the viewport.
 function Arm({ color }: { color: string }) {
   return (
-    <svg width="325" height="87" viewBox="0 0 210 56" aria-hidden="true">
+    <svg width="397" height="106" viewBox="0 0 210 56" aria-hidden="true">
       <path d="M0,12 C60,12 110,16 150,20 L150,38 C110,42 60,46 0,46 Z" fill={color} />
       <path
         d="M148,10 C170,4 191,9 195,21 C197,29 192,37 181,41 C168,45 151,42 145,32 C141,24 142,15 148,10 Z"
@@ -408,7 +408,7 @@ export default function LoginCharacters({
         className="pointer-events-none absolute transition-transform duration-500 ease-out"
         style={{
           left: 245,
-          top: 80,
+          top: 70,
           zIndex: 10,
           transform: `scaleX(${(reaching || revealing ? 1 : 0) * (isRtl ? -1 : 1)})`,
           transformOrigin: "0% 50%",

@@ -30,6 +30,7 @@ import { subscribeToAdministrations } from "@/lib/administrations";
 import { subscribeToDepartments } from "@/lib/departments";
 import { useAuth } from "@/lib/auth-context";
 import DateRangeFilter from "@/components/DateRangeFilter";
+import IdleDustWiper from "@/components/IdleDustWiper";
 import {
   COMPLAINT_STATUSES,
   TICKET_STATUSES,
@@ -839,6 +840,7 @@ export default function HomePage() {
 
   return (
     <div>
+      <IdleDustWiper />
       <h1 className="text-xl font-bold text-foreground">{t("welcome", { name })}</h1>
       <p className="mt-0.5 text-sm text-foreground/60">{canViewAll ? t("subtitleAdmin") : t("subtitleEmployee")}</p>
 

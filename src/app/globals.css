@@ -151,6 +151,38 @@ body {
   }
 }
 
+/* The idle dashboard easter egg — a character wandering across the bottom
+   of the screen, wiping as it goes, once the page has sat untouched for a
+   while (see useIdleTimer / IdleDustWiper). Walks off one edge and back in
+   the other rather than bouncing, so each pass reads as a fresh walk-through
+   instead of an obvious back-and-forth loop. */
+@keyframes idle-walk-across {
+  from {
+    left: -160px;
+  }
+  to {
+    left: calc(100% + 160px);
+  }
+}
+
+@keyframes idle-wipe {
+  0%, 100% {
+    transform: rotate(-15deg);
+  }
+  50% {
+    transform: rotate(15deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-idle-walk-across {
+    animation: idle-walk-across 9000ms linear infinite;
+  }
+  .animate-idle-wipe {
+    animation: idle-wipe 400ms ease-in-out infinite;
+  }
+}
+
 /* Staff login's sign-in reveal: the login form is an overlay that starts
    covering its own half of the screen and grows OVER the illustration
    (which stays put underneath it) — purple reaches for it, then it grows
