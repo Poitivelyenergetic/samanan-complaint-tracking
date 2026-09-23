@@ -127,27 +127,21 @@ body {
   }
 }
 
-/* Purple's tug during the sign-in reveal — a repeated bend-and-release so
-   the login panel visibly getting dragged over the screen reads as caused
-   by his pulling, not as something that just happens to grow while his arm
-   sits frozen in the grabbed pose. Duration matches the panel's own width
-   transition (see the login page) so the last release lands right as the
-   cover finishes. */
+/* Purple's arm during the sign-in pull — short, repeated heaves (a slight
+   dip and recover) while the fist stays locked on the panel's edge, rather
+   than big swings that would tear it off the edge. */
 @keyframes arm-tug {
-  0%, 100% {
-    transform: rotate(-4deg);
+  0%, 50%, 100% {
+    transform: rotate(0deg) translateY(0);
   }
-  20%, 60% {
-    transform: rotate(-32deg) scale(0.94);
-  }
-  40%, 80% {
-    transform: rotate(-4deg);
+  20%, 70% {
+    transform: rotate(2.5deg) translateY(3px);
   }
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .animate-arm-tug {
-    animation: arm-tug 1500ms ease-in-out;
+    animation: arm-tug 500ms ease-in-out infinite;
   }
 }
 

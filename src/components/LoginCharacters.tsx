@@ -188,30 +188,51 @@ function useBlink(): boolean {
   return blinking;
 }
 
-// Purple's reaching arm during the sign-in reveal — a tapered forearm
-// ending in a gripping fist (three curled knuckles on top, a thumb tucked
-// underneath) rather than fanned-open fingers, which at this size read as
-// a messy claw instead of a hand actually holding onto something. Scaled
-// up (width/height bigger than the viewBox) rather than redrawn bigger,
-// so the proportions — and the "not obese" fist — stay the same; it just
-// needs the extra length to actually reach the illustration's own edge,
-// which now sits a fixed distance from him (see the character group's
-// justify-end below) instead of drifting with the viewport.
-function Arm({ color }: { color: string }) {
+// Purple's hand for the sign-in pull — drawn at a fixed size and never
+// stretched (the arm itself is a separate bar that changes length), so the
+// fist keeps its shape however far he reaches. Open while reaching out, then
+// clenched on the edge of the login panel for the haul.
+const HAND_SIZE = 40;
+
+function OpenHand({ color }: { color: string }) {
   return (
-    <svg width="397" height="106" viewBox="0 0 210 56" aria-hidden="true">
-      <path d="M0,12 C60,12 110,16 150,20 L150,38 C110,42 60,46 0,46 Z" fill={color} />
-      <path
-        d="M148,10 C170,4 191,9 195,21 C197,29 192,37 181,41 C168,45 151,42 145,32 C141,24 142,15 148,10 Z"
-        fill={color}
-      />
-      <circle cx="161" cy="12" r="7.5" fill={color} />
-      <circle cx="176" cy="9" r="7.5" fill={color} />
-      <circle cx="190" cy="14" r="7" fill={color} />
-      <ellipse cx="151" cy="40" rx="10" ry="7.5" fill={color} transform="rotate(22 151 40)" />
+    <svg width={HAND_SIZE} height={HAND_SIZE} viewBox="0 0 40 40" aria-hidden="true">
+      <rect x="18" y="7" width="19" height="6" rx="3" fill={color} />
+      <rect x="20" y="14" width="19" height="6" rx="3" fill={color} />
+      <rect x="20" y="21" width="18" height="6" rx="3" fill={color} />
+      <rect x="18" y="28" width="15" height="6" rx="3" fill={color} />
+      <ellipse cx="12" cy="7" rx="4" ry="7" fill={color} transform="rotate(-30 12 7)" />
+      <circle cx="14" cy="20" r="12" fill={color} />
     </svg>
   );
 }
+
+function Fist({ color }: { color: string }) {
+  return (
+    <svg width={HAND_SIZE} height={HAND_SIZE} viewBox="0 0 40 40" aria-hidden="true">
+      <rect x="4" y="7" width="28" height="27" rx="12" fill={color} />
+      {/* Curled knuckles wrapped round the panel's edge. */}
+      <circle cx="30" cy="12" r="6" fill={color} />
+      <circle cx="31" cy="20.5" r="6" fill={color} />
+      <circle cx="30" cy="29" r="6" fill={color} />
+      <path d="M27,16 L33,16 M27,25 L33,25" stroke="#000000" strokeOpacity="0.18" strokeWidth="1.5" strokeLinecap="round" />
+      {/* Thumb clamped over the top. */}
+      <ellipse cx="17" cy="9" rx="9" ry="5" fill={color} />
+      <path d="M10,10 Q17,5 25,9" stroke="#000000" strokeOpacity="0.15" strokeWidth="1.5" fill="none" />
+    </svg>
+  );
+}
+
+function easeOutBack(t: number) {
+  const c1 = 1.5;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+}
+
+// How long the reach out to the panel takes, and how far the fist closes
+// over the panel's edge once it gets there.
+const REACH_MS = 480;
+const GRIP_OVERLAP = 12;
 
 function useBodyTracking(ref: RefObject<HTMLDivElement | null>, mouse: Point) {
   const [state, setState] = useState({ faceX: 0, faceY: 0, bodySkew: 0 });
@@ -262,6 +283,12 @@ export default function LoginCharacters({
   isRtl,
 }: LoginCharactersProps) {
   const mouse = useMousePosition();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const armRef = useRef<HTMLDivElement>(null);
+  const armBarRef = useRef<HTMLDivElement>(null);
+  const handRef = useRef<HTMLDivElement>(null);
+  const openHandRef = useRef<HTMLDivElement>(null);
+  const fistRef = useRef<HTMLDivElement>(null);
   const purpleRef = useRef<HTMLDivElement>(null);
   const blackRef = useRef<HTMLDivElement>(null);
   const orangeRef = useRef<HTMLDivElement>(null);
@@ -295,6 +322,65 @@ export default function LoginCharacters({
     const timer = setTimeout(() => setLookingAtEachOther(false), 800);
     return () => clearTimeout(timer);
   }, [isTyping]);
+
+  // The sign-in pull, driven frame by frame rather than with a CSS
+  // transition: the arm is re-measured every frame from purple's shoulder
+  // to the login panel's actual current edge, so while the panel slides
+  // across during the reveal his fist stays locked onto its edge and the
+  // arm shortens with it — he's visibly hauling it in, not just posing
+  // while it moves on its own. Before that, the reach: the arm shoots out
+  // with a little overshoot, hand open, and clenches as it lands.
+  useEffect(() => {
+    const arm = armRef.current;
+    const bar = armBarRef.current;
+    const hand = handRef.current;
+    const openHand = openHandRef.current;
+    const fist = fistRef.current;
+    if (!arm || !bar || !hand || !openHand || !fist) return;
+    if (!reaching && !revealing) {
+      arm.style.opacity = "0";
+      return;
+    }
+    const dir = isRtl ? -1 : 1;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const root = rootRef.current;
+      const body = purpleRef.current;
+      const panel = document.querySelector(".login-pull-form");
+      if (!root || !body) return;
+      const rootRect = root.getBoundingClientRect();
+      const bodyRect = body.getBoundingClientRect();
+      const shoulder = isRtl ? bodyRect.left + 14 : bodyRect.right - 14;
+      const panelRect = panel?.getBoundingClientRect();
+      const edge = panelRect ? (isRtl ? panelRect.right : panelRect.left) : shoulder;
+      const full = (edge - shoulder) * dir + GRIP_OVERLAP;
+
+      let length: number;
+      let gripping: boolean;
+      if (revealing) {
+        length = full;
+        gripping = true;
+      } else {
+        const t = Math.min(1, (now - start) / REACH_MS);
+        length = Math.max(0, full) * easeOutBack(t);
+        gripping = t > 0.85;
+      }
+      // Once the panel has been pulled right over him the arm has nowhere
+      // left to go — it's tucked away under the panel.
+      arm.style.opacity = length > HAND_SIZE * 0.6 ? "1" : "0";
+      arm.style.left = `${shoulder - rootRect.left}px`;
+      arm.style.top = `${bodyRect.top - rootRect.top + 92}px`;
+      arm.style.transform = `scaleX(${dir})`;
+      bar.style.width = `${Math.max(0, length - HAND_SIZE / 2)}px`;
+      hand.style.left = `${length - HAND_SIZE / 2}px`;
+      openHand.style.opacity = gripping ? "0" : "1";
+      fist.style.opacity = gripping ? "1" : "0";
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [reaching, revealing, isRtl]);
 
   const isHidingPassword = passwordLength > 0 && !showPassword;
   const passwordVisible = passwordLength > 0 && showPassword;
@@ -345,6 +431,7 @@ export default function LoginCharacters({
 
   return (
     <div
+      ref={rootRef}
       className={`relative ${sad ? "animate-sad-shake" : ""}`}
       style={{ width: 550, height: 400 }}
     >
@@ -362,13 +449,17 @@ export default function LoginCharacters({
           borderRadius: "10px 10px 0 0",
           zIndex: 1,
           ...purpleEntrance,
-          transform: `${
-            passwordVisible
-              ? "skewX(0deg)"
-              : isTyping || isHidingPassword
-                ? `skewX(${purple.bodySkew - 12}deg) translateX(40px)`
-                : `skewX(${purple.bodySkew}deg)`
-          } ${purpleSquish ? "scaleY(0.85) scaleX(1.06)" : "scaleY(1) scaleX(1)"}`,
+          transform: revealing
+            ? // Heaving back on the panel — leaning away from it, squashed
+              // down with the effort.
+              `skewX(${isRtl ? -14 : 14}deg) translateX(${isRtl ? 16 : -16}px) scaleY(0.95) scaleX(1.04)`
+            : `${
+                passwordVisible
+                  ? "skewX(0deg)"
+                  : isTyping || isHidingPassword
+                    ? `skewX(${purple.bodySkew - 12}deg) translateX(40px)`
+                    : `skewX(${purple.bodySkew}deg)`
+              } ${purpleSquish ? "scaleY(0.85) scaleX(1.06)" : "scaleY(1) scaleX(1)"}`,
           transformOrigin: "bottom center",
         }}
       >
@@ -390,10 +481,12 @@ export default function LoginCharacters({
               pupilColor="#2D2D2D"
               isBlinking={purpleBlinking}
               forceLook={
-                sad
-                  ? sadLook
-                  : passwordVisible
-                    ? { x: purplePeeking ? 4 : -4, y: purplePeeking ? 5 : -4 }
+                reaching || revealing
+                  ? { x: isRtl ? -5 : 5, y: 1 }
+                  : sad
+                    ? sadLook
+                    : passwordVisible
+                      ? { x: purplePeeking ? 4 : -4, y: purplePeeking ? 5 : -4 }
                     : lookingAtEachOther
                       ? { x: 3, y: 4 }
                       : undefined
@@ -412,34 +505,40 @@ export default function LoginCharacters({
         </div>
       </div>
 
-      {/* Purple's reaching arm — anchored to his own actual right edge
-          (left:70 + width:180) rather than a guessed pixel offset from the
-          illustration panel, so it stays attached to his body regardless
-          of how the panel around him is laid out. Sits as a sibling of the
-          characters (not a child of purple's own div) purely so its
-          z-index isn't capped by purple's own stacking context — purple is
-          z-index 1, behind black/orange/yellow, but the arm still needs to
-          render in front of all three as it reaches across them. */}
+      {/* Purple's arm for the sign-in pull — positioned and sized every
+          frame by the effect above. A sibling of the characters (not inside
+          purple's own div) so it can sit in front of the other three, and
+          high enough in z-order to curl its fist over the panel's edge. */}
       <div
-        className="pointer-events-none absolute transition-transform duration-500 ease-out"
-        style={{
-          left: 245,
-          top: 70,
-          zIndex: 10,
-          transform: `scaleX(${(reaching || revealing ? 1 : 0) * (isRtl ? -1 : 1)})`,
-          transformOrigin: "0% 50%",
-        }}
+        ref={armRef}
+        className="pointer-events-none absolute"
+        style={{ left: 0, top: 0, zIndex: 30, opacity: 0, transformOrigin: "0 0" }}
       >
-        {/* The actual tug — a repeated bend-and-release rotation timed to
-            the same 1500ms as the panel's own width transition (see the
-            login page), so the motion visibly drives the cover rather than
-            the panel just growing on its own schedule while his arm sits
-            frozen in the grabbed pose. */}
-        <div
-          className={revealing ? "animate-arm-tug" : ""}
-          style={{ transform: "rotate(-4deg)", transformOrigin: "0% 50%" }}
-        >
-          <Arm color={LOGIN_CHARACTER_COLORS.purple} />
+        <div className={revealing ? "animate-arm-tug" : ""} style={{ transformOrigin: "0 0" }}>
+          <div
+            ref={armBarRef}
+            className="absolute rounded-full"
+            style={{
+              left: 0,
+              top: -11,
+              width: 0,
+              height: 22,
+              background: `linear-gradient(${LOGIN_CHARACTER_COLORS.purple}, #2c4aa3)`,
+              boxShadow: "inset 0 3px 0 rgba(255,255,255,0.18)",
+            }}
+          />
+          <div
+            ref={handRef}
+            className="absolute"
+            style={{ left: 0, top: -HAND_SIZE / 2, width: HAND_SIZE, height: HAND_SIZE }}
+          >
+            <div ref={openHandRef} className="absolute inset-0">
+              <OpenHand color={LOGIN_CHARACTER_COLORS.purple} />
+            </div>
+            <div ref={fistRef} className="absolute inset-0" style={{ opacity: 0 }}>
+              <Fist color={LOGIN_CHARACTER_COLORS.purple} />
+            </div>
+          </div>
         </div>
       </div>
 
