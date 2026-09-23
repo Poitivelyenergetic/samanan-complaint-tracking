@@ -217,28 +217,17 @@ body {
 }
 
 /* The idle dashboard easter egg — the cleaning crew (see IdleDustWiper).
-   Each character follows a timed script (walk to a patch, spray, scrub,
+   Each character follows a timed script (hop to a patch, spray, scrub,
    check their work...) and these are the individual motions it switches
-   between. Kept deliberately calm — steady walking, short spray bursts,
-   pauses — so they read as blobs going about a job, not a looping jiggle. */
+   between. Kept deliberately calm — even hops, short spray bursts, small
+   sways, pauses — so they read as a crew going about a job, not a looping
+   jiggle. */
 @keyframes idle-blink {
   0%, 92%, 100% {
     transform: scaleY(1);
   }
   96% {
     transform: scaleY(0.1);
-  }
-}
-
-/* Soft-body wobble between two blob outlines (set per character). */
-@keyframes crew-jelly {
-  0%, 100% {
-    border-radius: var(--blob-a);
-    transform: scale(1, 1);
-  }
-  50% {
-    border-radius: var(--blob-b);
-    transform: scale(1.02, 0.98);
   }
 }
 
@@ -252,36 +241,59 @@ body {
   }
 }
 
-@keyframes crew-waddle {
-  0%, 100% {
-    transform: translateY(0) rotate(-2.5deg) scale(1.03, 0.97);
+/* Getting about without feet: one hop per cycle. A small crouch, spring
+   up, float over the top, touch down and absorb it — the squash kept small
+   so it reads as weight, not rubber. Each trip is a whole number of these
+   (see HOP_MS), so they always land where they stop. --hop-h is lower when
+   they're hurrying. */
+@keyframes crew-hop {
+  0% {
+    transform: translateY(0) scale(1, 1);
   }
-  25% {
-    transform: translateY(-4px) rotate(0deg) scale(0.99, 1.02);
+  8% {
+    transform: translateY(0) scale(1.05, 0.95);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
+  }
+  22% {
+    transform: translateY(calc(var(--hop-h, -16px) * 0.4)) scale(0.97, 1.04);
+    animation-timing-function: cubic-bezier(0.2, 0.6, 0.4, 1);
   }
   50% {
-    transform: translateY(0) rotate(2.5deg) scale(1.03, 0.97);
+    transform: translateY(var(--hop-h, -16px)) scale(1, 1);
+    animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4);
   }
-  75% {
-    transform: translateY(-4px) rotate(0deg) scale(0.99, 1.02);
+  80% {
+    transform: translateY(0) scale(0.99, 1.01);
+    animation-timing-function: ease-out;
+  }
+  90% {
+    transform: translateY(0) scale(1.04, 0.96);
+  }
+  100% {
+    transform: translateY(0) scale(1, 1);
   }
 }
 
-@keyframes crew-step {
-  0%, 50%, 100% {
-    transform: translateY(0) rotate(0deg);
+/* The ground shadow tightening while they're up in the air. */
+@keyframes crew-hop-shadow {
+  0%, 8%, 80%, 100% {
+    transform: scale(1);
+    opacity: 1;
   }
-  25% {
-    transform: translateY(-5px) rotate(-10deg);
+  50% {
+    transform: scale(0.72);
+    opacity: 0.55;
   }
 }
 
+/* Working: the body just sways with the arm doing the scrubbing — the tool
+   does the moving, not a bouncing body. */
 @keyframes crew-work {
   0%, 100% {
-    transform: rotate(-1.5deg);
+    transform: translateX(-1px) rotate(-0.6deg);
   }
   50% {
-    transform: rotate(1.5deg) scale(1.01, 0.99);
+    transform: translateX(1px) rotate(0.6deg);
   }
 }
 
@@ -297,10 +309,10 @@ body {
 
 @keyframes crew-nod {
   0%, 40%, 70%, 100% {
-    transform: translateY(0) scale(1, 1);
+    transform: translateY(0) rotate(0deg);
   }
   20%, 55% {
-    transform: translateY(2px) scale(1.02, 0.95);
+    transform: translateY(2px) rotate(1.2deg);
   }
 }
 
@@ -319,19 +331,19 @@ body {
     transform: translateY(0) scale(1, 1);
   }
   15% {
-    transform: translateY(0) scale(1.15, 0.8);
+    transform: translateY(0) scale(1.06, 0.92);
   }
   40% {
-    transform: translateY(-60px) scale(0.92, 1.1);
+    transform: translateY(-60px) scale(0.97, 1.04);
   }
   60% {
     transform: translateY(-60px) scale(1, 1);
   }
   82% {
-    transform: translateY(0) scale(1.12, 0.85);
+    transform: translateY(0) scale(1.05, 0.94);
   }
   92% {
-    transform: translateY(0) scale(0.98, 1.02);
+    transform: translateY(0) scale(1, 1);
   }
 }
 
@@ -381,16 +393,10 @@ body {
 
 @keyframes crew-wipe-arc {
   0%, 100% {
-    transform: translate(0, 0) rotate(-15deg);
-  }
-  25% {
-    transform: translate(22px, -26px) rotate(8deg);
+    transform: translate(-2px, 4px) rotate(-12deg);
   }
   50% {
-    transform: translate(4px, -48px) rotate(20deg);
-  }
-  75% {
-    transform: translate(-16px, -24px) rotate(0deg);
+    transform: translate(24px, -30px) rotate(14deg);
   }
 }
 
@@ -434,6 +440,36 @@ body {
   }
   50% {
     transform: rotate(-26deg);
+  }
+}
+
+/* Mop held out in front, head swept along the step they're standing on. */
+@keyframes crew-mop-step {
+  0%, 100% {
+    transform: rotate(18deg);
+  }
+  50% {
+    transform: rotate(-18deg);
+  }
+}
+
+/* The stairs: each step rises up out of the floor (its timing curve
+   overshoots, so it settles), and sinks back down at the end. */
+@keyframes crew-stair-rise {
+  from {
+    transform: translateY(calc(100% + 12px));
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes crew-stair-sink {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(100% + 12px));
   }
 }
 
@@ -760,20 +796,17 @@ body {
   .animate-idle-blink {
     animation: idle-blink 4000ms ease-in-out infinite;
   }
-  .crew-jelly {
-    animation: crew-jelly 2600ms ease-in-out infinite;
-  }
   .crew-glance {
     animation: crew-glance 5000ms ease-in-out infinite;
   }
-  .crew-waddle {
-    animation: crew-waddle 900ms ease-in-out infinite;
+  .crew-hop {
+    animation: crew-hop 400ms linear infinite;
   }
-  .crew-step {
-    animation: crew-step 900ms ease-in-out infinite;
+  .crew-hop-shadow {
+    animation: crew-hop-shadow 400ms linear infinite;
   }
   .crew-work {
-    animation: crew-work 1400ms ease-in-out infinite;
+    animation: crew-work 1100ms ease-in-out infinite;
   }
   .crew-idle {
     animation: crew-idle 3000ms ease-in-out infinite;
@@ -800,7 +833,7 @@ body {
     animation: crew-mist 1500ms ease-out infinite;
   }
   .crew-wipe-arc {
-    animation: crew-wipe-arc 1300ms ease-in-out infinite;
+    animation: crew-wipe-arc 1100ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
   }
   .crew-polish {
     animation: crew-polish 900ms linear infinite;
@@ -813,6 +846,9 @@ body {
   }
   .crew-mop-swing {
     animation: crew-mop-swing 1100ms ease-in-out infinite;
+  }
+  .crew-mop-step {
+    animation: crew-mop-step 900ms ease-in-out infinite;
   }
   .crew-raise {
     animation: crew-raise 600ms ease-in-out infinite;
