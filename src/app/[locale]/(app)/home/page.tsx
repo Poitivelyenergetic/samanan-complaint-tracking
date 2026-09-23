@@ -31,6 +31,7 @@ import { subscribeToDepartments } from "@/lib/departments";
 import { useAuth } from "@/lib/auth-context";
 import DateRangeFilter from "@/components/DateRangeFilter";
 import IdleDustWiper from "@/components/IdleDustWiper";
+import { useCrewHeldValue } from "@/lib/crewCards";
 import {
   COMPLAINT_STATUSES,
   TICKET_STATUSES,
@@ -222,16 +223,22 @@ function StatCard({
   value,
   color,
   href,
+  crewKey,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number;
   color: string;
+  // Lets the idle cleaning crew deliver live changes to this card by
+  // pulling a lever (see IdleDustWiper / crewCards) instead of the number
+  // just silently changing while nobody's at the screen.
+  crewKey: string;
   // When set, the whole card links to the Complaints list — e.g. a status
   // card links to that status pre-filtered — so clicking a number takes you
   // straight to the underlying tickets instead of just showing the count.
   href?: string;
 }) {
+  const shown = useCrewHeldValue(crewKey, value);
   const className =
     "block rounded-xl border border-border bg-surface p-4 text-start shadow-sm transition-all hover:shadow-md" +
     (href ? " hover:border-brand/40 hover:-translate-y-0.5" : "");
@@ -241,15 +248,21 @@ function StatCard({
         {icon}
       </div>
       <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-foreground/60">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
+      <p className="mt-1 text-2xl font-bold text-foreground" style={{ perspective: 400 }}>
+        <span key={shown.flip} className={shown.flip ? "crew-card-flip" : ""}>
+          {shown.value}
+        </span>
+      </p>
     </>
   );
   return href ? (
-    <Link href={href} className={className}>
+    <Link href={href} className={className} data-crew-card={crewKey}>
       {content}
     </Link>
   ) : (
-    <div className={className}>{content}</div>
+    <div className={className} data-crew-card={crewKey}>
+      {content}
+    </div>
   );
 }
 
@@ -893,6 +906,7 @@ export default function HomePage() {
                 value={list.length}
                 color="#475569"
                 href="/dashboard"
+                crewKey="complaints-total"
               />
             </Reveal>
             {statusData.map((row, i) => (
@@ -903,6 +917,7 @@ export default function HomePage() {
                   value={row.count}
                   color={STATUS_COLORS[row.status]}
                   href={`/dashboard?status=${row.status}`}
+                  crewKey={`complaints-${row.status}`}
                 />
               </Reveal>
             ))}
@@ -1432,6 +1447,7 @@ export default function HomePage() {
                     value={ticketList.length}
                     color="#475569"
                     href="/tickets"
+                    crewKey="tickets-total"
                   />
                 </Reveal>
                 {ticketStatusData.map((row, i) => (
@@ -1442,6 +1458,7 @@ export default function HomePage() {
                       value={row.count}
                       color={STATUS_COLORS[row.status]}
                       href={`/tickets?status=${row.status}`}
+                      crewKey={`tickets-${row.status}`}
                     />
                   </Reveal>
                 ))}
