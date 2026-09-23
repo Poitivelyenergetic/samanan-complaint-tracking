@@ -47,9 +47,9 @@ const SUBSIDIARY_LOGOS = [
     href: "https://samnan.com.sa/en/Company/SAMNAN%20REAL%20ESTATE%20INVESTMENT",
   },
   {
-    src: "/subsidiary-logos/samnan-water-solutions.svg",
+    src: "/subsidiary-logos/samnan-water-solutions.webp",
     alt: "Samnan Water Solutions",
-    href: "https://samnan.com.sa/en",
+    href: "https://samnanstore.com/",
   },
   {
     src: "/subsidiary-logos/samnan-tech.webp",
@@ -187,7 +187,7 @@ export default function StaffLoginPage() {
         }`}
       >
         <div className="absolute top-6 end-6">
-          <LanguageSwitcher />
+          <LanguageSwitcher onLight />
         </div>
 
         {/* Fades out on success before the pull starts — a blank panel
@@ -286,7 +286,9 @@ export default function StaffLoginPage() {
           <div className="mt-8 flex flex-col items-center gap-3 border-t border-[#eef0f4] pt-6">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/samnan-icon.svg" alt="Samnan Holding Group" className="h-10 w-10" />
-            <div className="grid grid-cols-5 items-center gap-x-5 gap-y-4">
+            {/* All nine on one row — the columns share the form's width and
+                each logo shrinks to fit its column on narrow screens. */}
+            <div className="grid w-full grid-cols-9 items-center gap-x-2">
               {SUBSIDIARY_LOGOS.map((logo) => (
                 <a
                   key={logo.src}
@@ -294,10 +296,10 @@ export default function StaffLoginPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   title={logo.alt}
-                  className="flex items-center justify-center transition-transform duration-150 ease-out hover:scale-110"
+                  className="flex min-w-0 items-center justify-center transition-transform duration-150 ease-out hover:scale-110"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={logo.src} alt={logo.alt} className="h-7 w-auto object-contain" />
+                  <img src={logo.src} alt={logo.alt} className="h-7 w-full object-contain" />
                 </a>
               ))}
             </div>
@@ -322,7 +324,7 @@ export default function StaffLoginPage() {
         {/* The drag-to-rotate 360° pump, big in the open space above the
             characters. Sized off the viewport height so it always clears the
             tallest character (purple, up to 440px, stretching when typing). */}
-        <SamnanPumpSpinner className="absolute left-1/2 top-[5vh] z-10 h-[36vh] max-h-[400px] w-[48vh] max-w-[90%] -translate-x-1/2 cursor-grab" />
+        <SamnanPumpSpinner className="absolute left-1/2 top-[5vh] z-10 h-[36vh] max-h-[400px] w-[48vh] max-w-[90%] -translate-x-1/2 cursor-grab animate-pump-enter" />
         <LoginCharacters
           isTyping={isTyping}
           showPassword={showPassword}

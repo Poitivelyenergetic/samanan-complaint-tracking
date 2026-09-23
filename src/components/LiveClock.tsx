@@ -39,8 +39,9 @@ export default function LiveClock() {
   const day = new Intl.DateTimeFormat(loc, { weekday: "long" }).format(now);
   const date = new Intl.DateTimeFormat(loc, { day: "numeric", month: "long", year: "numeric" }).format(now);
 
+  // Plain text straight on the top bar — no box of its own.
   return (
-    <div className="hidden items-center gap-3 rounded-lg border border-border bg-background px-3 py-1 lg:flex">
+    <div className="hidden items-center gap-3 lg:flex">
       <span className="font-mono text-base font-semibold tabular-nums text-foreground" dir="ltr">
         {time}
       </span>

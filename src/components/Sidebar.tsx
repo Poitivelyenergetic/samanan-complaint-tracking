@@ -2,8 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Link, usePathname, useRouter } from "@/i18n/navigation";
-import { routing } from "@/i18n/routing";
+import { Link, usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { subscribeToPendingSignupRequests } from "@/lib/signupRequests";
 import { hasPermission, localizedName, type PermissionResource } from "@/lib/types";
@@ -58,8 +57,6 @@ const SETTINGS_RESOURCE_ITEMS: {
   { href: "/employees", key: "employees", resource: "employees", icon: <IconUsers />, iconColor: "#0ea5e9" },
   { href: "/roles", key: "roles", resource: "roles", icon: <IconShieldCheck />, iconColor: "#8b5cf6" },
 ];
-
-const LOCALE_LABELS: Record<string, string> = { ar: "العربية", en: "English" };
 
 function SidebarLink({
   href,
@@ -206,7 +203,6 @@ function SidebarContents({
   const t = useTranslations("nav");
   const tCommon = useTranslations("common");
   const pathname = usePathname();
-  const router = useRouter();
   const locale = useLocale();
   const { profile, signOut } = useAuth();
 
@@ -406,25 +402,9 @@ function SidebarContents({
       </nav>
 
       <div className={`border-t border-white/10 py-3 ${collapsed ? "px-2" : "px-4"}`}>
-        {!collapsed && (
-          <div className="flex items-center gap-1">
-            {routing.locales.map((loc) => (
-              <button
-                key={loc}
-                type="button"
-                onClick={() => router.replace(pathname, { locale: loc })}
-                className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
-                  loc === locale ? "bg-brand text-brand-foreground" : "text-[#aab2c5] hover:bg-white/5 hover:text-white"
-                }`}
-                aria-current={loc === locale}
-              >
-                {LOCALE_LABELS[loc]}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Language is switched from the top bar's flags. */}
         {!collapsed && profile && (
-          <p className="mt-2.5 truncate text-sm text-[#aab2c5]">
+          <p className="truncate text-sm text-[#aab2c5]">
             {t("signedInAs")} <span className="font-medium text-white">{localizedName(profile, locale)}</span>
           </p>
         )}

@@ -11,7 +11,9 @@ export default function PublicShell({
   maxWidthClassName?: string;
 }) {
   return (
-    <div className="flex min-h-screen flex-col items-center bg-background px-4 py-12">
+    // Extra top room on phones so the centered content starts below the
+    // language switcher in the corner instead of running under it.
+    <div className="flex min-h-screen flex-col items-center bg-background px-4 pb-12 pt-20 sm:pt-12">
       <div className="absolute top-4 end-4">
         <LanguageSwitcher />
       </div>

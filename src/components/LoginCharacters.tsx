@@ -243,10 +243,18 @@ function useBodyTracking(ref: RefObject<HTMLDivElement | null>, mouse: Point) {
     const centerY = rect.top + rect.height / 3;
     const dx = mouse.x - centerX;
     const dy = mouse.y - centerY;
+    // The lean is scaled by how much room the cursor has on that side, not
+    // by raw pixels: the group sits well off-center (near the left of the
+    // right-hand panel in Arabic), so a fixed px-per-degree let them lean
+    // all the way one way but only a third as far the other, even with the
+    // cursor at the screen's edge. Full lean within ~500px, or at the edge
+    // if that side is shorter.
+    const room = dx < 0 ? centerX : window.innerWidth - centerX;
+    const reach = clamp(room, 160, 500);
     setState({
       faceX: clamp(dx / 20, -15, 15),
       faceY: clamp(dy / 30, -10, 10),
-      bodySkew: clamp(-dx / 120, -6, 6),
+      bodySkew: clamp(-dx / reach, -1, 1) * 6,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mouse]);
@@ -457,7 +465,10 @@ export default function LoginCharacters({
                 passwordVisible
                   ? "skewX(0deg)"
                   : isTyping || isHidingPassword
-                    ? `skewX(${purple.bodySkew - 12}deg) translateX(40px)`
+                    ? // Peeking toward the form, but only as a bias — a flat
+                      // -12° here meant the cursor (±6°) could never pull him
+                      // back left while the form had focus or a password in it.
+                      `skewX(${clamp(purple.bodySkew * 1.5 - 4, -12, 7)}deg) translateX(20px)`
                     : `skewX(${purple.bodySkew}deg)`
               } ${purpleSquish ? "scaleY(0.85) scaleX(1.06)" : "scaleY(1) scaleX(1)"}`,
           transformOrigin: "bottom center",

@@ -187,6 +187,35 @@ body {
   }
 }
 
+/* The login pump's entrance — held back until the characters have all
+   landed (the last one touches down at ~0.9s), so they aren't seen falling
+   through it, then it springs up into place with a little overshoot. Uses
+   transform, which composes with Tailwind's separate `translate` property
+   that centers the pump. */
+@keyframes pump-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(48px) scale(0.55);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.06);
+  }
+  78% {
+    transform: translateY(2px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-pump-enter {
+    animation: pump-enter 750ms cubic-bezier(0.34, 1.2, 0.64, 1) 1300ms both;
+  }
+}
+
 /* The idle dashboard easter egg — the cleaning crew (see IdleDustWiper).
    Each character follows a timed script (walk to a patch, spray, scrub,
    check their work...) and these are the individual motions it switches
