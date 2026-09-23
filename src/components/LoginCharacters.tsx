@@ -328,29 +328,20 @@ export default function LoginCharacters({
   // looks like on them.
   const sadLook = { x: 0, y: 6 };
 
-  // On mount, the four of them settle into place one after another instead
-  // of just being instantly there — starts false so the very first paint is
-  // the "not arrived yet" state, then flips a beat later so the transition
-  // (rather than the jump straight to it) is what actually renders.
-  const [entered, setEntered] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => setEntered(true), 50);
-    return () => clearTimeout(timer);
-  }, []);
-  function entranceStyle(delayMs: number) {
+  // On mount they drop in from above one after another — tumbling at a
+  // tilt, landing squashed flat, then springing up to full height with a
+  // wobble (see char-drop in globals.css), rather than just fading into
+  // place. Orange lands first and purple, the tallest, last.
+  function entranceStyle(delayMs: number, tiltDeg: number) {
     return {
-      opacity: entered ? 1 : 0,
-      // Only staggered while arriving — once in, later transitions (leaning
-      // toward the cursor, typing reactions) shouldn't inherit this delay
-      // and feel laggy.
-      transitionDelay: entered ? "0ms" : `${delayMs}ms`,
-      extraTransform: entered ? "" : " translateY(70px)",
-    };
+      animationDelay: `${delayMs}ms`,
+      "--drop-tilt": `${tiltDeg}deg`,
+    } as React.CSSProperties;
   }
-  const purpleEntrance = entranceStyle(240);
-  const blackEntrance = entranceStyle(160);
-  const orangeEntrance = entranceStyle(0);
-  const yellowEntrance = entranceStyle(80);
+  const purpleEntrance = entranceStyle(480, -14);
+  const blackEntrance = entranceStyle(320, 22);
+  const orangeEntrance = entranceStyle(0, -10);
+  const yellowEntrance = entranceStyle(160, 16);
 
   return (
     <div
@@ -362,7 +353,7 @@ export default function LoginCharacters({
       <div
         ref={purpleRef}
         onClick={squishPurple}
-        className="absolute bottom-0 cursor-pointer transition-all duration-700 ease-in-out"
+        className="animate-char-drop absolute bottom-0 cursor-pointer transition-all duration-700 ease-in-out"
         style={{
           left: 70,
           width: 180,
@@ -370,15 +361,14 @@ export default function LoginCharacters({
           backgroundColor: LOGIN_CHARACTER_COLORS.purple,
           borderRadius: "10px 10px 0 0",
           zIndex: 1,
-          opacity: purpleEntrance.opacity,
-          transitionDelay: purpleEntrance.transitionDelay,
+          ...purpleEntrance,
           transform: `${
             passwordVisible
               ? "skewX(0deg)"
               : isTyping || isHidingPassword
                 ? `skewX(${purple.bodySkew - 12}deg) translateX(40px)`
                 : `skewX(${purple.bodySkew}deg)`
-          } ${purpleSquish ? "scaleY(0.85) scaleX(1.06)" : "scaleY(1) scaleX(1)"}${purpleEntrance.extraTransform}`,
+          } ${purpleSquish ? "scaleY(0.85) scaleX(1.06)" : "scaleY(1) scaleX(1)"}`,
           transformOrigin: "bottom center",
         }}
       >
@@ -458,7 +448,7 @@ export default function LoginCharacters({
       <div
         ref={blackRef}
         onClick={squishBlack}
-        className="absolute bottom-0 cursor-pointer transition-all duration-700 ease-in-out"
+        className="animate-char-drop absolute bottom-0 cursor-pointer transition-all duration-700 ease-in-out"
         style={{
           left: 240,
           width: 120,
@@ -466,8 +456,7 @@ export default function LoginCharacters({
           backgroundColor: LOGIN_CHARACTER_COLORS.black,
           borderRadius: "8px 8px 0 0",
           zIndex: 2,
-          opacity: blackEntrance.opacity,
-          transitionDelay: blackEntrance.transitionDelay,
+          ...blackEntrance,
           transform: `${
             passwordVisible
               ? "skewX(0deg)"
@@ -476,7 +465,7 @@ export default function LoginCharacters({
                 : isTyping || isHidingPassword
                   ? `skewX(${black.bodySkew * 1.5}deg)`
                   : `skewX(${black.bodySkew}deg)`
-          } ${blackSquish ? "scaleY(0.85) scaleX(1.06)" : "scaleY(1) scaleX(1)"}${blackEntrance.extraTransform}`,
+          } ${blackSquish ? "scaleY(0.85) scaleX(1.06)" : "scaleY(1) scaleX(1)"}`,
           transformOrigin: "bottom center",
         }}
       >
@@ -515,7 +504,7 @@ export default function LoginCharacters({
       <div
         ref={orangeRef}
         onClick={squishOrange}
-        className="absolute bottom-0 cursor-pointer transition-all duration-700 ease-in-out"
+        className="animate-char-drop absolute bottom-0 cursor-pointer transition-all duration-700 ease-in-out"
         style={{
           left: 0,
           width: 240,
@@ -523,11 +512,10 @@ export default function LoginCharacters({
           zIndex: 3,
           backgroundColor: LOGIN_CHARACTER_COLORS.orange,
           borderRadius: "120px 120px 0 0",
-          opacity: orangeEntrance.opacity,
-          transitionDelay: orangeEntrance.transitionDelay,
+          ...orangeEntrance,
           transform: `${passwordVisible ? "skewX(0deg)" : `skewX(${orange.bodySkew}deg)`} ${
             orangeSquish ? "scaleY(0.85) scaleX(1.06)" : "scaleY(1) scaleX(1)"
-          }${orangeEntrance.extraTransform}`,
+          }`,
           transformOrigin: "bottom center",
         }}
       >
@@ -564,7 +552,7 @@ export default function LoginCharacters({
       <div
         ref={yellowRef}
         onClick={squishYellow}
-        className="absolute bottom-0 cursor-pointer transition-all duration-700 ease-in-out"
+        className="animate-char-drop absolute bottom-0 cursor-pointer transition-all duration-700 ease-in-out"
         style={{
           left: 310,
           width: 140,
@@ -572,11 +560,10 @@ export default function LoginCharacters({
           backgroundColor: LOGIN_CHARACTER_COLORS.yellow,
           borderRadius: "70px 70px 0 0",
           zIndex: 4,
-          opacity: yellowEntrance.opacity,
-          transitionDelay: yellowEntrance.transitionDelay,
+          ...yellowEntrance,
           transform: `${passwordVisible ? "skewX(0deg)" : `skewX(${yellow.bodySkew}deg)`} ${
             yellowSquish ? "scaleY(0.85) scaleX(1.06)" : "scaleY(1) scaleX(1)"
-          }${yellowEntrance.extraTransform}`,
+          }`,
           transformOrigin: "bottom center",
         }}
       >

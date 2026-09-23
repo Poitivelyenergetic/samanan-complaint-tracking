@@ -151,6 +151,48 @@ body {
   }
 }
 
+/* Login characters' entrance — each one drops in from above at a tilt
+   (accelerating like it's actually falling), lands squashed flat, springs
+   up past full height, then wobbles settled: classic squash-and-stretch
+   rather than a plain fade/slide. Each character sets its own
+   animation-delay and --drop-tilt inline so they tumble in one after
+   another at different angles. fill-mode "backwards" holds them up out of
+   view during their delay; once it finishes the characters' own inline
+   transforms (leaning toward the cursor etc.) take back over. */
+@keyframes char-drop {
+  0% {
+    transform: translateY(-900px) rotate(var(--drop-tilt, 0deg)) scaleY(1.1) scaleX(0.92);
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  40% {
+    transform: translateY(0) rotate(0deg) scaleY(1.1) scaleX(0.92);
+    animation-timing-function: ease-out;
+  }
+  50% {
+    transform: translateY(0) rotate(0deg) scaleY(0.5) scaleX(1.35);
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.4, 1);
+  }
+  66% {
+    transform: translateY(0) rotate(0deg) scaleY(1.14) scaleX(0.9);
+  }
+  80% {
+    transform: translateY(0) rotate(0deg) scaleY(0.94) scaleX(1.05);
+  }
+  92% {
+    transform: translateY(0) rotate(0deg) scaleY(1.03) scaleX(0.98);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg) scaleY(1) scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-char-drop {
+    animation: char-drop 1100ms both;
+    animation-fill-mode: backwards;
+  }
+}
+
 /* The idle dashboard easter egg — a character wandering across the bottom
    of the screen, wiping as it goes, once the page has sat untouched for a
    while (see useIdleTimer / IdleDustWiper). Walks off one edge and back in
