@@ -38,8 +38,9 @@ function loadSpinner(): Promise<SpinnerApi> {
   return scriptPromise;
 }
 
-// The drag-to-rotate 360° Samnan pump — 72 pre-rendered transparent frames
-// driven by a tiny canvas script. It has to be mounted/destroyed explicitly
+// The drag-to-rotate 360° Samnan pump — 240 pre-rendered transparent frames
+// (30 fps at its 8s-per-turn idle spin) driven by a tiny canvas script, which
+// reads the frame layout from frames/manifest.json. It has to be mounted/destroyed explicitly
 // here (rather than relying on the script's own data-attribute auto-mount)
 // since React renders the element after the script's DOMContentLoaded pass,
 // and an un-destroyed instance would leak its requestAnimationFrame loop.
@@ -63,5 +64,7 @@ export default function SamnanPumpSpinner({ className = "" }: { className?: stri
     };
   }, []);
 
-  return <div ref={ref} className={`outline-none ${className}`} />;
+  // select-none: dragging to spin it would otherwise start a text selection
+  // and the browser paints its pale highlight box over the whole canvas.
+  return <div ref={ref} className={`select-none outline-none ${className}`} />;
 }

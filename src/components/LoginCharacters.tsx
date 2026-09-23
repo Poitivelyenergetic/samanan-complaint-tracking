@@ -231,6 +231,13 @@ function easeOutBack(t: number) {
 
 // How long the reach out to the panel takes, and how far the fist closes
 // over the panel's edge once it gets there.
+// How each character's body follows the cursor. The lean is retargeted on
+// every mouse move, and a long ease-in-out restarted that often never gets
+// past its slow start — sweep the cursor across and they stayed leaning the
+// old way until it stopped. A short ease-out moves off immediately each time;
+// height (standing up tall while a password is hidden) keeps the slow ease.
+const BODY_TRANSITION = "transform 300ms cubic-bezier(0.22, 1, 0.36, 1), height 700ms ease-in-out";
+
 const REACH_MS = 480;
 const GRIP_OVERLAP = 12;
 
@@ -448,7 +455,7 @@ export default function LoginCharacters({
       <div
         ref={purpleRef}
         onClick={squishPurple}
-        className="animate-char-drop absolute bottom-0 cursor-pointer transition-all duration-700 ease-in-out"
+        className="animate-char-drop absolute bottom-0 cursor-pointer"
         style={{
           left: 70,
           width: 180,
@@ -457,6 +464,7 @@ export default function LoginCharacters({
           borderRadius: "10px 10px 0 0",
           zIndex: 1,
           ...purpleEntrance,
+          transition: BODY_TRANSITION,
           transform: revealing
             ? // Heaving back on the panel — leaning away from it, squashed
               // down with the effort.
@@ -558,7 +566,7 @@ export default function LoginCharacters({
       <div
         ref={blackRef}
         onClick={squishBlack}
-        className="animate-char-drop absolute bottom-0 cursor-pointer transition-all duration-700 ease-in-out"
+        className="animate-char-drop absolute bottom-0 cursor-pointer"
         style={{
           left: 240,
           width: 120,
@@ -567,6 +575,7 @@ export default function LoginCharacters({
           borderRadius: "8px 8px 0 0",
           zIndex: 2,
           ...blackEntrance,
+          transition: BODY_TRANSITION,
           transform: `${
             passwordVisible
               ? "skewX(0deg)"
@@ -614,7 +623,7 @@ export default function LoginCharacters({
       <div
         ref={orangeRef}
         onClick={squishOrange}
-        className="animate-char-drop absolute bottom-0 cursor-pointer transition-all duration-700 ease-in-out"
+        className="animate-char-drop absolute bottom-0 cursor-pointer"
         style={{
           left: 0,
           width: 240,
@@ -623,6 +632,7 @@ export default function LoginCharacters({
           backgroundColor: LOGIN_CHARACTER_COLORS.orange,
           borderRadius: "120px 120px 0 0",
           ...orangeEntrance,
+          transition: BODY_TRANSITION,
           transform: `${passwordVisible ? "skewX(0deg)" : `skewX(${orange.bodySkew}deg)`} ${
             orangeSquish ? "scaleY(0.85) scaleX(1.06)" : "scaleY(1) scaleX(1)"
           }`,
@@ -662,7 +672,7 @@ export default function LoginCharacters({
       <div
         ref={yellowRef}
         onClick={squishYellow}
-        className="animate-char-drop absolute bottom-0 cursor-pointer transition-all duration-700 ease-in-out"
+        className="animate-char-drop absolute bottom-0 cursor-pointer"
         style={{
           left: 310,
           width: 140,
@@ -671,6 +681,7 @@ export default function LoginCharacters({
           borderRadius: "70px 70px 0 0",
           zIndex: 4,
           ...yellowEntrance,
+          transition: BODY_TRANSITION,
           transform: `${passwordVisible ? "skewX(0deg)" : `skewX(${yellow.bodySkew}deg)`} ${
             yellowSquish ? "scaleY(0.85) scaleX(1.06)" : "scaleY(1) scaleX(1)"
           }`,
