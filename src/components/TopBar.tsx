@@ -8,6 +8,8 @@ import { localizedName } from "@/lib/types";
 import { IconLogout } from "./icons";
 import NotificationBell from "./NotificationBell";
 import ThemeToggle from "./ThemeToggle";
+import LanguageSwitcher from "./LanguageSwitcher";
+import LiveClock from "./LiveClock";
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -26,8 +28,12 @@ export default function TopBar() {
   const name = localizedName(profile, locale) || profile.username;
 
   return (
-    <div className="flex items-center justify-end border-b border-border bg-surface px-4 py-2.5">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center justify-end gap-3 border-b border-border bg-surface px-4 py-2.5 lg:grid lg:grid-cols-[1fr_auto_1fr]">
+      <div className="hidden lg:block" />
+      <LiveClock />
+      <div className="flex items-center justify-end gap-2">
+        <LanguageSwitcher compact />
+        <ThemeToggle />
         <div className="relative">
           <button
             type="button"
@@ -60,10 +66,6 @@ export default function TopBar() {
                     />
                   </svg>
                   <p className="text-sm font-semibold text-foreground">{name}</p>
-                </div>
-
-                <div className="flex justify-center border-b border-border px-4 py-3">
-                  <ThemeToggle />
                 </div>
 
                 <div className="p-1.5">

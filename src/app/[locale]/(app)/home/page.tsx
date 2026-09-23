@@ -842,7 +842,6 @@ export default function HomePage() {
     <div>
       <IdleDustWiper />
       <h1 className="text-xl font-bold text-foreground">{t("welcome", { name })}</h1>
-      <p className="mt-0.5 text-sm text-foreground/60">{canViewAll ? t("subtitleAdmin") : t("subtitleEmployee")}</p>
 
       {!canView && !canViewAllTickets ? (
         <p className="mt-6 rounded-lg border border-dashed border-border bg-surface px-4 py-8 text-center text-sm text-foreground/50">

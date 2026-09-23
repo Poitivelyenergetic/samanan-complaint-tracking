@@ -9,20 +9,23 @@ const LOCALE_LABELS: Record<string, string> = {
   en: "English",
 };
 
-export default function LanguageSwitcher() {
+export default function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
   const locale = useLocale();
   const pathname = usePathname();
   const router = useRouter();
   const t = useTranslations("common");
 
   return (
-    <div className="flex items-center gap-1" aria-label={t("language")}>
+    <div
+      className={`flex items-center ${compact ? "gap-0.5 rounded-md border border-border bg-background p-0.5" : "gap-1"}`}
+      aria-label={t("language")}
+    >
       {routing.locales.map((loc) => (
         <button
           key={loc}
           type="button"
           onClick={() => router.replace(pathname, { locale: loc })}
-          className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
+          className={`font-medium transition-colors ${compact ? "rounded px-2 py-1 text-xs" : "rounded-md px-2.5 py-1.5 text-sm"} ${
             loc === locale
               ? "bg-brand text-brand-foreground"
               : "text-foreground/70 hover:bg-black/5"

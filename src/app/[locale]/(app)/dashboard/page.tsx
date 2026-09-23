@@ -76,7 +76,6 @@ export default function DashboardPage() {
   const locale = useLocale();
   const { profile } = useAuth();
   const canView = hasPermission(profile, "complaints", "view");
-  const canCreate = hasPermission(profile, "complaints", "create");
   const canViewAll = hasPermission(profile, "complaints", "viewAll");
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -311,14 +310,6 @@ export default function DashboardPage() {
           <h1 className="text-xl font-bold text-foreground">{canViewAll ? t("title") : t("tasksTitle")}</h1>
           <p className="mt-0.5 text-sm text-foreground/60">{canViewAll ? t("subtitle") : t("tasksSubtitle")}</p>
         </div>
-        {canCreate && (
-          <Link
-            href="/complaints/new"
-            className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground hover:opacity-90"
-          >
-            {t("newButton")}
-          </Link>
-        )}
       </div>
 
       <div className="mt-6 flex flex-wrap gap-3">
