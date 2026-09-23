@@ -10,6 +10,7 @@ import { auth } from "@/lib/firebase";
 import { Link, useRouter } from "@/i18n/navigation";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import LoginCharacters from "@/components/LoginCharacters";
+import SamnanPumpSpinner from "@/components/SamnanPumpSpinner";
 import { IconEye, IconEyeOff } from "@/components/icons";
 import { localizedName } from "@/lib/types";
 
@@ -291,6 +292,10 @@ export default function StaffLoginPage() {
       {/* Illustration — static, always its own half of the screen. The
           login form (above, in z-order) grows over it during the reveal. */}
       <div className="relative hidden h-full items-end justify-end overflow-hidden bg-[#eef1f8] pe-24 md:flex md:w-1/2">
+        {/* The drag-to-rotate 360° pump, tucked into the corner beside the
+            logo group — only from xl up, where the panel is wide enough that
+            it doesn't crowd the centered subsidiary grid. */}
+        <SamnanPumpSpinner className="absolute top-6 start-6 z-10 hidden h-[135px] w-[180px] xl:block" />
         <div className="absolute top-8 start-10 end-10 flex flex-col items-center gap-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/samnan-icon.svg" alt="Samnan Holding Group" className="h-16 w-16" />
