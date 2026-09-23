@@ -174,12 +174,76 @@ body {
   }
 }
 
+@keyframes idle-blink {
+  0%, 92%, 100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes idle-sparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* A soft shine band that sweeps the full width of the screen in lockstep
+   with the character (same duration/timing as idle-walk-across) — sells
+   "wiping down the whole screen" rather than just a small local gesture
+   near him. */
+@keyframes idle-wipe-streak {
+  from {
+    left: -320px;
+  }
+  to {
+    left: calc(100% + 320px);
+  }
+}
+
+/* A burst of droplets right as he arrives from the edge — timed to the
+   start of the same lap so it reads as "splash, then get to work" rather
+   than an unexplained shimmer. */
+@keyframes idle-splash {
+  0%, 6%, 100% {
+    opacity: 0;
+    transform: scale(0.4) translate(0, 0);
+  }
+  1.5% {
+    opacity: 1;
+    transform: scale(1) translate(var(--splash-x, 10px), var(--splash-y, -10px));
+  }
+  4% {
+    opacity: 0;
+    transform: scale(0.8) translate(calc(var(--splash-x, 10px) * 1.8), calc(var(--splash-y, -10px) * 1.8));
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .animate-idle-walk-across {
     animation: idle-walk-across 9000ms linear infinite;
   }
   .animate-idle-wipe {
     animation: idle-wipe 400ms ease-in-out infinite;
+  }
+  .animate-idle-wipe-streak {
+    animation: idle-wipe-streak 9000ms linear infinite;
+  }
+  .animate-idle-splash {
+    animation: idle-splash 9000ms linear infinite;
+  }
+  .animate-idle-blink {
+    animation: idle-blink 4000ms ease-in-out infinite;
+  }
+  .animate-idle-sparkle {
+    animation: idle-sparkle 800ms ease-in-out infinite;
+    color: #eef1f8;
   }
 }
 
