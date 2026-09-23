@@ -613,6 +613,7 @@
     "newButton": "+ New department",
     "noResults": "No departments found.",
     "notFound": "Department not found.",
+    "filterAllCompanies": "All companies",
     "filterAllAdministrations": "All administrations",
     "deleteConfirm": "Are you sure you want to delete this department?",
     "deleteBlocked": "Reassign or remove the employees in this department before deleting it.",

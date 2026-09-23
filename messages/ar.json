@@ -613,6 +613,7 @@
     "newButton": "+ قسم جديد",
     "noResults": "لا توجد أقسام.",
     "notFound": "القسم غير موجود.",
+    "filterAllCompanies": "جميع الشركات",
     "filterAllAdministrations": "جميع الإدارات",
     "deleteConfirm": "هل أنت متأكد من حذف هذا القسم؟",
     "deleteBlocked": "أعد تعيين موظفي هذا القسم أو أزلهم قبل حذفه.",

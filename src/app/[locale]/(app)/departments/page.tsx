@@ -33,6 +33,7 @@ export default function DepartmentsPage() {
   const [administrations, setAdministrations] = useState<Administration[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [staff, setStaff] = useState<StaffUser[]>([]);
+  const [companyFilter, setCompanyFilter] = useState("");
   const [administrationFilter, setAdministrationFilter] = useState("");
 
   useEffect(() => subscribeToDepartments(setDepartments), []);
@@ -41,13 +42,29 @@ export default function DepartmentsPage() {
   useEffect(() => subscribeToStaff(setStaff), []);
 
   const administrationsById = useMemo(() => new Map(administrations.map((a) => [a.id, a])), [administrations]);
+  const companyFilterOptions = useMemo(
+    () => [
+      { id: "", label: t("filterAllCompanies") },
+      ...companies.map((c) => ({ id: c.id, label: localizedName(c, locale) })),
+    ],
+    [companies, locale, t]
+  );
+  // Picking a company narrows the administration list to that company's own.
   const administrationFilterOptions = useMemo(
     () => [
       { id: "", label: t("filterAllAdministrations") },
-      ...administrations.map((a) => ({ id: a.id, label: localizedName(a, locale) })),
+      ...administrations
+        .filter((a) => !companyFilter || a.companyId === companyFilter)
+        .map((a) => ({ id: a.id, label: localizedName(a, locale) })),
     ],
-    [administrations, locale, t]
+    [administrations, companyFilter, locale, t]
   );
+
+  function changeCompany(id: string) {
+    setCompanyFilter(id);
+    // Drop an administration choice that isn't part of the newly picked company.
+    if (id && administrationsById.get(administrationFilter)?.companyId !== id) setAdministrationFilter("");
+  }
   const staffById = useMemo(() => new Map(staff.map((s) => [s.id, s])), [staff]);
   const hasBroaderAccess = hasPermission(profile, "complaints", "viewAll");
   const managerScope = useMemo(
@@ -58,8 +75,12 @@ export default function DepartmentsPage() {
   const filtered = useMemo(() => {
     if (!departments) return [];
     const inScope = scopeDepartments(departments, administrations, managerScope);
-    return administrationFilter ? inScope.filter((d) => d.administrationId === administrationFilter) : inScope;
-  }, [departments, administrations, administrationFilter, managerScope]);
+    return inScope.filter(
+      (d) =>
+        (!companyFilter || administrationsById.get(d.administrationId)?.companyId === companyFilter) &&
+        (!administrationFilter || d.administrationId === administrationFilter)
+    );
+  }, [departments, administrations, administrationsById, companyFilter, administrationFilter, managerScope]);
 
   async function handleDelete(department: Department) {
     const hasEmployees = staff.some((s) => s.departmentId === department.id);
@@ -88,15 +109,27 @@ export default function DepartmentsPage() {
         )}
       </div>
 
-      <div className="mt-4 max-w-xs">
-        <SearchableSelect
-          items={administrationFilterOptions}
-          value={administrationFilter}
-          onChange={setAdministrationFilter}
-          getId={(option) => option.id}
-          getLabel={(option) => option.label}
-          allowClear={false}
-        />
+      <div className="mt-4 flex flex-wrap gap-3">
+        <div className="w-full max-w-xs">
+          <SearchableSelect
+            items={companyFilterOptions}
+            value={companyFilter}
+            onChange={changeCompany}
+            getId={(option) => option.id}
+            getLabel={(option) => option.label}
+            allowClear={false}
+          />
+        </div>
+        <div className="w-full max-w-xs">
+          <SearchableSelect
+            items={administrationFilterOptions}
+            value={administrationFilter}
+            onChange={setAdministrationFilter}
+            getId={(option) => option.id}
+            getLabel={(option) => option.label}
+            allowClear={false}
+          />
+        </div>
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-surface">
