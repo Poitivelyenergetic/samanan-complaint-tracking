@@ -10,7 +10,7 @@ import { auth } from "@/lib/firebase";
 import { Link, useRouter } from "@/i18n/navigation";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import LoginCharacters from "@/components/LoginCharacters";
-import SamnanPumpSpinner from "@/components/SamnanPumpSpinner";
+import ProductShowcase, { PumpOnly } from "@/components/ProductShowcase";
 import { IconEye, IconEyeOff } from "@/components/icons";
 import { localizedName } from "@/lib/types";
 
@@ -314,7 +314,7 @@ export default function StaffLoginPage() {
           className="login-phone-pump mx-auto mt-2 min-h-0 w-full max-w-sm basis-28 transition-opacity duration-300 ease-out md:hidden"
           style={{ opacity: formCleared ? 0 : 1 }}
         >
-          <SamnanPumpSpinner className="h-full w-full cursor-grab animate-pump-enter" />
+          <PumpOnly className="h-full w-full cursor-grab animate-pump-enter" />
         </div>
 
         {/* Beat 4's payoff — a personalized greeting once the pull has
@@ -332,10 +332,14 @@ export default function StaffLoginPage() {
       {/* Illustration — static, always its own half of the screen. The
           login form (above, in z-order) grows over it during the reveal. */}
       <div className="relative hidden h-full items-end justify-end overflow-hidden bg-[#eef1f8] pe-24 md:flex md:w-1/2">
-        {/* The drag-to-rotate 360° pump, big in the open space above the
-            characters. Sized off the viewport height so it always clears the
-            tallest character (purple, up to 440px, stretching when typing). */}
-        <SamnanPumpSpinner className="absolute left-1/2 top-[5vh] z-10 h-[36vh] max-h-[400px] w-[48vh] max-w-[90%] -translate-x-1/2 cursor-grab animate-pump-enter" />
+        {/* Samnan's products in live 3D: one big in the open space above the
+            characters (sized off the viewport height so it always clears the
+            tallest character — purple, up to 440px, stretching when typing),
+            the other three stacked small in the outer top corner. */}
+        <ProductShowcase
+          mainClassName="absolute left-1/2 top-[5vh] z-10 h-[36vh] max-h-[400px] w-[48vh] max-w-[90%] -translate-x-1/2 cursor-grab animate-pump-enter"
+          stackClassName="absolute start-6 top-6 z-20 flex flex-col gap-3"
+        />
         <LoginCharacters
           isTyping={isTyping}
           showPassword={showPassword}

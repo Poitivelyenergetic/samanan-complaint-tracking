@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The 3D product viewer, maintained as-is from the product graphics
+    // project rather than edited here.
+    "src/lib/samnan-3d.js",
   ]),
 ]);
 
