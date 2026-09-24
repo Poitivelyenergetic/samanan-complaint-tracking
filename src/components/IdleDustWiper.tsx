@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { useIdleTimer } from "@/hooks/useIdleTimer";
 import { crewCards, type CardJob } from "@/lib/crewCards";
 import { LOGIN_CHARACTER_COLORS } from "./LoginCharacters";
 
@@ -85,7 +84,11 @@ type Quirk =
   // Only ever part of a fall on the stairs, never picked at random.
   | "teeter"
   | "dazed"
-  | "phew";
+  | "phew"
+  // Only when they're caught at it (see panic).
+  | "startle"
+  | "bonk"
+  | "shove";
 type CheerStyle = "nod" | "wave" | "bow" | "jump";
 
 interface Vec {
@@ -174,6 +177,9 @@ const QUIRK_MS: Record<Quirk, number> = {
   teeter: 900,
   dazed: 2100,
   phew: 1000,
+  startle: 650,
+  bonk: 650,
+  shove: 600,
 };
 
 // Face layout, shared by Face itself and by the scripts working out where
@@ -215,8 +221,12 @@ type Step =
       away?: boolean;
       /** Which way to face on arriving, if not the way they walked. */
       face?: 1 | -1;
+      /** Fleeing in terror, arms flying (see panic)... */
+      panic?: boolean;
+      /** ...or clutching the thing they went back for. */
+      holding?: boolean;
     }
-  | { kind: "fall"; at: number; ms: number; x: number; y: number }
+  | { kind: "fall"; at: number; ms: number; x: number; y: number; panic?: boolean }
   | { kind: "dangle"; at: number; ms: number; x: number; y: number }
   | { kind: "work"; at: number; ms: number; activity: Activity; look: Vec }
   | { kind: "inspect"; at: number; ms: number; look: Vec }
@@ -227,6 +237,8 @@ type Step =
       ms: number;
       /** Steadying themselves on a step of the stairs — still facing into them if climbing. */
       steady?: { away: boolean };
+      /** Running on the spot in terror (see panic). */
+      panic?: boolean;
     }
   | { kind: "cheer"; at: number; ms: number }
   | { kind: "pull"; at: number; ms: number }
@@ -516,6 +528,10 @@ interface FloorActor {
   entryX: number;
   steps: Step[];
   endAt: number;
+  /** Starting somewhere other than off the edge of the floor (see panic). */
+  entryY?: number;
+  entryTread?: number;
+  entryFacing?: 1 | -1;
 }
 
 function hopTo(steps: Step[], from: number, to: number, t: number, vw: number, face?: 1 | -1) {
@@ -782,6 +798,8 @@ interface GondolaActor {
   endAt: number;
   riderQuirks: Partial<Record<string, RiderQuirk>>;
   riderLooks: Partial<Record<string, Vec>>;
+  /** Starting partway down the glass rather than above the screen (see panic). */
+  entryTop?: string;
 }
 
 const GONDOLA_WIDTH = 240;
@@ -1131,13 +1149,17 @@ function useActiveWindow(at: number | null, ms: number) {
 // they're facing — the way they last walked — and which step of the
 // stairs, if any, they're standing on (`tread`, and the last one they
 // stood on, `lastTread`).
-function positionAt(steps: Step[], index: number, entry: { x: number; top?: string }) {
+function positionAt(
+  steps: Step[],
+  index: number,
+  entry: { x: number; top?: string; y?: number; tread?: number; facing?: 1 | -1 }
+) {
   let x = entry.x;
-  let y = 0;
+  let y = entry.y ?? 0;
   let top = entry.top;
-  let facing: 1 | -1 = entry.x > 50 ? -1 : 1;
-  let tread: number | undefined;
-  let lastTread = 0;
+  let facing: 1 | -1 = entry.facing ?? (entry.x > 50 ? -1 : 1);
+  let tread: number | undefined = entry.tread || undefined;
+  let lastTread = entry.tread ?? 0;
   for (let i = 0; i <= index && i < steps.length; i++) {
     const s = steps[i];
     if (s.kind === "walk") {
@@ -1750,7 +1772,17 @@ function QuirkOverlay({ character, quirk, facing }: { character: Character; quir
       </>
     );
   }
-  if (quirk === "slip" || quirk === "dazed") {
+  if (quirk === "startle") {
+    return (
+      <div
+        className="crew-pop absolute flex items-center justify-center rounded-full bg-white text-lg font-black text-[#e0564f] shadow-md"
+        style={{ left: width / 2 - 15, top: -46, width: 30, height: 30 }}
+      >
+        <span style={unmirror}>!</span>
+      </div>
+    );
+  }
+  if (quirk === "slip" || quirk === "dazed" || quirk === "bonk") {
     return (
       <div className="absolute" style={{ left: width / 2 - 22, top: -26, width: 44, height: 20 }}>
         <div className="crew-orbit relative h-full w-full">
@@ -1829,6 +1861,15 @@ function quirkPose(quirk: Quirk, facing: 1 | -1): Pose {
       return { ...base, expression: "dizzy", bodyClass: "crew-dazed", bucketDown: false };
     case "phew":
       return { ...base, mode: "brow", expression: "content", bodyClass: "crew-nod", bucketDown: false };
+    // Caught at it: a jump, arms flying.
+    case "startle":
+      return { ...base, mode: "flail", expression: "shock", bodyClass: "crew-startle", bucketDown: false };
+    // Knocked flat (by a tumble or a collision): up again fast, seeing stars.
+    case "bonk":
+      return { ...base, mode: "none", expression: "dizzy", bodyClass: "crew-bonk", bucketDown: false };
+    // Heaving a broken piece back where it goes before running for it.
+    case "shove":
+      return { ...base, mode: "raise", expression: "squeeze", bodyClass: "crew-nod", bucketDown: false };
   }
 }
 
@@ -1837,6 +1878,18 @@ function poseFor(step: Step | undefined, cheerStyle: CheerStyle, facing: 1 | -1,
   if (!step) return { ...base, bucketDown: false };
   switch (step.kind) {
     case "walk":
+      if (step.panic) {
+        return {
+          ...base,
+          mode: step.holding ? "carry" : "flail",
+          expression: "shock",
+          bodyClass: "",
+          hopMs: step.hopMs ?? RUN_HOP_MS,
+          run: true,
+          lean: -10,
+          bucketDown: false,
+        };
+      }
       return {
         ...base,
         expression: "walk",
@@ -1867,8 +1920,9 @@ function poseFor(step: Step | undefined, cheerStyle: CheerStyle, facing: 1 | -1,
     case "quirk":
       return quirkPose(step.quirk, facing);
     case "fall":
-      // Tumbling off backwards, over and over, landing flat on their back.
-      return { ...base, expression: "shock", bodyClass: "crew-tumble", bucketDown: false };
+      // Tumbling off backwards, over and over, landing flat on their back —
+      // having dropped everything, if they're running for it.
+      return { ...base, mode: step.panic ? "flail" : base.mode, expression: "shock", bodyClass: "crew-tumble", bucketDown: false };
     case "dangle":
       // Swinging from their hands on the rail, then kicking to get back up.
       return { ...base, mode: "hang", expression: "squeeze", bodyClass: "crew-dangle", bucketDown: false, bodyOrigin: "50% -6px" };
@@ -1876,6 +1930,7 @@ function poseFor(step: Step | undefined, cheerStyle: CheerStyle, facing: 1 | -1,
       // Steadying themselves on a step — bucket still in hand, and still
       // facing into the stairs if they're on the way up.
       if (step.steady) return { ...base, bucketDown: false, back: step.steady.away };
+      if (step.panic) return { ...base, mode: "flail", expression: "shock", bodyClass: "", hopMs: PANIC_HOP_MS, run: true, bucketDown: false };
       return base;
     case "pull":
       return { ...base, mode: "none", expression: "focus", bodyClass: "crew-pull" };
@@ -1983,7 +2038,12 @@ function FloorWorker({ actor, cheerStyle, moonwalk }: { actor: FloorActor; cheer
   const index = useStepIndex(actor.steps);
   const step = actor.steps[index];
   if (step?.kind === "gone" || step?.kind === "aboard") return null;
-  const { x, y, facing, tread, lastTread } = positionAt(actor.steps, index, { x: actor.entryX });
+  const { x, y, facing, tread, lastTread } = positionAt(actor.steps, index, {
+    x: actor.entryX,
+    y: actor.entryY,
+    tread: actor.entryTread,
+    facing: actor.entryFacing,
+  });
   const isLeaving = step?.kind === "walk" && index === actor.steps.length - 2;
   // Walking: linear, so the ground covered keeps pace with the hops.
   // Falling (or dropping onto the rail): gathering speed as they go down.
@@ -1998,7 +2058,13 @@ function FloorWorker({ actor, cheerStyle, moonwalk }: { actor: FloorActor; cheer
   // its posts would otherwise cut right across them.
   const onFloor = !tread && step?.kind !== "fall" && step?.kind !== "dangle";
   return (
-    <div className="absolute" style={{ left: `${x}%`, bottom: FLOOR + y, zIndex: onFloor ? 5 : 3, transition: travel }}>
+    <div
+      className="absolute"
+      data-crew-actor={actor.character.name}
+      data-crew-tread={tread ?? 0}
+      data-crew-facing={facing}
+      style={{ left: `${x}%`, bottom: FLOOR + y, zIndex: onFloor ? 5 : 3, transition: travel }}
+    >
       {/* Riding the bob of the step they're on. The bob runs from the start
           of the round, like the steps' own, so it only ever gets switched to
           the right step's timing and faded in or out — never restarted. */}
@@ -2024,16 +2090,21 @@ function GondolaRider({
   quirk,
   look,
   cheerStyle,
+  panic = false,
 }: {
   character: Character;
   step: Step | undefined;
   quirk: RiderQuirk | undefined;
   look: Vec;
   cheerStyle: CheerStyle;
+  panic?: boolean;
 }) {
   const quirkActive = useActiveWindow(quirk ? quirk.at : null, quirk ? quirk.ms : 0);
   let pose: Pose;
-  if (quirkActive && quirk && step?.kind === "work") {
+  if (panic) {
+    // Caught at it, and being hauled away up the glass.
+    pose = { ...BASE_POSE, mode: "flail", expression: "shock", bodyClass: "crew-startle" };
+  } else if (quirkActive && quirk && step?.kind === "work") {
     pose = quirkPose(quirk.quirk, 1);
   } else if (step?.kind === "walk") {
     // Riding, not walking — just enjoying the view.
@@ -2059,15 +2130,17 @@ function GondolaRider({
   );
 }
 
-function Gondola({ actor, cheerStyle }: { actor: GondolaActor; cheerStyle: CheerStyle }) {
+function Gondola({ actor, cheerStyle, panic = false }: { actor: GondolaActor; cheerStyle: CheerStyle; panic?: boolean }) {
   const index = useStepIndex(actor.steps);
   const step = actor.steps[index];
   if (step?.kind === "gone") return null;
-  const { x, top } = positionAt(actor.steps, index, { x: actor.entryX, top: GONDOLA_OFFSCREEN });
-  const ease = "cubic-bezier(0.45, 0.05, 0.4, 1)";
+  const { x, top } = positionAt(actor.steps, index, { x: actor.entryX, top: actor.entryTop ?? GONDOLA_OFFSCREEN });
+  // Yanked up and away when they're caught, rather than eased.
+  const ease = panic ? "cubic-bezier(0.55, 0, 1, 0.45)" : "cubic-bezier(0.45, 0.05, 0.4, 1)";
   return (
     <div
       className="absolute"
+      data-crew-gondola
       style={{
         left: `${x}%`,
         top,
@@ -2091,6 +2164,7 @@ function Gondola({ actor, cheerStyle }: { actor: GondolaActor; cheerStyle: Cheer
               quirk={actor.riderQuirks[c.name]}
               look={actor.riderLooks[c.name] ?? { x: 1, y: 0 }}
               cheerStyle={cheerStyle}
+              panic={panic}
             />
           ))}
         </div>
@@ -2392,6 +2466,9 @@ function LeverJob({ job, character, onGone }: { job: CardJob; character: Charact
       )}
       <div
         className="absolute"
+        data-crew-actor={character.name}
+        data-crew-tread={0}
+        data-crew-facing={facing}
         style={{
           left: `${x}%`,
           bottom: FLOOR,
@@ -3550,6 +3627,7 @@ function RepairRound({ plan, onDone }: { plan: RepairPlan; onDone: () => void })
         <div
           ref={standIn}
           className="absolute"
+          data-crew-standin
           style={{
             left: s.box.x,
             top: s.box.y,
@@ -3576,7 +3654,7 @@ function RepairRound({ plan, onDone }: { plan: RepairPlan; onDone: () => void })
       {/* The truck, and its crane: boom, then a hanger that keeps the cable
           hanging straight down, the cable, the hook — and for a crack, the
           welder's platform. */}
-      <div ref={truck} className="absolute" style={{ left: t.left, bottom: FLOOR - 2, width: TRUCK_W, height: TRUCK_H, zIndex: 2 }}>
+      <div ref={truck} className="absolute" data-crew-truck style={{ left: t.left, bottom: FLOOR - 2, width: TRUCK_W, height: TRUCK_H, zIndex: 2 }}>
         <div className="absolute inset-0" style={{ transform: t.dir === -1 ? "scaleX(-1)" : undefined }}>
           <TruckBody wheels={(el) => el && !wheels.current.includes(el) && wheels.current.push(el)} />
           <div
@@ -3606,7 +3684,12 @@ function RepairRound({ plan, onDone }: { plan: RepairPlan; onDone: () => void })
                       <path d={`M46,0 L6,${PLATFORM_HANG} M46,0 L86,${PLATFORM_HANG}`} stroke="#6b7280" strokeWidth="2" />
                       <rect x="0" y={PLATFORM_HANG - 2} width="92" height="8" rx="2" fill="#6b7280" />
                     </svg>
-                    <div ref={rider} className="absolute" style={{ left: -BUILDERS.welder.width / 2, top: PLATFORM_HANG - 2 - BUILDERS.welder.height, opacity: 0 }}>
+                    <div
+                      ref={rider}
+                      className="absolute"
+                      data-crew-rider={BUILDERS.welder.name}
+                      style={{ left: -BUILDERS.welder.width / 2, top: PLATFORM_HANG - 2 - BUILDERS.welder.height, opacity: 0 }}
+                    >
                       <Figure character={BUILDERS.welder} pose={{ ...BASE_POSE, mode: "weld", expression: "focus", bodyClass: "", bucketDown: false }} />
                     </div>
                   </div>
@@ -3682,6 +3765,435 @@ function RepairRound({ plan, onDone }: { plan: RepairPlan; onDone: () => void })
   );
 }
 
+// ============================================================ caught
+
+// They're not supposed to be seen. Move the mouse while they're out and
+// it's a stampede: everyone jumps out of their skin, anyone up the stairs
+// or on the crane jumps down, a couple of them run smack into each other,
+// the rest dash the wrong way first — and within six seconds they're all
+// gone, the stairs yanked up, the gondola hauled away, the truck floored
+// off the screen. A builder in the middle of a repair heaves the broken
+// piece back where it goes before running for it.
+
+const PANIC_MS = 6000;
+const PANIC_HOP_MS = 180;
+const PANIC_PX_PER_S = 560;
+// Off the screen by then, with a moment to spare.
+const PANIC_OUT_BY = PANIC_MS - 300;
+const PANIC_LEFT = -14;
+const PANIC_RIGHT = 114;
+// When the broken piece flies back into place.
+const SHOVE_AT = 750;
+const SHOVE_MS = 420;
+
+interface CaughtCrew {
+  character: Character;
+  /** px from the left, and up off the floor. */
+  x: number;
+  y: number;
+  tread: number;
+  facing: 1 | -1;
+}
+
+interface Caught {
+  crew: CaughtCrew[];
+  stairs: Stairs | null;
+  gondola: { x: number; top: number; riders: Character[] } | null;
+  truck: { left: number; dir: 1 | -1 } | null;
+  /** A repair under way: the real thing, how it's tilted, and a copy of the piece if it's off being carried about. */
+  shove: { target: HTMLElement | SVGElement; copy: HTMLElement | null; tilt: string } | null;
+  dust: DustSpeck[];
+}
+
+const crewByName = (name: string): Character | undefined =>
+  (CHARACTERS as Record<string, Character>)[name] ?? (BUILDERS as Record<string, Character>)[name];
+
+// Where everything is the moment they're caught — read straight off the
+// screen, since they're mid-hop, mid-swing, mid-drive. `elapsed` is how far
+// into the round it is.
+function catchThem(layer: HTMLElement, plan: RoundPlan | RepairPlan | null, elapsed: number): Caught {
+  const vw = layer.clientWidth;
+  const vh = layer.clientHeight;
+  const crew: CaughtCrew[] = [];
+  layer.querySelectorAll<HTMLElement>("[data-crew-actor]").forEach((el) => {
+    const character = crewByName(el.dataset.crewActor ?? "");
+    if (!character) return;
+    const style = getComputedStyle(el);
+    crew.push({
+      character,
+      x: parseFloat(style.left),
+      y: Math.max(0, parseFloat(style.bottom) - FLOOR),
+      tread: Number(el.dataset.crewTread) || 0,
+      facing: el.dataset.crewFacing === "-1" ? -1 : 1,
+    });
+  });
+  // The welder, if they're up on the crane's platform.
+  layer.querySelectorAll<HTMLElement>("[data-crew-rider]").forEach((el) => {
+    const character = crewByName(el.dataset.crewRider ?? "");
+    if (!character || Number(getComputedStyle(el).opacity) < 0.5) return;
+    const r = el.getBoundingClientRect();
+    crew.push({ character, x: r.left + r.width / 2, y: Math.max(0, vh - r.bottom - FLOOR), tread: 0, facing: 1 });
+  });
+
+  let gondola: Caught["gondola"] = null;
+  const g = layer.querySelector<HTMLElement>("[data-crew-gondola]");
+  if (g && plan?.kind === "clean" && plan.gondola) {
+    const style = getComputedStyle(g);
+    const top = parseFloat(style.top);
+    if (top > parseFloat(GONDOLA_OFFSCREEN) + 60) gondola = { x: parseFloat(style.left), top, riders: plan.gondola.riders };
+  }
+
+  let truck: Caught["truck"] = null;
+  const tr = layer.querySelector<HTMLElement>("[data-crew-truck]");
+  if (tr && plan?.kind === "repair") {
+    const r = tr.getBoundingClientRect();
+    if (r.right > 0 && r.left < vw) truck = { left: r.left, dir: plan.truck.dir };
+  }
+
+  let shove: Caught["shove"] = null;
+  if (plan?.kind === "repair") {
+    const standIn = layer.querySelector<HTMLElement>("[data-crew-standin]");
+    let copy: HTMLElement | null = null;
+    if (standIn && Number(getComputedStyle(standIn).opacity) > 0.1) {
+      copy = standIn.cloneNode(true) as HTMLElement;
+      copy.removeAttribute("data-crew-standin");
+      copy.style.transform = getComputedStyle(standIn).transform;
+      copy.style.opacity = "1";
+    }
+    const target = plan.target as HTMLElement | SVGElement;
+    shove = { target, copy, tilt: getComputedStyle(target).transform };
+  }
+
+  const stairs = plan?.kind === "clean" && plan.stairs && elapsed < plan.stairs.outAt ? plan.stairs : null;
+  // The mess they were in the middle of: left where it is.
+  const specks = plan?.kind === "clean" ? plan.dust : plan?.kind === "repair" ? plan.debris : [];
+  const dust = specks
+    .filter((d) => !d.tread && d.appearAt <= elapsed && !(d.clearAt <= elapsed))
+    .map((d) => ({ ...d, appearAt: -1000, wetAt: null, clearAt: Number.POSITIVE_INFINITY }));
+
+  return { crew, stairs, gondola, truck, shove, dust };
+}
+
+// A mad dash of `distPct` % of the screen: short frantic hops, a whole
+// number of them.
+function dashMs(distPct: number, vw: number) {
+  const px = (Math.abs(distPct) / 100) * vw;
+  return Math.max(1, Math.round(((px / PANIC_PX_PER_S) * 1000) / PANIC_HOP_MS)) * PANIC_HOP_MS;
+}
+
+interface Stampede {
+  floor: FloorActor[];
+  gondola: GondolaActor | null;
+  stairs: Stairs | null;
+  /** What they dropped where (px), from when, and — for the one who comes back for it — until when. */
+  drops: { character: Character; x: number; at: number; until: number | null }[];
+}
+
+function planStampede(caught: Caught, vw: number): Stampede {
+  const pct = (px: number) => (px / vw) * 100;
+  // Anyone still off the screen when they're caught just stays that way.
+  const onScreen = caught.crew.filter((c) => c.x > -c.character.width / 2 && c.x < vw + c.character.width / 2);
+  const runners = onScreen.map((c) => ({
+    c,
+    steps: [] as Step[],
+    t: 0,
+    x: pct(c.x),
+    exit: null as number | null,
+    bumped: false,
+    drop: null as Stampede["drops"][number] | null,
+  }));
+  type Runner = (typeof runners)[number];
+  const dash = (m: Runner, to: number, ms: number, holding = false) => {
+    const hops = Math.max(1, Math.round(ms / PANIC_HOP_MS));
+    m.steps.push({ kind: "walk", at: m.t, ms, x: to, hopMs: ms / hops, panic: true, holding });
+    m.t += ms;
+    m.x = to;
+  };
+  const waitTill = (m: Runner, at: number, panic = true) => {
+    if (at > m.t) m.steps.push({ kind: "wait", at: m.t, ms: at - m.t, panic });
+    m.t = Math.max(m.t, at);
+  };
+  const flat = (m: Runner, x: number) => {
+    m.steps.push({ kind: "fall", at: m.t, ms: FALL_DROP_MS, x, y: 0, panic: true });
+    m.t += FALL_DROP_MS;
+    m.x = x;
+    m.steps.push({ kind: "quirk", at: m.t, ms: QUIRK_MS.bonk, quirk: "bonk" });
+    m.t += QUIRK_MS.bonk;
+  };
+  const nearestEdge = (x: number) => (x < 50 ? PANIC_LEFT : PANIC_RIGHT);
+
+  // Everyone jumps out of their skin, not quite all at once — and the
+  // cleaners on the floor drop whatever they're holding.
+  for (const m of runners) {
+    waitTill(m, Math.round(Math.random() * 160), false);
+    if (m.c.y <= 4 && !m.c.character.vest) m.drop = { character: m.c.character, x: m.c.x, at: m.t + 120, until: null };
+    m.steps.push({ kind: "quirk", at: m.t, ms: QUIRK_MS.startle, quirk: "startle" });
+    m.t += QUIRK_MS.startle;
+    // The foreman heaves the broken piece back into place.
+    if (caught.shove && m.c.character.name === "foreman") {
+      m.steps.push({ kind: "quirk", at: m.t, ms: QUIRK_MS.shove, quirk: "shove" });
+      m.t += QUIRK_MS.shove;
+    }
+    // Anyone up the stairs or on the crane jumps for it, and lands in a heap.
+    if (m.c.y > 4) flat(m, m.x);
+  }
+
+  // Neighbours running for it run smack into each other (mostly), bounce
+  // off, and flee opposite ways.
+  const byX = [...runners].sort((a, b) => a.x - b.x);
+  for (let i = 0; i + 1 < byX.length; i += 2) {
+    const [a, b] = [byX[i], byX[i + 1]];
+    if (Math.random() < 0.25 || b.x - a.x > 40) continue;
+    const meet = (a.x + b.x) / 2;
+    const aStop = meet - pct(a.c.character.width / 2);
+    const bStop = meet + pct(b.c.character.width / 2);
+    const start = Math.max(a.t, b.t);
+    const ms = Math.max(dashMs(aStop - a.x, vw), dashMs(b.x - bStop, vw));
+    for (const [m, stop, back] of [
+      [a, aStop, -1],
+      [b, bStop, 1],
+    ] as const) {
+      waitTill(m, start);
+      dash(m, stop, ms);
+      flat(m, stop + back * 3);
+      m.exit = back === -1 ? PANIC_LEFT : PANIC_RIGHT;
+      m.bumped = true;
+    }
+  }
+
+  // One of them gets clear away... then realises what they left behind,
+  // and dashes back for it — the mop bucket, if it's here.
+  const forgetful = runners
+    .filter((m) => m.drop && !m.bumped)
+    .sort((a, b) => Number(b.c.character.name === "orange") - Number(a.c.character.name === "orange"))[0];
+  const left = forgetful?.drop;
+  if (forgetful && left) {
+    const m = forgetful;
+    const exit = nearestEdge(m.x);
+    const out = dashMs(exit - m.x, vw);
+    const back = dashMs(exit - pct(left.x), vw);
+    const total = out + 350 + back + 350 + back;
+    if (m.t + total <= PANIC_OUT_BY) {
+      dash(m, exit, out);
+      waitTill(m, m.t + 350);
+      dash(m, pct(left.x), back);
+      m.steps.push({ kind: "pull", at: m.t, ms: 350 });
+      m.t += 350;
+      left.until = m.t - 150;
+      dash(m, exit, back, true);
+      m.exit = exit;
+      m.steps.push({ kind: "gone", at: m.t, ms: 0 });
+    }
+  }
+
+  for (const m of runners) {
+    if (m.steps[m.steps.length - 1]?.kind === "gone") continue;
+    const exit = m.exit ?? nearestEdge(m.x);
+    // The rest run round in circles — this way, that way — for as long as
+    // there's time, before finally bolting.
+    if (!m.bumped) {
+      let dir = exit === PANIC_LEFT ? 1 : -1;
+      for (let leg = 0; leg < 3; leg++) {
+        const to = clamp(m.x + dir * (8 + Math.random() * 12), 3, 97);
+        const ms = dashMs(to - m.x, vw);
+        if (m.t + ms + dashMs(exit - to, vw) > PANIC_OUT_BY - 400) break;
+        dash(m, to, ms);
+        dir = -dir;
+      }
+    }
+    // And off the screen, as fast as it takes to be gone in time.
+    dash(m, exit, clamp(dashMs(exit - m.x, vw), 400, Math.max(400, PANIC_OUT_BY - m.t)));
+    m.steps.push({ kind: "gone", at: m.t, ms: 0 });
+  }
+
+  const floor: FloorActor[] = runners.map((m) => ({
+    character: m.c.character,
+    entryX: pct(m.c.x),
+    entryY: m.c.y,
+    entryTread: m.c.tread,
+    entryFacing: m.c.facing,
+    steps: m.steps,
+    endAt: m.t,
+  }));
+
+  // The gondola gets hauled up the glass with them flailing on it.
+  const g = caught.gondola;
+  const gondola: GondolaActor | null = g && {
+    riders: g.riders,
+    entryX: pct(g.x),
+    entryTop: `${g.top}px`,
+    steps: [
+      { kind: "wait", at: 0, ms: 500 },
+      { kind: "walk", at: 500, ms: 1300, x: pct(g.x), top: GONDOLA_OFFSCREEN },
+      { kind: "gone", at: 1800, ms: 0 },
+    ],
+    endAt: 1800,
+    riderQuirks: {},
+    riderLooks: {},
+  };
+
+  // The stairs, already standing, yanked up as soon as they're off them.
+  const stairs = caught.stairs && { ...caught.stairs, inAt: -60_000, outAt: 1100 };
+  const drops = runners.flatMap((m) => (m.drop ? [m.drop] : []));
+  return { floor, gondola, stairs, drops };
+}
+
+// Whatever they dropped as they ran: a bucket on its side and the mop, or
+// a spray bottle, or a cloth, lying on the floor.
+function Dropped({ drop }: { drop: Stampede["drops"][number] }) {
+  const tool = drop.character.stage1;
+  const shows = [`crew-fade-in 120ms ease-out ${drop.at}ms both`];
+  if (drop.until !== null) shows.push(`crew-fade-out 80ms linear ${drop.until}ms forwards`);
+  return (
+    <div className="absolute" style={{ left: drop.x, bottom: FLOOR - 2, zIndex: 4, animation: shows.join(", ") }}>
+      {tool === "dunk" || tool === "mopFloor" ? (
+        <>
+          {/* The mop lying flat, its head up against the bucket. */}
+          <div className="absolute" style={{ left: -88, bottom: -33, transform: "rotate(-90deg)" }}>
+            <Mop />
+          </div>
+          <div className="absolute" style={{ left: 4, bottom: -4, transform: "rotate(92deg)", transformOrigin: "50% 50%" }}>
+            <Bucket />
+          </div>
+          <div
+            className="absolute rounded-full"
+            style={{ left: 30, bottom: -3, width: 46, height: 8, background: "rgba(124, 199, 240, 0.55)" }}
+          />
+        </>
+      ) : (
+        <div className="absolute" style={{ left: -18, bottom: -8, transform: "rotate(-90deg)" }}>
+          {tool === "spray" ? <SprayBottle /> : <Cloth />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// The crane truck, boom slammed down, floored off the screen the way it's
+// pointing.
+function RunawayTruck({ truck }: { truck: { left: number; dir: 1 | -1 } }) {
+  const body = useRef<HTMLDivElement>(null);
+  const wheels = useRef<SVGGElement[]>([]);
+  useEffect(() => {
+    const vw = window.innerWidth;
+    const off = truck.dir === 1 ? vw - truck.left + 60 : -(truck.left + TRUCK_W + 60);
+    const timing = { delay: 700, duration: 1700, fill: "both" as const };
+    const anims = [
+      body.current?.animate([{ transform: "translateX(0px)" }, { transform: `translateX(${off}px)` }], {
+        ...timing,
+        easing: "cubic-bezier(0.5, 0, 0.9, 0.6)",
+      }),
+      ...wheels.current.map((w) =>
+        w.animate([{ transform: "rotate(0deg)" }, { transform: "rotate(1800deg)" }], { ...timing, easing: "ease-in" })
+      ),
+    ];
+    return () => anims.forEach((a) => a?.cancel());
+  }, [truck]);
+  return (
+    <div ref={body} className="absolute" style={{ left: truck.left, bottom: FLOOR - 2, width: TRUCK_W, height: TRUCK_H, zIndex: 2 }}>
+      <div className="absolute inset-0" style={{ transform: truck.dir === -1 ? "scaleX(-1)" : undefined }}>
+        <TruckBody wheels={(el) => el && !wheels.current.includes(el) && wheels.current.push(el)} />
+        <div
+          className="absolute"
+          style={{
+            left: PIVOT_X,
+            top: TRUCK_H - PIVOT_UP - 6,
+            width: STOWED_BOOM,
+            height: 12,
+            transformOrigin: "0% 50%",
+            transform: `rotate(${-STOWED_ANGLE}deg)`,
+            borderRadius: 3,
+            border: "2px solid #c7871a",
+            background: "repeating-linear-gradient(45deg, #f2b632 0 6px, #d99a1c 6px 9px)",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// The broken piece heaved back where it goes: if it's off being carried
+// about, its copy flies back up into place and only then is the real thing
+// there again; if it's still in place but sagging or tilted, it's shoved
+// straight. Either way it lands with a jolt. Gives back how to undo it all.
+function shoveBack(shove: NonNullable<Caught["shove"]>, holder: HTMLElement): () => void {
+  const { target, copy, tilt } = shove;
+  const jolt = () =>
+    target.animate(
+      [{ transform: "translateY(-7px)" }, { transform: "translateY(2px)", offset: 0.55 }, { transform: "none" }],
+      { duration: 360, easing: "ease-out" }
+    );
+  if (copy) {
+    holder.appendChild(copy);
+    const shown = target.style.visibility;
+    target.style.visibility = "hidden";
+    const fly = copy.animate([{ transform: copy.style.transform }, { transform: "none" }], {
+      delay: SHOVE_AT,
+      duration: SHOVE_MS,
+      easing: "cubic-bezier(0.55, 0, 0.8, 0.4)",
+      fill: "both",
+    });
+    let landed = false;
+    const land = () => {
+      if (landed) return;
+      landed = true;
+      copy.remove();
+      target.style.visibility = shown;
+      jolt();
+    };
+    fly.onfinish = land;
+    return () => {
+      fly.cancel();
+      land();
+    };
+  }
+  const back = target.animate(
+    [{ transform: tilt }, { transform: tilt, offset: SHOVE_AT / (SHOVE_AT + SHOVE_MS) }, { transform: "none" }],
+    { duration: SHOVE_AT + SHOVE_MS, easing: "ease-in", fill: "backwards" }
+  );
+  back.onfinish = () => jolt();
+  return () => back.cancel();
+}
+
+function CaughtScene({ caught, onDone }: { caught: Caught; onDone: () => void }) {
+  const [stampede] = useState(() => planStampede(caught, window.innerWidth));
+  // Where the broken piece goes back to, for the thud of it landing.
+  const [landing] = useState(() => (caught.shove ? boxOf(caught.shove.target) : null));
+  const holder = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const done = setTimeout(onDone, PANIC_MS);
+    const undo: (() => void)[] = [];
+    if (caught.shove && holder.current) undo.push(shoveBack(caught.shove, holder.current));
+    return () => {
+      clearTimeout(done);
+      undo.forEach((u) => u());
+    };
+  }, [caught, onDone]);
+
+  return (
+    <>
+      {stampede.stairs && <StairFlight stairs={stampede.stairs} />}
+      {/* The mess they didn't get to, fading once they're gone. */}
+      <div style={{ animation: `crew-fade-out 600ms ease-in ${PANIC_MS - 900}ms forwards` }}>
+        {caught.dust.map((speck, i) => (
+          <Dust key={i} speck={speck} />
+        ))}
+      </div>
+      {caught.truck && <RunawayTruck truck={caught.truck} />}
+      {stampede.gondola && <Gondola actor={stampede.gondola} cheerStyle="nod" panic />}
+      <div ref={holder} className="absolute inset-0" style={{ zIndex: 2 }} />
+      {stampede.drops.map((drop, i) => (
+        <Dropped key={i} drop={drop} />
+      ))}
+      {landing && <Puff x={landing.x + landing.w / 2} y={landing.y + landing.h} at={SHOVE_AT + SHOVE_MS - 60} big />}
+      {stampede.floor.map((actor) => (
+        <FloorWorker key={actor.character.name} actor={actor} cheerStyle="nod" moonwalk={false} />
+      ))}
+    </>
+  );
+}
+
 // ============================================================ scene
 
 function CleaningRound({ plan, onDone }: { plan: RoundPlan; onDone: () => void }) {
@@ -3717,6 +4229,8 @@ interface SceneState {
   round: number;
   plan: RoundPlan | RepairPlan;
   assignments: Assignment[];
+  /** Their shift's done: no more rounds, just any errands to finish before they go. */
+  over: boolean;
 }
 
 // The next round: usually an ordinary clean; now and then something breaks
@@ -3751,8 +4265,42 @@ function assignJobs(assignments: Assignment[], cast: Name[]): Assignment[] {
   return next;
 }
 
-function CleaningScene() {
-  const [state, setState] = useState<SceneState>(() => ({ round: 0, plan: nextPlan([], null), assignments: [] }));
+// How long they stay each time they turn up — it varies: sometimes just
+// the one job (a clean, or a repair and the clean-up after it), sometimes a
+// couple of minutes' worth, sometimes five. Then they're off, and the next
+// lot turn up a minute later if the screen's still left alone.
+type Shift = { kind: "one" } | { kind: "timed"; ms: number };
+const SHORT_SHIFT_MS = 120_000;
+const LONG_SHIFT_MS = 300_000;
+const BREAK_MS = 60_000;
+
+function pickShift(): Shift {
+  const pick = weightedPick<"one" | "short" | "long">([
+    ["one", 1],
+    ["short", 1],
+    ["long", 1],
+  ]);
+  return pick === "one" ? { kind: "one" } : { kind: "timed", ms: pick === "short" ? SHORT_SHIFT_MS : LONG_SHIFT_MS };
+}
+
+function CleaningScene({
+  shift,
+  onShiftOver,
+  onRound,
+}: {
+  shift: Shift;
+  onShiftOver: () => void;
+  /** Each round as it starts (null once they're done), for if they get caught. */
+  onRound: (plan: RoundPlan | RepairPlan | null) => void;
+}) {
+  const [state, setState] = useState<SceneState>(() => ({ round: 0, plan: nextPlan([], null), assignments: [], over: false }));
+  const arrivedAt = useRef(0);
+  useEffect(() => {
+    arrivedAt.current = performance.now();
+  }, []);
+  useEffect(() => {
+    onRound(state.over ? null : state.plan);
+  }, [state.plan, state.over, onRound]);
 
   // New card update while they're here -> send someone for the lever.
   useEffect(
@@ -3767,25 +4315,39 @@ function CleaningScene() {
   );
 
   const nextRound = useCallback(() => {
+    const shiftDone = shift.kind === "one" || performance.now() - arrivedAt.current >= shift.ms;
     setState((s) => {
       // Between rounds everyone's free, so waiting errands go first and the
       // next cleaning round is cast from whoever's left.
       const assignments = assignJobs(s.assignments, []);
-      return { round: s.round + 1, plan: nextPlan(assignments.map((a) => a.name), s.plan), assignments };
+      const exclude = assignments.map((a) => a.name);
+      if (shiftDone) {
+        // Time to go — though the builders' mess always gets cleaned up first.
+        const cleanup = s.plan.kind === "repair" ? planCleanup(exclude, s.plan.debris) : null;
+        if (!cleanup) return { ...s, assignments, over: true };
+        return { round: s.round + 1, plan: cleanup, assignments, over: false };
+      }
+      return { round: s.round + 1, plan: nextPlan(exclude, s.plan), assignments, over: false };
     });
-  }, []);
+  }, [shift]);
 
   const finishJob = useCallback((id: number) => {
     setState((s) => ({ ...s, assignments: s.assignments.filter((a) => a.job.id !== id) }));
   }, []);
 
+  // Gone once the last errand's done.
+  useEffect(() => {
+    if (state.over && state.assignments.length === 0) onShiftOver();
+  }, [state.over, state.assignments.length, onShiftOver]);
+
   return (
     <>
-      {state.plan.kind === "repair" ? (
-        <RepairRound key={state.round} plan={state.plan} onDone={nextRound} />
-      ) : (
-        <CleaningRound key={state.round} plan={state.plan} onDone={nextRound} />
-      )}
+      {!state.over &&
+        (state.plan.kind === "repair" ? (
+          <RepairRound key={state.round} plan={state.plan} onDone={nextRound} />
+        ) : (
+          <CleaningRound key={state.round} plan={state.plan} onDone={nextRound} />
+        ))}
       {state.assignments.map((a) => (
         <LeverJobSlot key={a.job.id} assignment={a} onFinish={finishJob} />
       ))}
@@ -3798,32 +4360,99 @@ function LeverJobSlot({ assignment, onFinish }: { assignment: Assignment; onFini
   return <LeverJob job={assignment.job} character={CHARACTERS[assignment.name]} onGone={onGone} />;
 }
 
+const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"] as const;
+
+// Nobody about; the crew out on a shift; between shifts; or caught, and
+// running for it.
+type Phase = "off" | "visit" | "break" | "caught";
+
 export default function IdleDustWiper() {
-  const isIdle = useIdleTimer(IDLE_MS);
   const reducedMotion = useSyncExternalStore(
     () => () => {},
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     () => true
   );
-  const onDuty = isIdle && !reducedMotion;
+  const [phase, setPhase] = useState<Phase>("off");
+  const [visit, setVisit] = useState<{ n: number; shift: Shift }>({ n: 0, shift: { kind: "one" } });
+  const [caught, setCaught] = useState<Caught | null>(null);
+  const layer = useRef<HTMLDivElement>(null);
+  // The phase right now, and the round on screen, for the activity listener.
+  const now = useRef<Phase>("off");
+  const round = useRef<{ plan: RoundPlan | RepairPlan | null; startedAt: number }>({ plan: null, startedAt: 0 });
+  const breakTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  // While the crew's on screen, stat cards hold their numbers for them to
-  // deliver (see crewCards); the moment someone's back, updates go straight
-  // through again.
+  const go = useCallback((next: Phase) => {
+    now.current = next;
+    setPhase(next);
+  }, []);
+  const startVisit = useCallback(() => {
+    // Never on top of a visit already going, or of one running for it.
+    if (now.current === "visit" || now.current === "caught") return;
+    setVisit((v) => ({ n: v.n + 1, shift: pickShift() }));
+    go("visit");
+  }, [go]);
+
+  // A minute without anyone touching anything and they turn up. Any
+  // movement while they're out and they've been caught.
   useEffect(() => {
-    crewCards.setOnDuty(onDuty);
-  }, [onDuty]);
+    if (reducedMotion) return;
+    let idle: ReturnType<typeof setTimeout> | undefined;
+    const arm = () => {
+      clearTimeout(idle);
+      idle = setTimeout(startVisit, IDLE_MS);
+    };
+    const onActivity = () => {
+      if (now.current === "visit" && layer.current) {
+        setCaught(catchThem(layer.current, round.current.plan, performance.now() - round.current.startedAt));
+        go("caught");
+      } else if (now.current === "break") {
+        clearTimeout(breakTimer.current);
+        go("off");
+      }
+      arm();
+    };
+    arm();
+    ACTIVITY_EVENTS.forEach((e) => window.addEventListener(e, onActivity, { passive: true }));
+    return () => {
+      clearTimeout(idle);
+      clearTimeout(breakTimer.current);
+      ACTIVITY_EVENTS.forEach((e) => window.removeEventListener(e, onActivity));
+    };
+  }, [reducedMotion, startVisit, go]);
+
+  const onShiftOver = useCallback(() => {
+    go("break");
+    clearTimeout(breakTimer.current);
+    breakTimer.current = setTimeout(startVisit, BREAK_MS);
+  }, [go, startVisit]);
+  const onCaughtDone = useCallback(() => {
+    setCaught(null);
+    go("off");
+  }, [go]);
+  const onRound = useCallback((plan: RoundPlan | RepairPlan | null) => {
+    round.current = { plan, startedAt: performance.now() };
+  }, []);
+
+  // While the crew's on shift, stat cards hold their numbers for them to
+  // deliver (see crewCards); otherwise updates go straight through.
+  useEffect(() => {
+    crewCards.setOnDuty(phase === "visit");
+  }, [phase]);
   useEffect(() => () => crewCards.setOnDuty(false), []);
 
-  if (!onDuty) return null;
+  if (phase === "off" || phase === "break") return null;
 
   // Portalled straight to <body> — PageTransition wraps every page's
   // content in a `transform`, which makes any `fixed` descendant of it
   // position relative to that wrapper instead of the viewport (a transformed
   // ancestor creates its own containing block for fixed elements).
   return createPortal(
-    <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
-      <CleaningScene />
+    <div ref={layer} className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
+      {phase === "visit" ? (
+        <CleaningScene key={visit.n} shift={visit.shift} onShiftOver={onShiftOver} onRound={onRound} />
+      ) : (
+        caught && <CaughtScene caught={caught} onDone={onCaughtDone} />
+      )}
     </div>,
     document.body
   );

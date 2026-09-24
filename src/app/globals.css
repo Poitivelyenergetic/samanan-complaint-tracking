@@ -694,6 +694,44 @@ body {
   }
 }
 
+/* Caught at it: a crouch and a jump straight up in fright. */
+@keyframes crew-startle {
+  0%,
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+  14% {
+    transform: translateY(0) scale(1.08, 0.9);
+  }
+  38%,
+  58% {
+    transform: translateY(-38px) scale(0.94, 1.08);
+  }
+  84% {
+    transform: translateY(0) scale(1.06, 0.94);
+  }
+}
+
+/* Flat on their back (where crew-tumble leaves them), and straight back up
+   again: no time to lie there. */
+@keyframes crew-bonk {
+  0% {
+    transform: translate(calc(var(--h) * 0.5), calc(var(--w) * -0.5)) rotate(-90deg);
+  }
+  12% {
+    transform: translate(calc(var(--h) * 0.5), calc(var(--w) * -0.5 - 8px)) rotate(-86deg);
+  }
+  30% {
+    transform: translate(calc(var(--h) * 0.5), calc(var(--w) * -0.5)) rotate(-90deg);
+  }
+  75% {
+    transform: translate(0, 0) rotate(8deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+}
+
 /* Hanging from the rail by their hands: the jolt of catching it swings
    them, it dies away, then they kick and wriggle to get back up. */
 @keyframes crew-dangle {
@@ -1151,6 +1189,12 @@ body {
   }
   .crew-dazed {
     animation: crew-dazed 2100ms ease-in-out both;
+  }
+  .crew-startle {
+    animation: crew-startle 650ms ease-out both;
+  }
+  .crew-bonk {
+    animation: crew-bonk 650ms ease-in-out both;
   }
   .crew-dangle {
     animation: crew-dangle 1900ms ease-in-out both;
