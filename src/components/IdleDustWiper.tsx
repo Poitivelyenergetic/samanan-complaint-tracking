@@ -988,6 +988,8 @@ interface GondolaActor {
   riderLooks: Partial<Record<string, Vec>>;
   /** Starting partway down the glass rather than above the screen (see panic). */
   entryTop?: string;
+  /** The profile picture, polished till it gleams — where (px), how big, and when. */
+  shine?: { x: number; y: number; size: number; at: number };
 }
 
 const GONDOLA_WIDTH = 240;
@@ -1021,6 +1023,69 @@ function buildGondolaScript(riders: Character[], startAt: number, specks: DustSp
     return { rider: r, center };
   });
   const riderLooks: Partial<Record<string, Vec>> = {};
+  let shine: GondolaActor["shine"];
+
+  // First, if it's up there on screen: the profile picture in the corner,
+  // dusted off and shined up by whoever's at that end of the platform.
+  const pfpEl = document.querySelector("[data-crew-pfp]");
+  const pfp = pfpEl ? boxOf(pfpEl) : null;
+  if (pfp && pfp.w > 0 && pfp.y + pfp.h > 0 && pfp.y < 160) {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const lead = riderSpots[riderSpots.length - 1];
+    const leadAhead = (lead.rider.width / 2 + 26) * GONDOLA_RIDER_SCALE;
+    const leadUp = (lead.rider.height * 0.55 + 24) * GONDOLA_RIDER_SCALE;
+    const cx = pfp.x + pfp.w / 2;
+    const cy = pfp.y + pfp.h / 2;
+    const gx = cx - lead.center - leadAhead;
+    const gTop = cy - tallest + leadUp;
+    const at = { x: (gx / vw) * 100, y: (gTop / vh) * 100 };
+    steps.push({ kind: "walk", at: t, ms: 2600, x: at.x, top: `${gTop.toFixed(1)}px` });
+    t += 2600;
+    prev = at;
+    const own = new Map<Character, DustSpeck[]>();
+    for (const { rider, center } of riderSpots) {
+      riderLooks[rider.name] = lookToward(rider, rider.width / 2 + 26, rider.height * 0.55 + 24);
+      const list: DustSpeck[] = [];
+      for (let i = 0; i < 2; i++) {
+        const onPfp = rider === lead.rider;
+        const ahead = (rider.width / 2 + 26) * GONDOLA_RIDER_SCALE;
+        const up = (rider.height * 0.55 + 24) * GONDOLA_RIDER_SCALE;
+        const size = onPfp ? 12 + Math.random() * 6 : 24 + Math.random() * 20;
+        list.push({
+          left: `${(onPfp ? cx + (i ? 5 : -6) : gx + center + ahead + (Math.random() * 2 - 1) * 14).toFixed(1)}px`,
+          top: `${(onPfp ? cy + (i ? 4 : -5) - size * 0.4 : gTop + tallest - up - size * 0.4 + (Math.random() * 2 - 1) * 14).toFixed(1)}px`,
+          size,
+          floor: false,
+          appearAt: 0,
+          wetAt: null,
+          clearAt: 0,
+        });
+      }
+      own.set(rider, list);
+    }
+    const sprayAt = t;
+    steps.push({ kind: "work", at: t, ms: FIRST_JOB_MS, activity: "spray", look: { x: 1, y: 0 } });
+    t += FIRST_JOB_MS;
+    steps.push({ kind: "work", at: t, ms: SECOND_JOB_MS, activity: "wipe", look: { x: 1, y: 0 } });
+    workWindows.push({ at: t, ms: SECOND_JOB_MS });
+    for (const [rider, list] of own) {
+      if (rider.stage1 === "spray") {
+        list.forEach((d, i) => {
+          d.wetAt = sprayAt + 250 + i * 450;
+          d.clearAt = t + ((i + 0.85) / list.length) * SECOND_JOB_MS;
+        });
+      } else {
+        list.forEach((d, i) => (d.clearAt = i === 0 ? sprayAt + FIRST_JOB_MS * 0.85 : t + SECOND_JOB_MS * 0.85));
+      }
+      specks.push(...list);
+    }
+    t += SECOND_JOB_MS;
+    // A last rub till it gleams.
+    shine = { x: cx, y: cy, size: Math.max(pfp.w, pfp.h), at: t };
+    steps.push({ kind: "inspect", at: t, ms: 900, look: { x: 1, y: 0 } });
+    t += 900;
+  }
 
   for (const stop of stops) {
     // Lowered in from above the screen first, then along the ropes.
@@ -1095,7 +1160,7 @@ function buildGondolaScript(riders: Character[], startAt: number, specks: DustSp
     riderQuirks[r.name] = { quirk, at: window.at + Math.random() * (window.ms - ms), ms };
   }
 
-  return { riders, entryX, steps, endAt: t, riderQuirks, riderLooks };
+  return { riders, entryX, steps, endAt: t, riderQuirks, riderLooks, shine };
 }
 
 // ------------------------------------------------------------ the round
@@ -2833,6 +2898,43 @@ function Dust({ speck }: { speck: DustSpeck }) {
           ✦
         </span>
       )}
+    </>
+  );
+}
+
+// The profile picture polished till it gleams: a flash of light sweeping
+// across it, and a sparkle.
+function Shine({ x, y, size, at }: { x: number; y: number; size: number; at: number }) {
+  return (
+    <>
+      <div className="absolute overflow-hidden rounded-full" style={{ left: x - size / 2, top: y - size / 2, width: size, height: size, zIndex: 3 }}>
+        <div
+          className="crew-gleam absolute"
+          style={{
+            left: -size,
+            top: -size / 2,
+            width: size * 0.45,
+            height: size * 2,
+            background: "linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.9), rgba(255,255,255,0))",
+            animationDelay: `${at}ms`,
+          }}
+        />
+      </div>
+      <span
+        className="absolute"
+        style={{
+          left: x + size * 0.28,
+          top: y - size * 0.9,
+          zIndex: 3,
+          fontSize: 22,
+          lineHeight: 1,
+          color: "#f2b632",
+          textShadow: "0 0 8px rgba(242,182,50,0.7)",
+          animation: `crew-sparkle-pop 900ms ease-out ${at + 250}ms both`,
+        }}
+      >
+        ✦
+      </span>
     </>
   );
 }
@@ -5207,6 +5309,7 @@ function CleaningRound({ plan, onDone }: { plan: RoundPlan; onDone: () => void }
         <Dust key={i} speck={speck} />
       ))}
       {plan.gondola && <Gondola actor={plan.gondola} cheerStyle={plan.cheerStyle} />}
+      {plan.gondola?.shine && <Shine {...plan.gondola.shine} />}
       {plan.floor.map((actor) => (
         <FloorWorker key={actor.character.name} actor={actor} cheerStyle={plan.cheerStyle} moonwalk={plan.moonwalk} />
       ))}

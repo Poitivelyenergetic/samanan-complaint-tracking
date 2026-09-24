@@ -763,6 +763,16 @@ body {
   }
 }
 
+/* Polished till it gleams: a flash of light sweeping across. */
+@keyframes crew-gleam {
+  from {
+    transform: translateX(0) rotate(25deg);
+  }
+  to {
+    transform: translateX(350%) rotate(25deg);
+  }
+}
+
 /* Caught at it: a crouch and a jump straight up in fright. */
 @keyframes crew-startle {
   0%,
@@ -1280,6 +1290,9 @@ body {
   }
   .crew-hard .crew-polish {
     animation-duration: 360ms;
+  }
+  .crew-gleam {
+    animation: crew-gleam 700ms ease-in-out both;
   }
   .crew-startle {
     animation: crew-startle 650ms ease-out both;

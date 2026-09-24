@@ -39,6 +39,8 @@ export default function TopBar() {
             type="button"
             onClick={() => setOpen((o) => !o)}
             title={name}
+            // The idle cleaning crew's gondola comes to dust this off.
+            data-crew-pfp
             className="block h-8 w-8 shrink-0 overflow-hidden rounded-full"
           >
             {profile.avatarUrl ? (
