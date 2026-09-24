@@ -458,6 +458,8 @@ export default function Sidebar() {
   return (
     <>
       <aside
+        // Blown clean off the page if the idle cleaning crew's day goes really badly.
+        data-crew-block
         className={`sticky top-0 hidden h-screen shrink-0 transition-all duration-300 ease-in-out md:block ${desktopOpen ? "w-64" : "w-16"}`}
       >
         <SidebarContents collapsible open={desktopOpen} onToggleOpen={() => setDesktopOpen((v) => !v)} />

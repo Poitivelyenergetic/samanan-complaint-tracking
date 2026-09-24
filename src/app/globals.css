@@ -834,6 +834,107 @@ body {
   }
 }
 
+/* The missile: the flash of the blast. */
+@keyframes crew-flash {
+  0% {
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Small fires on the scorched floor. */
+@keyframes crew-flicker {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  25% {
+    transform: scale(0.9, 1.12);
+  }
+  50% {
+    transform: scale(1.08, 0.92);
+  }
+  75% {
+    transform: scale(0.95, 1.06);
+  }
+}
+
+/* Sat on the floor with a laptop. */
+@keyframes crew-seated {
+  from,
+  to {
+    transform: scale(1.06, 0.84);
+  }
+}
+
+/* Tapping at the keys, and the code scrolling up the screen. */
+@keyframes crew-type {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+@keyframes crew-code {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-30px);
+  }
+}
+
+/* A coder's screen face: the blinking cursor eyes. */
+@keyframes crew-cursor {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  61%,
+  100% {
+    opacity: 0.2;
+  }
+}
+
+/* The party: heaved up in the air and caught, and the heaving. */
+@keyframes crew-tossed {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  45% {
+    transform: translateY(-140px) rotate(180deg);
+  }
+  55% {
+    transform: translateY(-140px) rotate(200deg);
+  }
+  95% {
+    transform: translateY(0) rotate(360deg);
+  }
+}
+@keyframes crew-heave {
+  0%,
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+  15% {
+    transform: translateY(0) scale(1.08, 0.9);
+  }
+  35% {
+    transform: translateY(-16px) scale(0.96, 1.05);
+  }
+  60% {
+    transform: translateY(0) scale(1, 1);
+  }
+}
+
 /* Caught at it: a crouch and a jump straight up in fright. */
 @keyframes crew-startle {
   0%,
@@ -1372,6 +1473,42 @@ body {
   }
   .crew-toss {
     animation: crew-toss 900ms ease-in both;
+  }
+  .crew-flash {
+    animation: crew-flash 1400ms ease-out both;
+    opacity: 0;
+  }
+  .crew-flicker {
+    animation: crew-flicker 380ms ease-in-out infinite;
+    transform-origin: 50% 100%;
+  }
+  .crew-seated {
+    animation: crew-seated 1s linear both;
+  }
+  .crew-type {
+    animation: crew-type 180ms ease-in-out infinite;
+  }
+  .crew-type-b {
+    animation-delay: -90ms;
+  }
+  .crew-code {
+    animation: crew-code 1600ms linear infinite;
+  }
+  .crew-cursor {
+    animation: crew-cursor 900ms steps(1) infinite;
+  }
+  .crew-tossed {
+    animation: crew-tossed 1000ms ease-in-out infinite;
+  }
+  .crew-heave {
+    animation: crew-heave 1000ms ease-in-out infinite;
+  }
+  /* Caught while the page is in pieces: typing flat out. */
+  .crew-rush .crew-type {
+    animation-duration: 70ms;
+  }
+  .crew-rush .crew-code {
+    animation-duration: 300ms;
   }
   .crew-startle {
     animation: crew-startle 650ms ease-out both;

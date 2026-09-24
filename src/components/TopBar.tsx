@@ -29,7 +29,7 @@ export default function TopBar() {
   const name = localizedName(profile, locale) || profile.username;
 
   return (
-    <div className="flex items-center justify-end gap-3 border-b border-border bg-surface px-4 py-2.5 lg:grid lg:grid-cols-[1fr_auto_1fr]">
+    <div data-crew-block className="flex items-center justify-end gap-3 border-b border-border bg-surface px-4 py-2.5 lg:grid lg:grid-cols-[1fr_auto_1fr]">
       <div className="hidden lg:block" />
       <LiveClock />
       <div className="flex items-center justify-end gap-2">

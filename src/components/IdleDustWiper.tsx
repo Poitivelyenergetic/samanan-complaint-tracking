@@ -74,7 +74,7 @@ function hopTrip(fromPct: number, toPct: number, vw: number, run = false) {
 type Name = "purple" | "black" | "orange" | "yellow";
 // The construction crew who turn up when something breaks (see maintenance).
 type BuilderName = "foreman" | "welder";
-type Activity = "spray" | "wipe" | "polish" | "dunk" | "mopFloor" | "mopStep" | "weld";
+type Activity = "spray" | "wipe" | "polish" | "dunk" | "mopFloor" | "mopStep" | "weld" | "type";
 type Quirk =
   | "confused"
   | "sneeze"
@@ -94,6 +94,10 @@ type Quirk =
   // A stain that won't come off (see buildFloorScript).
   | "fume"
   | "fling"
+  // The missile: the foreman calling for help; the party after.
+  | "call"
+  | "heave"
+  | "tossed"
   // Done before the others: killing time (see wrapUp).
   | "tap"
   | "lookout"
@@ -108,7 +112,7 @@ interface Vec {
 }
 
 interface Character {
-  name: Name | BuilderName | MedicName;
+  name: Name | BuilderName | MedicName | CoderName;
   color: string;
   width: number;
   height: number;
@@ -125,6 +129,8 @@ interface Character {
   vest?: string;
   /** A paramedic: a white cap and a red cross. */
   medic?: boolean;
+  /** A coder: a screen for a face. */
+  coder?: boolean;
 }
 
 // The two tall ones are the login screen's characters shrunk down; the two
@@ -195,6 +201,9 @@ const QUIRK_MS: Record<Quirk, number> = {
   shove: 600,
   fume: 1100,
   fling: 900,
+  call: 2200,
+  heave: 1000,
+  tossed: 1000,
   tap: 1600,
   lookout: 1800,
   sit: 2800,
@@ -2243,6 +2252,7 @@ function Gear({ character, mode, bucketDown, holding }: { character: Character; 
       </>
     );
   }
+  if (mode === "type") return <Laptop character={character} />;
   const handX = width - 8;
   const handY = height * 0.45;
   const hasBucket = stage1 === "dunk" || stage2 === "dunk";
@@ -2305,6 +2315,7 @@ function Gear({ character, mode, bucketDown, holding }: { character: Character; 
     const isSpray = tool === "spray";
     const isMop = tool === "dunk" || tool === "mopFloor";
     const isTorch = tool === "weld";
+    const isLaptop = tool === "type";
     let wrapperClass = "";
     let wrapperStyle: React.CSSProperties = {};
     if (mode === "spray") {
@@ -2333,6 +2344,8 @@ function Gear({ character, mode, bucketDown, holding }: { character: Character; 
             </div>
           ) : isTorch ? (
             <Torch lit={mode === "weld"} />
+          ) : isLaptop ? (
+            <div className="absolute rounded-sm" style={{ left: -22, top: -6, width: 34, height: 6, background: "#9aa3b5", border: "1.5px solid #6b7280" }} />
           ) : (
             <div className="absolute" style={{ left: -18, top: -14 }}>
               <Cloth />
@@ -2483,6 +2496,16 @@ function QuirkOverlay({ character, quirk, facing }: { character: Character; quir
       </>
     );
   }
+  if (quirk === "call") {
+    return (
+      <div
+        className="crew-pop absolute flex items-center justify-center rounded-full bg-white shadow-md"
+        style={{ left: width * 0.62, top: -46, width: 40, height: 30, fontSize: 16 }}
+      >
+        <span style={unmirror}>💻?</span>
+      </div>
+    );
+  }
   if (quirk === "startle") {
     return (
       <div
@@ -2588,6 +2611,14 @@ function quirkPose(quirk: Quirk, facing: 1 | -1): Pose {
     // That spot's still there: stamping about, fuming.
     case "fume":
       return { ...base, expression: "angry", bodyClass: "crew-stomp", bucketDown: false };
+    // On the phone to the coders.
+    case "call":
+      return { ...base, mode: "brow", expression: "look", bodyClass: "crew-nod", gaze: { x: 0.4, y: -0.4 } };
+    // The party: heaving the coders up, and the coders flying.
+    case "heave":
+      return { ...base, mode: "raise", expression: "yeah", bodyClass: "crew-heave", bucketDown: false };
+    case "tossed":
+      return { ...base, mode: "raise", expression: "yeah", bodyClass: "crew-tossed", bucketDown: false };
     // Waiting on the others: tapping a foot, shading their eyes to look
     // out for them, or sitting down for a bit.
     case "tap":
@@ -2640,6 +2671,9 @@ function poseFor(step: Step | undefined, cheerStyle: CheerStyle, facing: 1 | -1,
         back: step.away,
       };
     case "work":
+      if (step.activity === "type") {
+        return { ...base, mode: "type", expression: "focus", bodyClass: "crew-seated", gaze: step.look, bucketDown: false };
+      }
       // Eyes on the patch, leaning in toward it a little.
       return {
         ...base,
@@ -2755,6 +2789,8 @@ function Figure({ character, pose }: { character: Character; pose: Pose }) {
                   <Workwear character={character} />
                   {pose.back ? (
                     <Peek character={character} />
+                  ) : character.coder ? (
+                    <MonitorFace character={character} expression={pose.expression} />
                   ) : (
                     <Face character={character} expression={pose.expression} gaze={pose.gaze} />
                   )}
@@ -5694,12 +5730,13 @@ interface Caught {
 const crewByName = (name: string): Character | undefined =>
   (CHARACTERS as Record<string, Character>)[name] ??
   (BUILDERS as Record<string, Character>)[name] ??
-  (MEDICS as Record<string, Character>)[name];
+  (MEDICS as Record<string, Character>)[name] ??
+  (CODERS as Record<string, Character>)[name];
 
 // Where everything is the moment they're caught — read straight off the
 // screen, since they're mid-hop, mid-swing, mid-drive. `elapsed` is how far
 // into the round it is.
-function catchThem(layer: HTMLElement, plan: RoundPlan | RepairPlan | null, elapsed: number): Caught {
+function catchThem(layer: HTMLElement, plan: AnyPlan | null, elapsed: number): Caught {
   const vw = layer.clientWidth;
   const vh = layer.clientHeight;
   const crew: CaughtCrew[] = [];
@@ -6134,6 +6171,489 @@ function CaughtScene({ caught, onDone }: { caught: Caught; onDone: () => void })
   );
 }
 
+// ============================================================ the missile
+
+// Once in a while — about one visit in ten — a missile comes in and blows
+// the whole page apart: the sidebar, the top bar, the cards and the charts
+// all go flying off the screen. The builders turn up, try to put a piece
+// back, and can't — it just falls off again — so they call in the coders:
+// two or three of them, with screens for faces, who sit down with their
+// laptops and type for a minute while the page flies back together piece by
+// piece. Then there's a party: everyone throws the coders in the air.
+// Caught at it (anyone moves the mouse while the page is in pieces), the
+// coders type flat out, the rest of it flies back in five seconds, and
+// then they all run for it.
+
+type CoderName = "coder1" | "coder2" | "coder3";
+
+// The coders: the crew's flat style again, with a screen for a face.
+const CODERS: Record<CoderName, Character> = {
+  coder1: {
+    name: "coder1",
+    color: "#6c63d9",
+    width: 56,
+    height: 108,
+    shape: "block",
+    radius: "8px 8px 2px 2px",
+    stage1: "type",
+    stage2: "type",
+    blinkDelay: "300ms",
+    coder: true,
+  },
+  coder2: {
+    name: "coder2",
+    color: "#2ea89a",
+    width: 80,
+    height: 76,
+    shape: "blob",
+    radius: "50% 50% 14px 14px / 70% 70% 14px 14px",
+    stage1: "type",
+    stage2: "type",
+    blinkDelay: "1200ms",
+    coder: true,
+  },
+  coder3: {
+    name: "coder3",
+    color: "#d9803b",
+    width: 62,
+    height: 92,
+    shape: "block",
+    radius: "10px 10px 2px 2px",
+    stage1: "type",
+    stage2: "type",
+    blinkDelay: "2100ms",
+    coder: true,
+  },
+};
+
+const MISSILE_CHANCE = 0.1;
+const CODING_MS = 60_000;
+const RUSH_MS = 5000;
+const BLOCK_BACK_MS = 900;
+
+// A coder's face: a little monitor, green on black.
+function MonitorFace({ character, expression }: { character: Character; expression: Expression }) {
+  const { width, height, shape } = character;
+  const w = width * (shape === "block" ? 0.84 : 0.66);
+  const h = Math.min(height * 0.4, w * 0.72);
+  const top = shape === "block" ? height * 0.08 : height * 0.2;
+  const g = "#5dff9a";
+  const eye = (cx: number) => {
+    const cy = h * 0.4;
+    if (expression === "yeah") return <path key={cx} d={`M${cx - 5},${cy + 2} L${cx},${cy - 3} L${cx + 5},${cy + 2}`} stroke={g} strokeWidth={2.5} fill="none" />;
+    if (expression === "shock") return <circle key={cx} cx={cx} cy={cy} r={4} stroke={g} strokeWidth={2} fill="none" />;
+    if (expression === "focus" || expression === "angry") return <rect key={cx} x={cx - 5} y={cy - 1} width={10} height={3} fill={g} />;
+    return <rect key={cx} className="crew-cursor" x={cx - 3} y={cy - 4} width={6} height={8} fill={g} />;
+  };
+  const mouthY = h * 0.72;
+  return (
+    <div
+      className="absolute rounded-md"
+      style={{ left: (width - w) / 2, top, width: w, height: h, background: "#1f232b", border: "3px solid #9aa3b5", boxShadow: "inset 0 0 10px rgba(93,255,154,0.25)" }}
+    >
+      <svg className="absolute inset-0" width={w - 6} height={h - 6} viewBox={`0 0 ${w - 6} ${h - 6}`} aria-hidden="true">
+        {[w * 0.3 - 3, w * 0.7 - 3].map(eye)}
+        {expression === "yeah" ? (
+          <path d={`M${w * 0.35},${mouthY - 2} Q${w / 2 - 3},${mouthY + 5} ${w * 0.65 - 6},${mouthY - 2}`} stroke={g} strokeWidth={2.5} fill="none" />
+        ) : expression === "shock" ? (
+          <rect x={w / 2 - 6} y={mouthY - 4} width={6} height={7} rx={2} stroke={g} strokeWidth={2} fill="none" />
+        ) : (
+          <rect x={w * 0.38} y={mouthY - 1} width={w * 0.24} height={2.5} fill={g} />
+        )}
+      </svg>
+    </div>
+  );
+}
+
+// A laptop open on the floor in front of them, code scrolling up its
+// screen, both hands tapping away at the keys.
+function Laptop({ character }: { character: Character }) {
+  const { width, height, color } = character;
+  return (
+    <div className="absolute" style={{ left: width * 0.42, top: height - 30, width: 52, height: 32 }}>
+      <div className="absolute overflow-hidden rounded-sm" style={{ left: 8, top: 0, width: 38, height: 24, background: "#1f232b", border: "2px solid #9aa3b5", transform: "skewX(-8deg)" }}>
+        <div className="crew-code absolute inset-x-1" style={{ top: 0, height: 60 }}>
+          {Array.from({ length: 10 }, (_, i) => (
+            <div key={i} className="rounded-full" style={{ height: 2, marginTop: 4, width: `${40 + ((i * 37) % 55)}%`, background: i % 3 ? "#5dff9a" : "#7cc7f0" }} />
+          ))}
+        </div>
+      </div>
+      <div className="absolute rounded-sm" style={{ left: 0, top: 24, width: 52, height: 6, background: "#9aa3b5" }} />
+      <div className="crew-type absolute" style={{ left: 6, top: 18 }}>
+        <Hand color={color} x={0} y={0} />
+      </div>
+      <div className="crew-type crew-type-b absolute" style={{ left: 26, top: 18 }}>
+        <Hand color={color} x={0} y={0} />
+      </div>
+    </div>
+  );
+}
+
+interface MissileBlock {
+  el: HTMLElement;
+  box: Box;
+  /** Where it's blown off to (translate, px), how it's spinning, and when it's put back. */
+  off: Vec;
+  spin: number;
+  backAt: number;
+}
+
+interface MissilePlan {
+  kind: "missile";
+  blastAt: number;
+  blast: Vec;
+  missileFrom: Vec;
+  blocks: MissileBlock[];
+  /** The builders' go at putting one back, which just falls off again. */
+  attempt: { block: number; at: number } | null;
+  fires: { x: number; from: number; until: number }[];
+  floor: FloorActor[];
+  partyAt: number;
+  endAt: number;
+  cast: Name[];
+  stairs?: null;
+}
+
+function planMissile(exclude: Name[]): MissilePlan | null {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const pct = (px: number) => (px / vw) * 100;
+  const onScreen = (b: Box) => b.w > 20 && b.h > 20 && b.x < vw && b.x + b.w > 0 && b.y < vh && b.y + b.h > 0;
+  const els = [...document.querySelectorAll<HTMLElement>("[data-crew-block], [data-crew-card], [data-crew-chart]")].filter(
+    (el) => onScreen(boxOf(el)) && !el.parentElement?.closest("[data-crew-card], [data-crew-chart]")
+  );
+  if (els.length < 3) return null;
+  const blast = { x: vw * (0.45 + Math.random() * 0.1), y: vh * 0.45 };
+  const blastAt = 1700;
+
+  // The builders: in, a look at the damage, a go at putting a card back...
+  const foreman = BUILDERS.foreman;
+  const welder = BUILDERS.welder;
+  const fromLeft = Math.random() < 0.5;
+  const entryX = fromLeft ? -10 : 110;
+  const inward = (fromLeft ? 1 : -1) as 1 | -1;
+  const cx = vw / 2;
+  const coders = (["coder1", "coder2", "coder3"] as CoderName[]).slice(0, Math.random() < 0.5 ? 2 : 3).map((n) => CODERS[n]);
+  const gap = 118;
+  const seats = coders.map((_, i) => cx + (i - (coders.length - 1) / 2) * gap);
+  // The builders keep to one side of the coders' row (and of the crew who
+  // come for the party, either side of it).
+  const edge = ((coders.length - 1) / 2) * gap + gap / 2 + 50;
+  const welderLeft = inward === 1 ? cx - edge - welder.width : cx + edge;
+  const foremanLeft = inward === 1 ? welderLeft - 20 - foreman.width : welderLeft + welder.width + 20;
+  const foremanSteps: Step[] = [];
+  const welderSteps: Step[] = [];
+  let ft = hopTo(foremanSteps, entryX, pct(foremanLeft), blastAt + 3800, vw, inward);
+  let wt = hopTo(welderSteps, entryX, pct(welderLeft), blastAt + 4300, vw, inward);
+  const look = (c: Character) => lookToward(c, 40, 600);
+  const meet = Math.max(ft, wt);
+  for (const [steps, from, c] of [
+    [foremanSteps, ft, foreman],
+    [welderSteps, wt, welder],
+  ] as const) {
+    let t = waitUntil(steps, from, meet);
+    steps.push({ kind: "quirk", at: t, ms: QUIRK_MS.startle, quirk: "startle" });
+    t += QUIRK_MS.startle;
+    steps.push({ kind: "inspect", at: t, ms: 1600, look: look(c) });
+    if (c === foreman) ft = t + 1600;
+    else wt = t + 1600;
+  }
+  const cardIndex = els.findIndex((el) => el.hasAttribute("data-crew-card"));
+  const attemptAt = wt;
+  welderSteps.push({ kind: "work", at: wt, ms: WELD_MS, activity: "weld", look: look(welder) });
+  wt += WELD_MS;
+  // ...which comes straight off again. Scratching their heads; a call for help.
+  const flopAt = attemptAt + 1700;
+  ft = waitUntil(foremanSteps, ft, flopAt);
+  wt = waitUntil(welderSteps, wt, flopAt);
+  foremanSteps.push({ kind: "quirk", at: ft, ms: QUIRK_MS.confused, quirk: "confused" });
+  ft += QUIRK_MS.confused;
+  welderSteps.push({ kind: "quirk", at: wt, ms: QUIRK_MS.confused, quirk: "confused" });
+  wt += QUIRK_MS.confused;
+  foremanSteps.push({ kind: "quirk", at: ft, ms: QUIRK_MS.call, quirk: "call" });
+  ft += QUIRK_MS.call;
+
+  // The coders: in with their laptops, sat down in a row, typing.
+  const codersIn = ft + 400;
+  let typeAt = 0;
+  const coderSteps = coders.map((c, i) => {
+    const steps: Step[] = [];
+    const t = hopTo(steps, entryX, pct(seats[i] - c.width * 0.3), codersIn + i * 500, vw, inward);
+    typeAt = Math.max(typeAt, t + 300);
+    return steps;
+  });
+  typeAt += 200;
+  const coding = CODING_MS;
+  const codedAt = typeAt + coding;
+  coderSteps.forEach((steps) => {
+    const lastWalk = [...steps].reverse().find((st): st is WalkStep => st.kind === "walk")!;
+    const t = waitUntil(steps, lastWalk.at + lastWalk.ms, typeAt);
+    steps.push({ kind: "work", at: t, ms: codedAt - t, activity: "type", look: { x: 0.6, y: 0.8 } });
+  });
+  // The builders stand back and watch them work.
+  ft = waitUntil(foremanSteps, ft, codersIn + 1500);
+  foremanSteps.push({ kind: "inspect", at: ft, ms: codedAt - ft, look: lookToward(foreman, 80, 20) });
+  ft = codedAt;
+  wt = waitUntil(welderSteps, wt, codersIn + 1500);
+  welderSteps.push({ kind: "inspect", at: wt, ms: codedAt - wt, look: lookToward(welder, 80, 20) });
+  wt = codedAt;
+
+  // The page back together, piece by piece, over the minute they're typing,
+  // in no particular order.
+  const blocks: MissileBlock[] = els.map((el) => {
+    const box = boxOf(el);
+    const mid = { x: box.x + box.w / 2, y: box.y + box.h / 2 };
+    const dx = mid.x - blast.x || 1;
+    const dy = mid.y - blast.y || -1;
+    const len = Math.hypot(dx, dy);
+    const reach = Math.max(vw, vh) * 1.1;
+    return {
+      el,
+      box,
+      off: { x: (dx / len) * reach, y: (dy / len) * reach - 120 },
+      spin: (Math.random() < 0.5 ? -1 : 1) * (200 + Math.random() * 360),
+      backAt: 0,
+    };
+  });
+  [...blocks].sort(() => Math.random() - 0.5).forEach((b, i, all) => (b.backAt = typeAt + 2500 + ((coding - 5000) * i) / Math.max(1, all.length - 1)));
+
+  // The party: the cleaning crew come in for it; everyone heaves the coders
+  // up in the air, again and again, under the confetti.
+  const partyAt = codedAt + 600;
+  const crewNames = ALL_NAMES.filter((n) => !exclude.includes(n)).slice(0, 3);
+  const slots = [...seats.map((x) => x - gap / 2), seats[seats.length - 1] + gap / 2];
+  const crew: FloorActor[] = crewNames.map((n, i) => {
+    const c = CHARACTERS[n];
+    const steps: Step[] = [];
+    const spot = slots[i % slots.length] - c.width / 2;
+    const t = hopTo(steps, entryX, pct(spot), codedAt - 6000 + i * 600, vw, inward);
+    const w = waitUntil(steps, t, partyAt);
+    steps.push({ kind: "quirk", at: w, ms: 3 * QUIRK_MS.heave, quirk: "heave" });
+    return { character: c, entryX, steps, endAt: w + 3 * QUIRK_MS.heave };
+  });
+  const partyEnd = partyAt + 3 * QUIRK_MS.heave;
+  coderSteps.forEach((steps) => {
+    steps.push({ kind: "quirk", at: partyAt, ms: 3 * QUIRK_MS.tossed, quirk: "tossed" });
+  });
+  for (const [steps, from] of [
+    [foremanSteps, ft],
+    [welderSteps, wt],
+  ] as const) {
+    const t = waitUntil(steps, from, partyAt);
+    steps.push({ kind: "cheer", at: t, ms: 3 * QUIRK_MS.heave });
+  }
+
+  // And off they all go.
+  const floor: FloorActor[] = [
+    { character: foreman, entryX, steps: foremanSteps, endAt: partyEnd },
+    { character: welder, entryX, steps: welderSteps, endAt: partyEnd },
+    ...crew,
+    ...coderSteps.map((steps, i) => ({ character: coders[i], entryX, steps, endAt: partyEnd })),
+  ];
+  let endAt = partyEnd;
+  floor.forEach((a, i) => {
+    const lastWalk = [...a.steps].reverse().find((st): st is WalkStep => st.kind === "walk")!;
+    const t = waitUntil(a.steps, a.steps[a.steps.length - 1].at + a.steps[a.steps.length - 1].ms, partyEnd + 300 + i * 250);
+    const trip = hopTrip(lastWalk.x, entryX, vw);
+    a.steps.push({ kind: "walk", at: t, ms: trip.ms, x: entryX, hopMs: trip.hopMs });
+    a.steps.push({ kind: "gone", at: t + trip.ms, ms: 0 });
+    endAt = Math.max(endAt, t + trip.ms);
+  });
+
+  const fires = [0, 1, 2].map((i) => ({ x: blast.x + (i - 1) * 140 + (Math.random() * 2 - 1) * 30, from: blastAt + 300, until: Math.min(typeAt + 8000 + i * 4000, codedAt) }));
+  return {
+    kind: "missile",
+    blastAt,
+    blast,
+    missileFrom: { x: blast.x < vw / 2 ? vw + 120 : -120, y: -140 },
+    blocks,
+    attempt: cardIndex >= 0 ? { block: blocks.findIndex((b) => b.el === els[cardIndex]), at: attemptAt } : null,
+    fires,
+    floor,
+    partyAt,
+    endAt: endAt + 200,
+    cast: crewNames,
+  };
+}
+
+// The page blown apart, and put back: stand-ins for every piece fly off at
+// the blast, and fly back in as each is rebuilt, the real thing showing
+// again once its stand-in's home. `rush`: caught at it — the rest back
+// inside RUSH_MS.
+function MissileRound({ plan, onDone, rush }: { plan: MissilePlan; onDone: () => void; rush: boolean }) {
+  const layer = useRef<HTMLDivElement>(null);
+  const missile = useRef<HTMLDivElement>(null);
+  const pieces = useRef<{ back: (at: number) => void; home: boolean }[]>([]);
+  const started = useRef(0);
+
+  useEffect(() => {
+    const done = setTimeout(onDone, plan.endAt + REST_BETWEEN_ROUNDS_MS);
+    return () => clearTimeout(done);
+  }, [plan, onDone]);
+
+  useEffect(() => {
+    const holder = layer.current;
+    if (!holder) return;
+    started.current = performance.now();
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const anims: Animation[] = [];
+    const cleanups: (() => void)[] = [];
+    const flight = missile.current?.animate(
+      [
+        { transform: `translate(${plan.missileFrom.x - plan.blast.x}px, ${plan.missileFrom.y - plan.blast.y}px)`, opacity: 1 },
+        { transform: "translate(0px, 0px)", opacity: 1, offset: 0.999 },
+        { transform: "translate(0px, 0px)", opacity: 0 },
+      ],
+      { duration: plan.blastAt, easing: "cubic-bezier(0.5, 0, 1, 1)", fill: "both" }
+    );
+    if (flight) anims.push(flight);
+
+    pieces.current = plan.blocks.map((b, i) => {
+      const copy = b.el.cloneNode(true) as HTMLElement;
+      copy.removeAttribute("data-crew-block");
+      copy.removeAttribute("data-crew-card");
+      copy.removeAttribute("data-crew-chart");
+      Object.assign(copy.style, {
+        position: "absolute",
+        left: `${b.box.x}px`,
+        top: `${b.box.y}px`,
+        width: `${b.box.w}px`,
+        height: `${b.box.h}px`,
+        margin: "0",
+        opacity: "0",
+        pointerEvents: "none",
+        visibility: "visible",
+      });
+      holder.appendChild(copy);
+      const offT = `translate(${b.off.x.toFixed(0)}px, ${b.off.y.toFixed(0)}px) rotate(${b.spin.toFixed(0)}deg) scale(0.6)`;
+      const shown = b.el.style.visibility;
+      let home = false;
+      // Blown away.
+      anims.push(
+        copy.animate(
+          [
+            { transform: "none", opacity: 1 },
+            { transform: offT, opacity: 1 },
+          ],
+          { delay: plan.blastAt, duration: 1300, easing: "cubic-bezier(0.1, 0.7, 0.3, 1)", fill: "both" }
+        )
+      );
+      timers.push(setTimeout(() => (b.el.style.visibility = "hidden"), plan.blastAt));
+      // The builders' go at this one: it flies back, crooked — and falls off again.
+      if (plan.attempt?.block === i) {
+        anims.push(
+          copy.animate(
+            [
+              { transform: offT, opacity: 1 },
+              { transform: "rotate(7deg)", opacity: 1, offset: 0.35 },
+              { transform: "rotate(7deg)", opacity: 1, offset: 0.55 },
+              { transform: `translate(30px, ${window.innerHeight}px) rotate(80deg)`, opacity: 1, offset: 0.95 },
+              { transform: offT, opacity: 1 },
+            ],
+            { delay: plan.attempt.at, duration: 3000, easing: "ease-in-out", composite: "replace" }
+          )
+        );
+      }
+      const piece = {
+        home,
+        back: (at: number) => {
+          if (piece.home) return;
+          piece.home = true;
+          home = true;
+          anims.push(
+            copy.animate(
+              [
+                { transform: offT, opacity: 1 },
+                { transform: "none", opacity: 1 },
+              ],
+              { delay: at, duration: BLOCK_BACK_MS, easing: "cubic-bezier(0.5, 0, 0.75, 0)", fill: "both" }
+            )
+          );
+          timers.push(
+            setTimeout(() => {
+              copy.style.display = "none";
+              b.el.style.visibility = shown;
+              b.el.animate([{ transform: "translateY(-6px)" }, { transform: "none" }], { duration: 260, easing: "ease-out" });
+            }, at + BLOCK_BACK_MS)
+          );
+        },
+      };
+      cleanups.push(() => {
+        copy.remove();
+        b.el.style.visibility = shown;
+      });
+      return piece;
+    });
+    // Each back in its turn.
+    plan.blocks.forEach((b, i) => {
+      timers.push(setTimeout(() => pieces.current[i]?.back(0), b.backAt));
+    });
+    return () => {
+      timers.forEach(clearTimeout);
+      anims.forEach((a) => a.cancel());
+      cleanups.forEach((c) => c());
+      pieces.current = [];
+    };
+  }, [plan]);
+
+  // Caught at it: whatever's still in pieces, back in a hurry.
+  useEffect(() => {
+    if (!rush) return;
+    const left = pieces.current.filter((p) => !p.home);
+    left.forEach((p, i) => p.back((RUSH_MS - BLOCK_BACK_MS - 200) * (i / Math.max(1, left.length))));
+  }, [rush]);
+
+  const partyConfetti = plan.partyAt;
+  return (
+    <div ref={layer} className={rush ? "crew-rush" : ""}>
+      {/* The missile, trailing fire. */}
+      <div ref={missile} className="absolute" style={{ left: plan.blast.x, top: plan.blast.y, zIndex: 6 }}>
+        <div
+          className="absolute"
+          style={{ transform: `rotate(${(Math.atan2(plan.blast.y - plan.missileFrom.y, plan.blast.x - plan.missileFrom.x) * 180) / Math.PI}deg)` }}
+        >
+          <div className="absolute" style={{ left: -130, top: -8, width: 110, height: 16, borderRadius: 8, background: "linear-gradient(90deg, rgba(255,120,40,0), rgba(255,160,60,0.9) 80%, #ffe08a)" }} />
+          <svg className="absolute" style={{ left: -34, top: -10 }} width="44" height="20" aria-hidden="true">
+            <path d="M2,4 L30,4 Q42,10 30,16 L2,16 Z" fill="#9aa3b5" stroke="#6b7280" strokeWidth="1.5" />
+            <path d="M2,4 L-4,-2 L8,4 Z M2,16 L-4,22 L8,16 Z" fill="#e0564f" />
+            <rect x="12" y="4" width="4" height="12" fill="#e0564f" />
+          </svg>
+        </div>
+      </div>
+      {/* The flash, and the blast. */}
+      <div className="crew-flash absolute inset-0" style={{ background: "#fff8e1", zIndex: 7, animationDelay: `${plan.blastAt}ms` }} />
+      {Array.from({ length: 10 }, (_, i) => (
+        <Puff key={i} x={plan.blast.x + Math.cos(i * 0.63) * 70 * (1 + (i % 3))} y={plan.blast.y + Math.sin(i * 0.63) * 60 * (1 + (i % 3))} at={plan.blastAt + i * 40} big />
+      ))}
+      {/* Scorched floor and a few small fires, burning down. */}
+      <div
+        className="absolute rounded-full"
+        style={{
+          left: plan.blast.x - 260,
+          bottom: FLOOR - 10,
+          width: 520,
+          height: 24,
+          background: "radial-gradient(ellipse at center, rgba(30,24,20,0.55), rgba(30,24,20,0) 70%)",
+          animation: `crew-fade-in 400ms ease-out ${plan.blastAt}ms both, crew-fade-out 1500ms ease-in ${plan.partyAt}ms forwards`,
+        }}
+      />
+      {plan.fires.map((f, i) => (
+        <div
+          key={i}
+          className="absolute"
+          style={{ left: f.x - 12, bottom: FLOOR - 2, width: 24, height: 34, animation: `crew-fade-in 300ms ease-out ${f.from}ms both, crew-fade-out 800ms ease-in ${f.until}ms forwards` }}
+        >
+          <div className="crew-flicker absolute inset-0 rounded-full" style={{ background: "radial-gradient(ellipse at 50% 80%, #ffd35c, #ff8a1f 45%, rgba(224,86,79,0) 72%)", borderRadius: "50% 50% 40% 40% / 70% 70% 30% 30%" }} />
+        </div>
+      ))}
+      {plan.floor.map((actor) => (
+        <FloorWorker key={actor.character.name} actor={actor} cheerStyle="jump" moonwalk={false} />
+      ))}
+      <Confetti at={partyConfetti} />
+    </div>
+  );
+}
+
 // ============================================================ scene
 
 function CleaningRound({ plan, onDone }: { plan: RoundPlan; onDone: () => void }) {
@@ -6168,9 +6688,11 @@ interface Assignment {
   name: Name;
 }
 
+type AnyPlan = RoundPlan | RepairPlan | MissilePlan;
+
 interface SceneState {
   round: number;
-  plan: RoundPlan | RepairPlan;
+  plan: AnyPlan;
   assignments: Assignment[];
   /** Their shift's done: no more rounds, just any errands to finish before they go. */
   over: boolean;
@@ -6179,7 +6701,12 @@ interface SceneState {
 // The next round: usually an ordinary clean; now and then something breaks
 // and the builders come to fix it; and straight after them, the cleaning
 // crew clearing up their mess.
-function nextPlan(exclude: Name[], after: RoundPlan | RepairPlan | null): RoundPlan | RepairPlan {
+function nextPlan(exclude: Name[], after: AnyPlan | null): AnyPlan {
+  // Once in a while, a visit starts with a bang.
+  if (!after && Math.random() < MISSILE_CHANCE) {
+    const missile = planMissile(exclude);
+    if (missile) return missile;
+  }
   if (after?.kind === "repair") {
     const cleanup = planCleanup(exclude, after.debris);
     if (cleanup) return cleanup;
@@ -6230,11 +6757,14 @@ function CleaningScene({
   shift,
   onShiftOver,
   onRound,
+  rush,
 }: {
   shift: Shift;
   onShiftOver: () => void;
   /** Each round as it starts (null once they're done), for if they get caught. */
-  onRound: (plan: RoundPlan | RepairPlan | null) => void;
+  onRound: (plan: AnyPlan | null) => void;
+  /** Caught while the page is in pieces: put it back in a hurry. */
+  rush: boolean;
 }) {
   const [state, setState] = useState<SceneState>(() => ({ round: 0, plan: nextPlan([], null), assignments: [], over: false }));
   const arrivedAt = useRef(0);
@@ -6288,6 +6818,8 @@ function CleaningScene({
       {!state.over &&
         (state.plan.kind === "repair" ? (
           <RepairRound key={state.round} plan={state.plan} onDone={nextRound} />
+        ) : state.plan.kind === "missile" ? (
+          <MissileRound key={state.round} plan={state.plan} onDone={nextRound} rush={rush} />
         ) : (
           <CleaningRound key={state.round} plan={state.plan} onDone={nextRound} />
         ))}
@@ -6428,7 +6960,11 @@ export default function IdleDustWiper() {
   const layer = useRef<HTMLDivElement>(null);
   // The phase right now, and the round on screen, for the activity listener.
   const now = useRef<Phase>("off");
-  const round = useRef<{ plan: RoundPlan | RepairPlan | null; startedAt: number }>({ plan: null, startedAt: 0 });
+  const round = useRef<{ plan: AnyPlan | null; startedAt: number }>({ plan: null, startedAt: 0 });
+  // Caught while the page is in pieces: it goes back together first, then
+  // they run.
+  const [rush, setRush] = useState(false);
+  const rushTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const breakTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const go = useCallback((next: Phase) => {
@@ -6451,10 +6987,26 @@ export default function IdleDustWiper() {
       clearTimeout(idle);
       idle = setTimeout(startVisit, IDLE_MS);
     };
+    const catchNow = () => {
+      if (now.current !== "visit" || !layer.current) return;
+      setCaught(catchThem(layer.current, round.current.plan, performance.now() - round.current.startedAt));
+      setRush(false);
+      go("caught");
+    };
     const onActivity = () => {
-      if (now.current === "visit" && layer.current) {
-        setCaught(catchThem(layer.current, round.current.plan, performance.now() - round.current.startedAt));
-        go("caught");
+      // The page in pieces: put back in a hurry before they run for it.
+      const plan = round.current.plan;
+      const elapsed = performance.now() - round.current.startedAt;
+      if (now.current === "visit" && plan?.kind === "missile" && elapsed > plan.blastAt && elapsed < plan.partyAt) {
+        if (!rushTimer.current) {
+          setRush(true);
+          rushTimer.current = setTimeout(() => {
+            rushTimer.current = undefined;
+            catchNow();
+          }, RUSH_MS);
+        }
+      } else if (now.current === "visit") {
+        catchNow();
       } else if (now.current === "break") {
         clearTimeout(breakTimer.current);
         go("off");
@@ -6466,6 +7018,7 @@ export default function IdleDustWiper() {
     return () => {
       clearTimeout(idle);
       clearTimeout(breakTimer.current);
+      clearTimeout(rushTimer.current);
       ACTIVITY_EVENTS.forEach((e) => window.removeEventListener(e, onActivity));
     };
   }, [reducedMotion, startVisit, go]);
@@ -6479,7 +7032,7 @@ export default function IdleDustWiper() {
     setCaught(null);
     go("off");
   }, [go]);
-  const onRound = useCallback((plan: RoundPlan | RepairPlan | null) => {
+  const onRound = useCallback((plan: AnyPlan | null) => {
     round.current = { plan, startedAt: performance.now() };
   }, []);
 
@@ -6499,7 +7052,7 @@ export default function IdleDustWiper() {
   return createPortal(
     <div ref={layer} className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
       {phase === "visit" ? (
-        <CleaningScene key={visit.n} shift={visit.shift} onShiftOver={onShiftOver} onRound={onRound} />
+        <CleaningScene key={visit.n} shift={visit.shift} onShiftOver={onShiftOver} onRound={onRound} rush={rush} />
       ) : (
         caught && <CaughtScene caught={caught} onDone={onCaughtDone} />
       )}
