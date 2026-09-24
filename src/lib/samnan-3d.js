@@ -8,7 +8,9 @@
  * tilt is as smooth as the spin.
  *
  * Double-click pulls the product apart (exploded view); double-click again puts it
- * back together.
+ * back together. Opened, a drag still turns it; double-click a group of parts (the
+ * inside panel, the motor ...) to open that group, and there a drag moves a part.
+ * Double-click one part to see it on its own.
  *
  *   import { mount } from './samnan-3d.js';
  *   mount(el, { model: 'pump.glb' });
@@ -46,7 +48,48 @@ const DEFAULTS = {
   shadowMapSize: null,     // null = by role (2048 interactive, 0 = off otherwise)
   maxFps: null,            // null = by role (60 interactive, 30 otherwise)
   poster: null,            // still image shown if the browser cannot do WebGL at all
+  // The shape the product is fitted into. 'box' fills the element's rectangle; 'circle'
+  // keeps every point inside the inscribed circle, for a thumbnail cropped round. null =
+  // by role ('circle' for display-only thumbnails, 'box' otherwise).
+  fit: null,
 };
+
+// Framing. The product fills this much of the element's limiting dimension, and the
+// camera distance is tabulated at this many tilts and checked at this many turns per tilt.
+const FILL = 0.94, T_P = 72, T_Y = 48;
+// Opened up, the hint pill sits over the bottom of the view; this much height (px) is
+// kept clear for it, so it never covers the part being looked at. Two lines of hint.
+const TIP_RESERVE = 62;
+
+// Points on a sphere, evenly spread (a Fibonacci lattice), as a flat xyz array.
+function fibDirs(k) {
+  const d = new Float64Array(k * 3), ga = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < k; i++) {
+    const y = 1 - (2 * i + 1) / k, r = Math.sqrt(1 - y * y), t = ga * i;
+    d[3 * i] = Math.cos(t) * r; d[3 * i + 1] = y; d[3 * i + 2] = Math.sin(t) * r;
+  }
+  return d;
+}
+const DIRS_PART = fibDirs(48), DIRS_ALL = fibDirs(256);
+// The points of a cloud that stick out furthest, one per direction - the corners of its
+// convex hull, near enough. How far out something reaches at any angle only ever
+// depends on these, so framing works on a few hundred points instead of every vertex.
+function support(xyz, dirs) {
+  const n = xyz.length / 3, k = dirs.length / 3;
+  if (!n) return new Float32Array(0);
+  const best = new Float64Array(k).fill(-Infinity), idx = new Int32Array(k);
+  for (let i = 0; i < n; i++) {
+    const x = xyz[3 * i], y = xyz[3 * i + 1], z = xyz[3 * i + 2];
+    for (let j = 0; j < k; j++) {
+      const v = x * dirs[3 * j] + y * dirs[3 * j + 1] + z * dirs[3 * j + 2];
+      if (v > best[j]) { best[j] = v; idx[j] = i; }
+    }
+  }
+  const keep = [...new Set(idx)], out = new Float32Array(keep.length * 3);
+  keep.forEach((i, m) => { out[3 * m] = xyz[3 * i]; out[3 * m + 1] = xyz[3 * i + 1];
+                           out[3 * m + 2] = xyz[3 * i + 2]; });
+  return out;
+}
 
 function webglOK() {
   try {
@@ -70,6 +113,7 @@ export function mount(el, opts = {}) {
   if (o.shadowMapSize == null) o.shadowMapSize = o.interactive ? 2048 : 0;
   if (o.maxFps == null) o.maxFps = o.interactive ? 60 : 30;
   if (o.minPixelRatio == null) o.minPixelRatio = o.interactive ? 2 : 1;
+  if (o.fit == null) o.fit = o.interactive ? 'box' : 'circle';
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // No WebGL (very old devices, some locked-down corporate browsers, GPU blocklists):
@@ -148,32 +192,87 @@ export function mount(el, opts = {}) {
     camera.aspect = w / h;
     frame();
   }
-  // Camera distance for the current explode progress. Together, the product fills the
-  // view; as it comes apart the camera eases back with it, so the pieces never leave
-  // the frame and the resting view is not shrunk to make room for a state it is
-  // rarely in.
+  // Camera distance. The product fills its element - the camera stands exactly as far
+  // back as the CURRENT tilt needs, whichever way the product has turned, rather than as
+  // far as the worst angle of a full flip needs. Fitting the bounding sphere was safe at
+  // every angle, but upright - where the product spends nearly all its time - it left a
+  // third of the view empty. Now the camera eases back only as the product tips over,
+  // and a turntable spin at any one tilt never changes the distance.
+  //
+  // For a point P and the camera looking at the middle from distance d, P stays in the
+  // picture when d >= P.w + |P.right| / tan(hfov/2) and d >= P.w + |P.up| / tan(vfov/2),
+  // w pointing at the camera. That is exact under perspective, so the needed distance
+  // is a max over points, over every turn, at each tilt - tabulated once per shape of
+  // the element and read off by tilt each frame.
+  const E = THREE.MathUtils.degToRad(o.homeElev);
+  function buildTable(q, th, tv) {
+    const out = new Float32Array(T_P), n = q.length / 3, se = Math.sin(E), ce = Math.cos(E);
+    const round = o.fit === 'circle';
+    for (let i = 0; i < T_P; i++) {
+      const ph = -Math.PI + (i * TAU) / T_P, cp = Math.cos(ph), sp = Math.sin(ph);
+      let need = 0;
+      for (let j = 0; j < T_Y; j++) {
+        const yw = (j * TAU) / T_Y, c = Math.cos(yw), s = Math.sin(yw);
+        for (let k = 0; k < n; k++) {
+          const x = q[3 * k], y = q[3 * k + 1], z = q[3 * k + 2];
+          const x1 = x * c + z * s, z1 = -x * s + z * c;          // yaw, about Y
+          const y2 = y * cp - z1 * sp, z2 = y * sp + z1 * cp;     // then pitch, about X
+          const a = y2 * se + z2 * ce, yc = y2 * ce - z2 * se;    // toward camera, up
+          const d = round ? a + Math.hypot(x1, yc) / th
+            : Math.max(a + Math.abs(x1) / th, a + Math.abs(yc) / tv);
+          if (d > need) need = d;
+        }
+      }
+      out[i] = need;
+    }
+    return out;
+  }
+  const makeFit = (q) => ({ q, key: '', table: null });
+  // How much of the height the hint needs kept clear, as a fraction of it.
+  const tipRes = () => (o.interactive ? Math.min(TIP_RESERVE, (el.clientHeight || 1) * 0.25) /
+                                        (el.clientHeight || 1) : 0);
+  function fitAt(F, res) {
+    const tv0 = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2), th = tv0 * camera.aspect;
+    const key = camera.aspect.toFixed(4) + '|' + res.toFixed(4);
+    if (F.key !== key) {
+      const tv = tv0 * (1 - res);
+      F.table = o.fit === 'circle' ? buildTable(F.q, Math.min(th, tv) * FILL, 0)
+                                   : buildTable(F.q, th * FILL, tv * FILL);
+      F.key = key;
+    }
+    const u = ((wrapPi(pitch) + Math.PI) / TAU) * T_P, i0 = Math.floor(u), f = u - i0;
+    return F.table[((i0 % T_P) + T_P) % T_P] * (1 - f) + F.table[(i0 + 1) % T_P] * f;
+  }
+  let fitT = null, fitX = null;              // together, and fully opened
   function frame() {
-    // Fit the bounding SPHERE, not the box: a sphere is the same size at every angle,
-    // so nothing clips at any point of a full flip - the check the photo renders needed
-    // a separate script for is automatic here.
     const vf = THREE.MathUtils.degToRad(camera.fov);
     const hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect);
     const f = Math.min(vf, hf);
-    // Open, the camera backs off to fit the pieces; focused on one part (which is
-    // enlarged to about the product's own size) it comes back in.
+    // The bounding sphere still sizes the shadow and the clip planes.
     const open = radius + (radiusX - radius) * xk;
     const reach = open + (radius - open) * fk;
-    const dist = reach / Math.sin(f / 2) * 1.02;
-    const e = THREE.MathUtils.degToRad(o.homeElev);
-    camera.position.set(0, Math.sin(e) * dist, Math.cos(e) * dist);
+    const sphere = (r) => r / Math.sin(f / 2) * 1.02;
+    const res = tipRes();
+    let dist = sphere(reach);                // until the model's points are measured
+    if (fitT) {
+      const D = (F) => (F ? (F.fit ? fitAt(F.fit, res) : sphere(radius))
+                          : fitAt(fitT, 0) * (1 - xk) + fitAt(fitX, res) * xk);
+      const tB = ease(ft);
+      dist = D(fA) * (1 - tB) + D(fB) * tB;
+    }
+    // Keep the bottom clear for the hint by looking slightly lower: the picture moves up
+    // by half the reserve, and the fit above already allowed for the other half.
+    const W = el.clientWidth || 1, H = el.clientHeight || 1, b = res * H * xk;
+    if (b > 0.5) camera.setViewOffset(W, H, 0, b / 2, W, H); else camera.clearViewOffset();
+    camera.position.set(0, Math.sin(E) * dist, Math.cos(E) * dist);
     camera.lookAt(0, 0, 0);
-    camera.near = dist / 50; camera.far = dist * 4;
+    camera.near = dist / 50; camera.far = dist + reach * 3;
     camera.updateProjectionMatrix();
     key.position.set(-dist * 0.7, dist * 0.9, dist * 0.8);
-    const s = key.shadow.camera;
-    s.left = s.bottom = -reach * 1.1; s.right = s.top = reach * 1.1;
-    s.near = dist * 0.1; s.far = dist * 3;
-    s.updateProjectionMatrix();
+    const sc = key.shadow.camera;
+    sc.left = sc.bottom = -reach * 1.1; sc.right = sc.top = reach * 1.1;
+    sc.near = dist * 0.1; sc.far = dist + reach * 3;
+    sc.updateProjectionMatrix();
   }
 
   // ------------------------------------------------------------------ load
@@ -263,6 +362,34 @@ export function mount(el, opts = {}) {
     radiusX = Math.max(radius, xbox.isEmpty() ? radius
       : xbox.getBoundingSphere(new THREE.Sphere()).radius +
         xbox.getCenter(new THREE.Vector3()).length());
+    // The outermost points of every part, in the root's space at home - enough to know
+    // how far out the product reaches at any angle, together or opened, and later for
+    // any group on its own. Big meshes are sampled: neighbouring vertices of a dense
+    // surface are a fraction of a millimetre apart, well inside the FILL margin.
+    const inv = root.matrixWorld.clone().invert(), m4 = new THREE.Matrix4(), v3 = new THREE.Vector3();
+    for (const p of parts) {
+      const xyz = [];
+      p.n.traverse((m) => {
+        const pos = m.isMesh && m.geometry.attributes.position;
+        if (!pos) return;
+        m4.multiplyMatrices(inv, m.matrixWorld);
+        const step = Math.max(1, Math.ceil(pos.count / 4000));
+        for (let i = 0; i < pos.count; i += step) {
+          v3.fromBufferAttribute(pos, i).applyMatrix4(m4); xyz.push(v3.x, v3.y, v3.z);
+        }
+      });
+      p.hull = support(xyz, DIRS_PART);
+    }
+    const cloud = (withOff) => {
+      const q = [], r = root.position;           // root space -> the turning centre's
+      for (const p of parts) {
+        const h = p.hull, ox = r.x + (withOff ? p.off.x : 0), oy = r.y + (withOff ? p.off.y : 0),
+              oz = r.z + (withOff ? p.off.z : 0);
+        for (let i = 0; i < h.length; i += 3) q.push(h[i] + ox, h[i + 1] + oy, h[i + 2] + oz);
+      }
+      return makeFit(support(q, DIRS_ALL));
+    };
+    fitT = cloud(false); fitX = cloud(true);
     size();
     ready = true;
     el.dispatchEvent(new CustomEvent('samnan-3d:ready'));
@@ -321,16 +448,23 @@ export function mount(el, opts = {}) {
     const tB = ease(ft), tA = 1 - tB;
     const _base = new THREE.Vector3();
     for (const g of groups) {
-      const inA = !!(fA && fA.set.includes(g)), inB = !!(fB && fB.set.includes(g));
-      const aA = fA ? (inA ? 1 : 0) : 1, aB = fB ? (inB ? 1 : 0) : 1;
-      const alpha = aA * tA + aB * tB;
+      // Shown in a state: every group when it is the plain product (null), only its own
+      // groups when it is a focus.
+      const showA = !fA || fA.set.includes(g), showB = !fB || fB.set.includes(g);
+      const alpha = (showA ? 1 : 0) * tA + (showB ? 1 : 0) * tB;
       for (const p of g.parts) {
         _base.copy(p.home).addScaledVector(p.off, xk).addScaledVector(g.user, xk);
-        // A group leaving the picture fades where it stands, and one arriving appears
-        // where it will be - neither slides across the view while it fades.
-        const pa = inA ? toFocus(_base, fA) : inB ? toFocus(_base, fB) : _base.clone();
-        const pb = inB ? toFocus(_base, fB) : inA ? toFocus(_base, fA) : _base.clone();
-        const sa = inA ? fA.S : inB ? fB.S : 1, sb = inB ? fB.S : inA ? fA.S : 1;
+        // Where each state puts it. The plain product (null) puts every group back at its
+        // base pose - an earlier version left a group that had just been looked at on
+        // its own centred and enlarged after going back, even with the product closed.
+        // A group hidden in one of the two states takes its place from the other, so one
+        // leaving fades where it stands and one arriving appears where it will be.
+        const placeIn = (F) => (F ? toFocus(_base, F) : _base.clone());
+        let pa = showA ? placeIn(fA) : null, sa = showA ? (fA ? fA.S : 1) : 1;
+        let pb = showB ? placeIn(fB) : null, sb = showB ? (fB ? fB.S : 1) : 1;
+        if (!pa && !pb) { pa = pb = _base.clone(); }   // hidden in both: not drawn at all
+        if (!pa) { pa = pb; sa = sb; }       // hidden in one state: take the other's place
+        if (!pb) { pb = pa; sb = sa; }
         p.n.position.copy(pa).multiplyScalar(tA).addScaledVector(pb, tB);
         p.n.scale.copy(p.scale0).multiplyScalar(sa * tA + sb * tB);
       }
@@ -363,7 +497,17 @@ export function mount(el, opts = {}) {
     [fA, fB, ft] = keep; yawG.rotation.y = keep[3]; pitchG.rotation.x = keep[4];
     pose(); scene.updateMatrixWorld(true);
     const S = Math.min(6, Math.max(0.2, (radius * 0.85) / Math.max(r, 1e-4)));
-    return { set, level, label, C, S, parent: parent || null };
+    // Its points where the focus draws them - (base - C) * S about the turning centre -
+    // so the camera fits the group itself, not the product it came from.
+    const q = [];
+    for (const g of set) for (const p of g.parts) {
+      const h = p.hull; if (!h) continue;
+      const ox = (p.off.x + g.user.x) * xk - C.x, oy = (p.off.y + g.user.y) * xk - C.y,
+            oz = (p.off.z + g.user.z) * xk - C.z;
+      for (let i = 0; i < h.length; i += 3) q.push((h[i] + ox) * S, (h[i + 1] + oy) * S, (h[i + 2] + oz) * S);
+    }
+    const fit = q.length ? makeFit(support(q, DIRS_ALL)) : null;
+    return { set, level, label, C, S, fit, parent: parent || null };
   }
   const partState = (g, parent) => focusState([g], 2, g.label, parent);
   const asmState = (a) => focusState(a.groups, 1, a.label, null);
@@ -411,24 +555,26 @@ export function mount(el, opts = {}) {
       moved = true;
     }
     fk = (fA ? 1 : 0) * (1 - ease(ft)) + (fB ? 1 : 0) * ease(ft);
-    if (moved || mode === 'move') { pose(); frame(); }
+    if (moved || mode === 'move') pose();
     yawG.rotation.y = yaw;
     pitchG.rotation.x = pitch;
+    frame();                         // the distance follows the tilt
     // Animation state advances every frame; the draw itself is capped at maxFps. A
     // thumbnail turning slowly at 72 px loses nothing at 30.
     if (ready && t - lastDraw >= 1000 / o.maxFps - 2) { renderer.render(scene, camera); lastDraw = t; }
     // the name under the pointer, or of the part in focus, or the hint
-    if (fB && fk > 0.5 && hovered && fB.level === 1 && fB.set.includes(hovered)) {
-      setTip(hovered.label + ' \u00b7 double-click to see it on its own');
+    if (fB && fk > 0.5 && fB.level === 1) {
+      setTip(hovered && fB.set.includes(hovered)
+        ? hovered.label + ' \u00b7 drag to move it \u00b7 double-click to see it on its own'
+        : fB.label + ' \u00b7 drag a part to move it \u00b7 double-click one to see it on its own');
     } else if (fB && fk > 0.5) {
-      setTip(fB.label + (fB.level === 1
-        ? ' \u00b7 double-click a part to see it on its own'
-        : ' \u00b7 double-click to go back'));
+      setTip(fB.label + ' \u00b7 double-click to go back');
     } else if (hovered && xk > 0.95) {
-      setTip(hovered.assemblyLabel ? hovered.assemblyLabel + ' \u00b7 ' + hovered.label
-                                   : hovered.label);
+      setTip(hovered.assemblyLabel
+        ? hovered.assemblyLabel + ' \u00b7 double-click to open it'
+        : hovered.label + ' \u00b7 double-click to see it on its own');
     }
-    else if (xk > 0.95) setTip('Drag a part to move it · double-click a part to see it on its own');
+    else if (xk > 0.95) setTip('Drag to turn it \u00b7 double-click a part to look closer');
     else setTip('');
   }
   function wake() { if (!raf && !dead) raf = requestAnimationFrame(tick); }
@@ -462,10 +608,11 @@ export function mount(el, opts = {}) {
   }
 
   // ------------------------------------------------------------------ input
-  // Opened up, a drag that starts on a part moves that part; any other drag turns the
-  // view. Seeing one part on its own is a DOUBLE-click on it - as the user asked, so a
-  // plain click never pulls you into a part when you only meant to grab it. Double-click
-  // again to come back; double-click empty space to close the product.
+  // A drag turns the product - opened up too, so turning it to look inside never grabs
+  // the chassis instead. Parts move only inside a group the user has opened with a
+  // double-click (the inside panel, the motor ...): there, a drag that starts on a part
+  // moves it. Double-click a part in the group to see it on its own, double-click again
+  // to come back; double-click empty space to close.
   let mode = null, downX = 0, downY = 0, downG = null, hovered = null, clickTimer = 0;
   const plane = new THREE.Plane(), hitP = new THREE.Vector3(), startP = new THREE.Vector3();
   function planeHit(e, out) {
@@ -474,15 +621,15 @@ export function mount(el, opts = {}) {
     ray.setFromCamera(ndc, camera);
     return ray.ray.intersectPlane(plane, out);
   }
+  const movable = (g) => !!(fB && fB.level === 1 && fk > 0.5 && fB.set.includes(g));
+  const hoverCursor = (g) => (g ? (movable(g) ? 'move' : 'pointer') : 'grab');
   function onDown(e) {
     if (e.button != null && e.button !== 0) return;
     downX = e.clientX; downY = e.clientY;
     lastX = e.clientX; lastY = e.clientY; lastT = performance.now();
     vel = 0;
     downG = pick(e);
-    // Parts can be dragged in the opened view and inside an assembly; looking at one
-    // part on its own, a drag turns it instead.
-    mode = downG && !(fB && fB.level === 2 && fk > 0.5) ? 'part' : 'rotate';
+    mode = downG && movable(downG) ? 'part' : 'rotate';
     dragging = mode === 'rotate';
     cv.style.cursor = 'grabbing';
     try { el.setPointerCapture(e.pointerId); } catch (_) {}
@@ -490,7 +637,8 @@ export function mount(el, opts = {}) {
   function onMove(e) {
     if (!mode) {                                     // hovering
       const g = pick(e);
-      if (g !== hovered) { hovered = g; cv.style.cursor = g ? 'pointer' : 'grab'; }
+      if (g !== hovered) hovered = g;
+      cv.style.cursor = hoverCursor(g);
       return;
     }
     const far = Math.hypot(e.clientX - downX, e.clientY - downY) > 5;
@@ -529,7 +677,7 @@ export function mount(el, opts = {}) {
     const still = Math.hypot((e ? e.clientX : downX) - downX, (e ? e.clientY : downY) - downY) <= 5;
     const was = mode, g = downG;
     mode = null; dragging = false; downG = null;
-    cv.style.cursor = hovered ? 'pointer' : 'grab';
+    cv.style.cursor = hoverCursor(hovered);
     vel = was === 'rotate' ? Math.max(-4, Math.min(4, vel)) : 0;
     const now = performance.now();
     idleUntil = now + o.resumeAfter;
