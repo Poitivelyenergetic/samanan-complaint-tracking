@@ -1073,7 +1073,7 @@ export default function HomePage() {
                         cursor="pointer"
                         onClick={(data: { payload?: { id: string } }) => {
                           if (!data.payload) return;
-                          router.push(dashboardHref({ type: data.payload.id, status: categoryStatusFilter || undefined }));
+                          router.push(dashboardHref({ type: data.payload.id, status: categoryStatusFilter || undefined }));
                         }}
                       >
                         {categoryData.map((row, i) => (
@@ -1310,7 +1310,7 @@ export default function HomePage() {
                                 status: topAssigneesStatusFilter || undefined,
                                 ...dateFilterToParams(topAssigneesDateFilter, topAssigneesDateFrom, topAssigneesDateTo),
                               })
-                            );
+                            );
                           }}
                         >
                           {topAssignees.map((row, i) => (
@@ -1385,7 +1385,7 @@ export default function HomePage() {
                                 status: topRecordersStatusFilter || undefined,
                                 ...dateFilterToParams(topRecordersDateFilter, topRecordersDateFrom, topRecordersDateTo),
                               })
-                            );
+                            );
                           }}
                         >
                           {topRecorders.map((row, i) => (
@@ -1497,7 +1497,7 @@ export default function HomePage() {
                             cursor="pointer"
                             onClick={(data: { payload?: { id: string } }) => {
                               if (!data.payload) return;
-                              router.push(ticketsHref({ type: data.payload.id }));
+                              router.push(ticketsHref({ type: data.payload.id }));
                             }}
                           >
                             {ticketTypeData.map((row, i) => (
@@ -1544,7 +1544,7 @@ export default function HomePage() {
                             cursor="pointer"
                             onClick={(data: { payload?: { id: string } }) => {
                               if (!data.payload) return;
-                              router.push(ticketsHref({ assignedTo: data.payload.id }));
+                              router.push(ticketsHref({ assignedTo: data.payload.id }));
                             }}
                           >
                             {ticketTopAssignees.map((row, i) => (
