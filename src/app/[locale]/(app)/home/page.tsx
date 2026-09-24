@@ -132,6 +132,30 @@ const TOOLTIP_ITEM_STYLE: React.CSSProperties = { color: "var(--foreground)" };
 // tone it down to a faint themed highlight instead.
 const BAR_CURSOR = { fill: "var(--border)", opacity: 0.4 };
 
+// The status donut's hover, for the bar charts: the bar in the row under the
+// mouse eases out a little from its base and the rest fade back. Spread
+// `chart` onto the BarChart and give each bar's Cell `style(i)`.
+function useBarHover() {
+  const [hovered, setHovered] = useState<number | null>(null);
+  return {
+    chart: {
+      onMouseMove: (state: { activeTooltipIndex?: number | string | null }) => {
+        const i = state?.activeTooltipIndex;
+        setHovered(i == null ? null : Number(i));
+      },
+      onMouseLeave: () => setHovered(null),
+    },
+    style: (i: number): React.CSSProperties => ({
+      transformBox: "fill-box",
+      transformOrigin: "0% 50%",
+      transform: hovered === i ? "scale(1.06)" : "scale(1)",
+      opacity: hovered === null || hovered === i ? 1 : 0.4,
+      transition: "transform 220ms ease-out, opacity 220ms ease-out",
+      outline: "none",
+    }),
+  };
+}
+
 // Recharts wraps a category-axis tick onto multiple lines once its text
 // exceeds the axis width, and those wrapped lines then overflow into the
 // bar rows above/below — the "By Category" chart's long labels ("Refund |
@@ -519,6 +543,13 @@ export default function HomePage() {
   const canView = hasPermission(profile, "complaints", "view");
   const canViewAll = hasPermission(profile, "complaints", "viewAll");
   const canViewAllTickets = hasPermission(profile, "tickets", "viewAll");
+
+  const categoryHover = useBarHover();
+  const sourceHover = useBarHover();
+  const assigneesHover = useBarHover();
+  const recordersHover = useBarHover();
+  const ticketTypeHover = useBarHover();
+  const ticketAssigneesHover = useBarHover();
 
   const [complaints, setComplaints] = useState<Complaint[] | null>(null);
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
@@ -1013,7 +1044,7 @@ export default function HomePage() {
                   <EmptyChart text={t("noData")} />
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={categoryData} layout="vertical" margin={{ left: 8, right: 16 }}>
+                    <BarChart data={categoryData} layout="vertical" margin={{ left: 8, right: 16 }} {...categoryHover.chart}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                       <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
                       <YAxis
@@ -1042,9 +1073,13 @@ export default function HomePage() {
                         cursor="pointer"
                         onClick={(data: { payload?: { id: string } }) => {
                           if (!data.payload) return;
-                          router.push(dashboardHref({ type: data.payload.id, status: categoryStatusFilter || undefined }));
+                          router.push(dashboardHref({ type: data.payload.id, status: categoryStatusFilter || undefined }));
                         }}
-                      />
+                      >
+                        {categoryData.map((row, i) => (
+                          <Cell key={row.id} style={categoryHover.style(i)} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -1073,7 +1108,7 @@ export default function HomePage() {
                   <EmptyChart text={t("noData")} />
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={sourceData} layout="vertical" margin={{ left: 8, right: 16 }}>
+                    <BarChart data={sourceData} layout="vertical" margin={{ left: 8, right: 16 }} {...sourceHover.chart}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                       <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
                       <YAxis
@@ -1095,10 +1130,11 @@ export default function HomePage() {
                         formatter={(value) => [countWithPercent(Number(value), sourceTotal), t("tooltipCount")]}
                       />
                       <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={28}>
-                        {sourceData.map((row) => (
+                        {sourceData.map((row, i) => (
                           <Cell
                             key={row.id}
                             fill={row.color}
+                            style={sourceHover.style(i)}
                             cursor="pointer"
                             onClick={() =>
                               router.push(dashboardHref({ source: row.id, status: sourceStatusFilter || undefined }))
@@ -1239,7 +1275,7 @@ export default function HomePage() {
                     <EmptyChart text={t("noData")} />
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={topAssignees} layout="vertical" margin={{ left: 8, right: 16 }}>
+                      <BarChart data={topAssignees} layout="vertical" margin={{ left: 8, right: 16 }} {...assigneesHover.chart}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                         <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
                         <YAxis
@@ -1274,9 +1310,13 @@ export default function HomePage() {
                                 status: topAssigneesStatusFilter || undefined,
                                 ...dateFilterToParams(topAssigneesDateFilter, topAssigneesDateFrom, topAssigneesDateTo),
                               })
-                            );
+                            );
                           }}
-                        />
+                        >
+                          {topAssignees.map((row, i) => (
+                            <Cell key={row.id} style={assigneesHover.style(i)} />
+                          ))}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   )}
@@ -1310,7 +1350,7 @@ export default function HomePage() {
                     <EmptyChart text={t("noData")} />
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={topRecorders} layout="vertical" margin={{ left: 8, right: 16 }}>
+                      <BarChart data={topRecorders} layout="vertical" margin={{ left: 8, right: 16 }} {...recordersHover.chart}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                         <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
                         <YAxis
@@ -1345,9 +1385,13 @@ export default function HomePage() {
                                 status: topRecordersStatusFilter || undefined,
                                 ...dateFilterToParams(topRecordersDateFilter, topRecordersDateFrom, topRecordersDateTo),
                               })
-                            );
+                            );
                           }}
-                        />
+                        >
+                          {topRecorders.map((row, i) => (
+                            <Cell key={row.id} style={recordersHover.style(i)} />
+                          ))}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   )}
@@ -1425,7 +1469,7 @@ export default function HomePage() {
                       <EmptyChart text={t("noData")} />
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={ticketTypeData} layout="vertical" margin={{ left: 8, right: 16 }}>
+                        <BarChart data={ticketTypeData} layout="vertical" margin={{ left: 8, right: 16 }} {...ticketTypeHover.chart}>
                           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                           <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
                           <YAxis
@@ -1453,9 +1497,13 @@ export default function HomePage() {
                             cursor="pointer"
                             onClick={(data: { payload?: { id: string } }) => {
                               if (!data.payload) return;
-                              router.push(ticketsHref({ type: data.payload.id }));
+                              router.push(ticketsHref({ type: data.payload.id }));
                             }}
-                          />
+                          >
+                            {ticketTypeData.map((row, i) => (
+                              <Cell key={row.id} style={ticketTypeHover.style(i)} />
+                            ))}
+                          </Bar>
                         </BarChart>
                       </ResponsiveContainer>
                     )}
@@ -1468,7 +1516,7 @@ export default function HomePage() {
                       <EmptyChart text={t("noData")} />
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={ticketTopAssignees} layout="vertical" margin={{ left: 8, right: 16 }}>
+                        <BarChart data={ticketTopAssignees} layout="vertical" margin={{ left: 8, right: 16 }} {...ticketAssigneesHover.chart}>
                           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                           <XAxis type="number" allowDecimals={false} stroke="var(--foreground)" opacity={0.5} fontSize={12} />
                           <YAxis
@@ -1496,9 +1544,13 @@ export default function HomePage() {
                             cursor="pointer"
                             onClick={(data: { payload?: { id: string } }) => {
                               if (!data.payload) return;
-                              router.push(ticketsHref({ assignedTo: data.payload.id }));
+                              router.push(ticketsHref({ assignedTo: data.payload.id }));
                             }}
-                          />
+                          >
+                            {ticketTopAssignees.map((row, i) => (
+                              <Cell key={row.id} style={ticketAssigneesHover.style(i)} />
+                            ))}
+                          </Bar>
                         </BarChart>
                       </ResponsiveContainer>
                     )}
