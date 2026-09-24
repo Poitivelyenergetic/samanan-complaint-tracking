@@ -773,6 +773,26 @@ body {
   }
 }
 
+/* Lying flat on their back (where crew-tumble leaves them), not getting up. */
+@keyframes crew-lie {
+  from,
+  to {
+    transform: translate(calc(var(--h) * 0.5), calc(var(--w) * -0.5)) rotate(-90deg);
+  }
+}
+
+/* The ambulance's lights: one on, then the other. */
+@keyframes crew-siren {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.25;
+  }
+}
+
 /* Caught at it: a crouch and a jump straight up in fright. */
 @keyframes crew-startle {
   0%,
@@ -1293,6 +1313,15 @@ body {
   }
   .crew-gleam {
     animation: crew-gleam 700ms ease-in-out both;
+  }
+  .crew-lie {
+    animation: crew-lie 1s linear both;
+  }
+  .crew-siren {
+    animation: crew-siren 500ms linear infinite;
+  }
+  .crew-siren-b {
+    animation-delay: -250ms;
   }
   .crew-startle {
     animation: crew-startle 650ms ease-out both;

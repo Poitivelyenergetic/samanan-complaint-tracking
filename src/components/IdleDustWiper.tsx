@@ -93,7 +93,9 @@ type Quirk =
   | "shove"
   // A stain that won't come off (see buildFloorScript).
   | "fume"
-  | "fling";
+  | "fling"
+  // Fallen off the second floor, and not getting up.
+  | "hurt";
 type CheerStyle = "nod" | "wave" | "bow" | "jump";
 
 interface Vec {
@@ -102,7 +104,7 @@ interface Vec {
 }
 
 interface Character {
-  name: Name | BuilderName;
+  name: Name | BuilderName | MedicName;
   color: string;
   width: number;
   height: number;
@@ -117,6 +119,8 @@ interface Character {
   blinkDelay: string;
   /** The construction crew's hi-vis vest colour (they get a hard hat too). */
   vest?: string;
+  /** A paramedic: a white cap and a red cross. */
+  medic?: boolean;
 }
 
 // The two tall ones are the login screen's characters shrunk down; the two
@@ -187,6 +191,7 @@ const QUIRK_MS: Record<Quirk, number> = {
   shove: 600,
   fume: 1100,
   fling: 900,
+  hurt: 1000,
 };
 // How often a spot just won't come off, and how long scrubbing it does.
 const STUBBORN_CHANCE = 0.18;
@@ -233,6 +238,8 @@ type Step =
       face?: 1 | -1;
       /** Coming down the stairs, watching their feet. */
       down?: boolean;
+      /** Lying on a stretcher, being carried off. */
+      carried?: boolean;
       /** Fleeing in terror, arms flying (see panic)... */
       panic?: boolean;
       /** ...or clutching the thing they went back for. */
@@ -259,6 +266,8 @@ type Step =
       steady?: { away: boolean };
       /** Running on the spot in terror (see panic). */
       panic?: boolean;
+      /** Lying there hurt. */
+      lying?: boolean;
     }
   | { kind: "cheer"; at: number; ms: number }
   | { kind: "pull"; at: number; ms: number }
@@ -857,7 +866,10 @@ function buildClimberScript(
   entryX: number,
   specks: DustSpeck[],
   vw: number,
-  mishap: Mishap | null
+  mishap: Mishap | null,
+  // Up on the second floor: which of its stops they fall off at, if they
+  // do; or, taking over from someone who did, just the stops left.
+  deck: { fallAt?: number; stops?: number[] } = {}
 ) {
   const steps: Step[] = [];
   const landedAt: number[] = [];
@@ -890,18 +902,29 @@ function buildClimberScript(
   };
   const half = Math.ceil(s.n / 2);
   const level = landingLevel(s);
-  const stops = landingStops(s);
+  const stops = deck.stops ?? landingStops(s);
   const stopAt: number[] = [];
+  let fell: { x: number; landAt: number } | null = null;
   if (s.deck) {
     // All the way up to the second floor, then along it — cleaning the
     // stat card above each stop, or just stopping to look about — and back.
     t = climbUp(steps, s, character, 0, level, t, vw, mishap, landed);
     let at = level;
     const away = (-s.dirUp) as 1 | -1;
-    stops.forEach((u, i) => {
+    for (const [i, u] of stops.entries()) {
       t = alongLanding(steps, s, at, u, t);
       at = u;
       stopAt.push(t);
+      if (i === deck.fallAt) {
+        // Too near the edge: a wobble, and all the way down.
+        steps.push({ kind: "quirk", at: t, ms: QUIRK_MS.teeter, quirk: "teeter" });
+        t += QUIRK_MS.teeter;
+        steps.push({ kind: "fall", at: t, ms: DECK_FALL_MS, x: stairPct(s, u), y: 0 });
+        t += DECK_FALL_MS;
+        steps.push({ kind: "quirk", at: t, ms: QUIRK_MS.hurt, quirk: "hurt" });
+        fell = { x: stairPx(s, u), landAt: t };
+        break;
+      }
       if (s.deck!.mode === "clean") {
         // Stretching up to the bottom of the card above.
         clean(u, level * s.riseH, away, Math.max(1, s.deck!.reachUp / (character.height * 0.55 + 24)));
@@ -912,7 +935,8 @@ function buildClimberScript(
         steps.push({ kind: "quirk", at: t, ms: QUIRK_MS[quirk], quirk });
         t += QUIRK_MS[quirk];
       }
-    });
+    }
+    if (fell) return { actor: { character, entryX, steps, endAt: t } as FloorActor, landedAt, stopAt, clearAt: t, fell };
     t = alongLanding(steps, s, at, level, t);
   } else {
     const [first, second] = stops;
@@ -930,7 +954,7 @@ function buildClimberScript(
   // Three hops out onto the open floor, clearing the way for the mop.
   const clearX = stairPct(s, 0) - s.dirUp * ((3 * WALK_PX_PER_S * HOP_MS) / 1000 / vw) * 100;
   t = hopTo(steps, stairPct(s, 0), clearX, t, vw);
-  return { actor: { character, entryX, steps, endAt: t } as FloorActor, landedAt, stopAt, clearAt: t };
+  return { actor: { character, entryX, steps, endAt: t } as FloorActor, landedAt, stopAt, clearAt: t, fell };
 }
 
 // The mop's last job of the round: every step, bottom to top, then the
@@ -1163,6 +1187,239 @@ function buildGondolaScript(riders: Character[], startAt: number, specks: DustSp
   return { riders, entryX, steps, endAt: t, riderQuirks, riderLooks, shine };
 }
 
+// ------------------------------------------------------------ the rescue
+
+// Now and then, up on the second floor, whoever's up there misses the edge
+// and falls all the way down — and doesn't get up. An ambulance comes,
+// lights flashing; two paramedics hop out with a stretcher, lift them on
+// and carry them back to it, and it reverses away. Someone else from the
+// crew comes in and finishes their job up there.
+
+type MedicName = "medic1" | "medic2";
+
+// The paramedics: the crew's flat style again, in teal and green scrubs,
+// with a white cap and a red cross.
+const MEDICS: Record<MedicName, Character> = {
+  medic1: {
+    name: "medic1",
+    color: "#3fa7b5",
+    width: 50,
+    height: 104,
+    shape: "block",
+    radius: "8px 8px 2px 2px",
+    stage1: "wipe",
+    stage2: "wipe",
+    blinkDelay: "500ms",
+    medic: true,
+  },
+  medic2: {
+    name: "medic2",
+    color: "#4fb58a",
+    width: 72,
+    height: 78,
+    shape: "blob",
+    radius: "50% 50% 14px 14px / 70% 70% 14px 14px",
+    stage1: "wipe",
+    stage2: "wipe",
+    blinkDelay: "1800ms",
+    medic: true,
+  },
+};
+
+// How often it happens, on a round up to the second floor with someone
+// spare to take over.
+const DECK_FALL_CHANCE = 1 / 3;
+const DECK_FALL_MS = 950;
+const AMBULANCE_W = 210;
+const AMBULANCE_H = 104;
+// Where the side door is along it, from its back end.
+const AMBULANCE_DOOR = 70;
+const STRETCHER_L = 150;
+const STRETCHER_Y = 30;
+const CARRY_PX_PER_S = 120;
+
+interface RescuePlan {
+  /** px from the left of the ambulance when parked, and which way it faces. */
+  left: number;
+  dir: 1 | -1;
+  frames: Frame[];
+  door: Frame[];
+  /** The stretcher: where it sits when it's by the door (px, its middle), and its moves from there. */
+  stretcherX: number;
+  stretcher: Frame[];
+  medics: FloorActor[];
+  endAt: number;
+}
+
+// The ambulance's visit, from the moment `x` (px) hits the floor at
+// `landAt`: in from the nearer edge, the paramedics out with the stretcher,
+// onto it and back, and away. Adds being carried off to `injured`.
+function planRescue(injured: FloorActor, x: number, landAt: number, vw: number): RescuePlan {
+  const pct = (px: number) => (px / vw) * 100;
+  // In from the nearer edge, pulling up short of them with the door on
+  // their side.
+  const dir: 1 | -1 = x < vw / 2 ? 1 : -1;
+  const doorX = x - dir * (STRETCHER_L / 2 + 110);
+  const left = dir === 1 ? doorX - (AMBULANCE_W - AMBULANCE_DOOR) : doorX - AMBULANCE_DOOR;
+  const off = dir === 1 ? -(left + AMBULANCE_W + 40) : vw - left + 40;
+  const driveMs = Math.max(2200, (Math.abs(off) / 260) * 1000);
+  const inAt = landAt + 1200;
+  const parkedAt = inAt + driveMs;
+  const doorOpen = parkedAt + 500;
+
+  // The stretcher between the two of them, the way they're going: medic1
+  // at the front going out, medic2 at the back.
+  const reach = (c: Character) => STRETCHER_L / 2 + 8 + c.width / 2;
+  const stretcherAtDoor = doorX;
+  const outMs = Math.max(800, (Math.abs(x - doorX) / CARRY_PX_PER_S) * 1000);
+  const outAt = doorOpen + 500;
+  const atPatient = outAt + outMs;
+  const liftAt = atPatient + 900;
+  const backAt = liftAt + 700;
+  const loadAt = backAt + outMs;
+  const inside = loadAt + 700;
+  const doorShut = inside + 300;
+  const outDrive = Math.max(2200, (Math.abs(off) / 260) * 1000);
+  const goneAt = doorShut + 400 + outDrive;
+
+  const medicSteps = (c: Character, side: 1 | -1): FloorActor => {
+    const hops = (ms: number) => ms / Math.max(1, Math.round(ms / HOP_MS));
+    const at = (center: number) => pct(center + side * dir * reach(c));
+    const steps: Step[] = [
+      { kind: "aboard", at: 0, ms: outAt - 1 },
+      // Hopping down out of the door.
+      { kind: "walk", at: outAt - 1, ms: 1, x: at(stretcherAtDoor), hopMs: 1 },
+      { kind: "walk", at: outAt, ms: outMs, x: at(x), hopMs: hops(outMs) },
+      // Stooping to lift them on.
+      { kind: "pull", at: atPatient, ms: liftAt + 600 - atPatient },
+      { kind: "wait", at: liftAt + 600, ms: backAt - liftAt - 600 },
+      { kind: "walk", at: backAt, ms: outMs, x: at(stretcherAtDoor), hopMs: hops(outMs) },
+      { kind: "wait", at: loadAt, ms: inside - loadAt },
+      { kind: "gone", at: inside, ms: 0 },
+    ];
+    return { character: c, entryX: at(stretcherAtDoor), steps, endAt: inside };
+  };
+
+  // Lying there until they're lifted on, then carried to the door, and in.
+  const lie = injured.steps[injured.steps.length - 1];
+  lie.ms = liftAt - lie.at;
+  injured.steps.push(
+    { kind: "walk", at: liftAt, ms: 600, x: pct(x), y: STRETCHER_Y, hopMs: 600, carried: true },
+    { kind: "wait", at: liftAt + 600, ms: backAt - liftAt - 600, lying: true },
+    { kind: "walk", at: backAt, ms: outMs, x: pct(stretcherAtDoor), y: STRETCHER_Y, hopMs: outMs, carried: true },
+    { kind: "wait", at: loadAt, ms: 500, lying: true },
+    { kind: "gone", at: loadAt + 500, ms: 0 }
+  );
+  injured.endAt = loadAt + 500;
+
+  const bounce = (ms: number): Frame[] => [
+    [ms, { transform: `translateX(${dir * 5}px)` }, "ease-in-out"],
+    [ms + 260, { transform: `translateX(${-dir * 2}px)` }, "ease-in-out"],
+    [ms + 520, { transform: "translateX(0px)" }],
+  ];
+  return {
+    left,
+    dir,
+    frames: [
+      [0, { transform: `translateX(${off}px)` }],
+      [inAt, { transform: `translateX(${off}px)` }, "cubic-bezier(0.2, 0.6, 0.3, 1)"],
+      ...bounce(parkedAt),
+      [doorShut + 400, { transform: "translateX(0px)" }, "cubic-bezier(0.5, 0, 0.9, 0.6)"],
+      [goneAt, { transform: `translateX(${off}px)` }],
+    ],
+    door: [
+      [0, { transform: "translateX(0px)" }],
+      [doorOpen - 300, { transform: "translateX(0px)" }, "ease-in-out"],
+      [doorOpen, { transform: `translateX(${-44}px)` }],
+      [inside, { transform: `translateX(${-44}px)` }, "ease-in-out"],
+      [doorShut, { transform: "translateX(0px)" }],
+    ],
+    stretcherX: stretcherAtDoor,
+    stretcher: [
+      [0, { transform: "translateX(0px)", opacity: 0 }],
+      [outAt - 2, { transform: "translateX(0px)", opacity: 0 }],
+      [outAt - 1, { transform: "translateX(0px)", opacity: 1 }, "linear"],
+      [atPatient, { transform: `translateX(${(x - stretcherAtDoor).toFixed(1)}px)`, opacity: 1 }],
+      [backAt, { transform: `translateX(${(x - stretcherAtDoor).toFixed(1)}px)`, opacity: 1 }, "linear"],
+      [loadAt, { transform: "translateX(0px)", opacity: 1 }],
+      [loadAt + 500, { transform: "translateX(0px)", opacity: 1 }],
+      [loadAt + 501, { transform: "translateX(0px)", opacity: 0 }],
+    ],
+    medics: [medicSteps(MEDICS.medic1, 1), medicSteps(MEDICS.medic2, -1)],
+    endAt: goneAt,
+  };
+}
+
+// The ambulance and its stretcher, playing their keyframes over the round.
+function Ambulance({ plan, total }: { plan: RescuePlan; total: number }) {
+  const root = useRef<HTMLDivElement>(null);
+  const door = useRef<HTMLDivElement>(null);
+  const stretcher = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const anims = [
+      root.current?.animate(track(plan.frames, total), { duration: total, fill: "both" }),
+      door.current?.animate(track(plan.door, total), { duration: total, fill: "both" }),
+      stretcher.current?.animate(track(plan.stretcher, total), { duration: total, fill: "both" }),
+    ];
+    return () => anims.forEach((a) => a?.cancel());
+  }, [plan, total]);
+  return (
+    <>
+      <div
+        ref={root}
+        className="absolute"
+        data-crew-machine="ambulance"
+        data-crew-dir={plan.dir}
+        style={{ left: plan.left, bottom: FLOOR - 2, width: AMBULANCE_W, height: AMBULANCE_H, zIndex: 2 }}
+      >
+        <div className="absolute inset-0" style={{ transform: plan.dir === -1 ? "scaleX(-1)" : undefined }}>
+          <svg width={AMBULANCE_W} height={AMBULANCE_H} viewBox={`0 0 ${AMBULANCE_W} ${AMBULANCE_H}`} className="absolute inset-0 overflow-visible" aria-hidden="true">
+            {/* the box at the back, the cab at the front */}
+            <rect x={4} y={16} width={148} height={70} rx={8} fill="#f7f8fb" stroke="#c9ced9" strokeWidth={2} />
+            <path d="M150,86 L150,40 Q150,34 156,34 L184,34 Q192,34 196,42 L206,62 L206,86 Z" fill="#f7f8fb" stroke="#c9ced9" strokeWidth={2} />
+            <path d="M158,40 L182,40 Q187,40 189,45 L196,60 L158,60 Z" fill="#bfe3f7" />
+            <Driver x={168} y={43} color="#3fa7b5" size={13} />
+            <rect x={4} y={62} width={202} height={9} fill="#e0564f" />
+            {/* a red cross on the side */}
+            <rect x={98} y={27} width={10} height={30} rx={1.5} fill="#e0564f" />
+            <rect x={88} y={37} width={30} height={10} rx={1.5} fill="#e0564f" />
+            {/* lights on the roof */}
+            <rect className="crew-siren" x={20} y={9} width={14} height={8} rx={3} fill="#e0564f" />
+            <rect className="crew-siren crew-siren-b" x={128} y={9} width={14} height={8} rx={3} fill="#3b82f6" />
+            {[36, 176].map((cx) => (
+              <g key={cx}>
+                <circle cx={cx} cy={AMBULANCE_H - 16} r={15} fill="#2b2f36" />
+                <circle cx={cx} cy={AMBULANCE_H - 16} r={6} fill="#9aa3b5" />
+              </g>
+            ))}
+          </svg>
+          {/* The side door, sliding open. */}
+          <div
+            className="absolute overflow-hidden"
+            style={{ left: AMBULANCE_DOOR - 20, top: 20, width: 88, height: 62 }}
+          >
+            <div className="absolute inset-y-0" style={{ left: 20, width: 44, backgroundColor: "#2b2f36" }} />
+            <div
+              ref={door}
+              className="absolute inset-y-0 rounded-sm"
+              style={{ left: 20, width: 44, backgroundColor: "#eef0f5", border: "2px solid #c9ced9" }}
+            />
+          </div>
+        </div>
+      </div>
+      {/* The stretcher. */}
+      <div
+        ref={stretcher}
+        className="absolute"
+        style={{ left: plan.stretcherX - STRETCHER_L / 2, bottom: FLOOR + STRETCHER_Y - 10, width: STRETCHER_L, height: 12, zIndex: 4, opacity: 0 }}
+      >
+        <div className="absolute inset-x-0 top-0 rounded-md" style={{ height: 8, backgroundColor: "#f7f8fb", border: "2px solid #c9ced9" }} />
+        <div className="absolute rounded-full" style={{ left: 6, right: 6, top: 8, height: 3, backgroundColor: "#9aa3b5" }} />
+      </div>
+    </>
+  );
+}
+
 // ------------------------------------------------------------ the round
 
 interface RoundPlan {
@@ -1170,6 +1427,8 @@ interface RoundPlan {
   floor: FloorActor[];
   gondola: GondolaActor | null;
   stairs: Stairs | null;
+  /** Someone fell off the second floor: the ambulance come for them. */
+  rescue?: RescuePlan | null;
   dust: DustSpeck[];
   cheerStyle: CheerStyle;
   confetti: boolean;
@@ -1235,7 +1494,12 @@ function planRound(exclude: Name[]): RoundPlan {
   // Whether anyone on the stairs misses their footing this round, who, on
   // which step (never the bottom two — there'd be nowhere to fall), and
   // whether the rail saves them.
-  const onStairs = [climberName, stairs ? mopperName : null].filter((n): n is Name => n !== null);
+  // Up to the second floor, the climber might fall off it — if there's
+  // someone spare to come and take over.
+  const spare = ALL_NAMES.find((n) => !cast.includes(n) && !exclude.includes(n)) ?? null;
+  const deckFall =
+    stairs?.deck && climberName && spare && Math.random() < DECK_FALL_CHANCE ? Math.floor(Math.random() * stairs.stops.length) : null;
+  const onStairs = [deckFall === null ? climberName : null, stairs ? mopperName : null].filter((n): n is Name => n !== null);
   const mishapFor =
     stairs && onStairs.length > 0 && Math.random() < MISHAP_CHANCE
       ? onStairs[Math.floor(Math.random() * onStairs.length)]
@@ -1250,6 +1514,8 @@ function planRound(exclude: Name[]): RoundPlan {
   let climberClearAt = 0;
   let landedAt: number[] = [];
   let climberStopAt: number[] = [];
+  let rescue: RescuePlan | null = null;
+  let takingOver: FloorActor | null = null;
 
   if (climberName && stairs) {
     const c = buildClimberScript(
@@ -1259,12 +1525,25 @@ function planRound(exclude: Name[]): RoundPlan {
       entryX,
       dust,
       vw,
-      mishapFor === climberName ? mishap : null
+      mishapFor === climberName ? mishap : null,
+      deckFall !== null ? { fallAt: deckFall } : {}
     );
     floor.push(c.actor);
     climberClearAt = c.clearAt;
     landedAt = c.landedAt;
     climberStopAt = c.stopAt;
+    if (c.fell && spare && deckFall !== null) {
+      // The ambulance for them, and the spare one in to finish up there.
+      rescue = planRescue(c.actor, c.fell.x, c.fell.landAt, vw);
+      floor.push(...rescue.medics);
+      const rest = stairs.stops.slice(deckFall);
+      const r = buildClimberScript(CHARACTERS[spare], stairs, c.fell.landAt + 1500, entryX, dust, vw, null, { stops: rest });
+      floor.push(r.actor);
+      takingOver = r.actor;
+      climberClearAt = r.clearAt;
+      climberStopAt = [...climberStopAt.slice(0, deckFall), ...r.stopAt];
+      cast.push(spare);
+    }
     startAt += 700;
   }
 
@@ -1287,7 +1566,7 @@ function planRound(exclude: Name[]): RoundPlan {
   const glassCrew = laneNames.filter((n) => n !== mopperName);
   const laneHelper =
     glassCrew.length >= 2 ? (glassCrew.find((n) => CHARACTERS[n].stage1 !== "spray") ?? glassCrew[0]) : null;
-  const climber = climberName ? floor.find((a) => a.character.name === climberName) : undefined;
+  const climber = climberName ? (rescue ? (takingOver ?? undefined) : floor.find((a) => a.character.name === climberName)) : undefined;
   const handoffs: Handoff[] = [];
   const team =
     laneHelper || climber
@@ -1335,13 +1614,14 @@ function planRound(exclude: Name[]): RoundPlan {
 
   const gondola = riderNames.length > 0 ? buildGondolaScript(riderNames.map((n) => CHARACTERS[n]), 60, dust, stairs) : null;
 
-  const endAt = wrapUp(floor, gondola, stairs, entryX, vw);
+  const endAt = Math.max(wrapUp(floor, gondola, stairs, entryX, vw), (rescue as RescuePlan | null)?.endAt ?? 0);
 
   return {
     kind: "clean",
     floor,
     gondola,
     stairs,
+    rescue,
     dust,
     cheerStyle: weightedPick<CheerStyle>([
       ["nod", 45],
@@ -1361,7 +1641,9 @@ function planRound(exclude: Name[]): RoundPlan {
 // which lift away behind them. Says when the last of it's done.
 function wrapUp(floor: FloorActor[], gondola: GondolaActor | null, stairs: Stairs | null, entryX: number, vw: number) {
   const actors: { steps: Step[]; endAt: number; isGondola: boolean }[] = [
-    ...floor.map((a) => ({ steps: a.steps, endAt: a.endAt, isGondola: false })),
+    ...floor
+      .filter((a) => a.steps[a.steps.length - 1]?.kind !== "gone")
+      .map((a) => ({ steps: a.steps, endAt: a.endAt, isGondola: false })),
     ...(gondola ? [{ steps: gondola.steps, endAt: gondola.endAt, isGondola: true }] : []),
   ];
   const cheerAt = Math.max(...actors.map((a) => a.endAt)) + 300;
@@ -2078,7 +2360,7 @@ function QuirkOverlay({ character, quirk, facing }: { character: Character; quir
       </div>
     );
   }
-  if (quirk === "slip" || quirk === "dazed" || quirk === "bonk") {
+  if (quirk === "slip" || quirk === "dazed" || quirk === "bonk" || quirk === "hurt") {
     return (
       <div className="absolute" style={{ left: width / 2 - 22, top: -26, width: 44, height: 20 }}>
         <div className="crew-orbit relative h-full w-full">
@@ -2173,6 +2455,9 @@ function quirkPose(quirk: Quirk, facing: 1 | -1): Pose {
     // That spot's still there: stamping about, fuming.
     case "fume":
       return { ...base, expression: "angry", bodyClass: "crew-stomp", bucketDown: false };
+    // Flat on their back, seeing stars.
+    case "hurt":
+      return { ...base, mode: "none", expression: "dizzy", bodyClass: "crew-lie", bucketDown: false };
     // ...and throwing the cloth down.
     case "fling":
       return { ...base, mode: "none", expression: "angry", bodyClass: "crew-stomp", bucketDown: false };
@@ -2184,6 +2469,9 @@ function poseFor(step: Step | undefined, cheerStyle: CheerStyle, facing: 1 | -1,
   if (!step) return { ...base, bucketDown: false };
   switch (step.kind) {
     case "walk":
+      if (step.carried) {
+        return { ...base, mode: "none", expression: "dizzy", bodyClass: "crew-lie", bucketDown: false, quirk: "hurt" };
+      }
       if (step.panic) {
         return {
           ...base,
@@ -2239,6 +2527,7 @@ function poseFor(step: Step | undefined, cheerStyle: CheerStyle, facing: 1 | -1,
       // facing into the stairs if they're on the way up.
       if (step.steady) return { ...base, bucketDown: false, back: step.steady.away };
       if (step.panic) return { ...base, mode: "flail", expression: "shock", bodyClass: "", hopMs: PANIC_HOP_MS, run: true, bucketDown: false };
+      if (step.lying) return { ...base, mode: "none", expression: "dizzy", bodyClass: "crew-lie", bucketDown: false, quirk: "hurt" };
       return base;
     case "pull":
       return { ...base, mode: "none", expression: "focus", bodyClass: "crew-pull" };
@@ -2346,6 +2635,7 @@ function FloorWorker({ actor, cheerStyle, moonwalk }: { actor: FloorActor; cheer
   const index = useStepIndex(actor.steps);
   const step = actor.steps[index];
   if (step?.kind === "gone" || step?.kind === "aboard") return null;
+  if (index === -1 && actor.steps[0]?.kind === "aboard") return null;
   const { x, y, facing, tread, lastTread } = positionAt(actor.steps, index, {
     x: actor.entryX,
     y: actor.entryY,
@@ -3791,7 +4081,35 @@ function planCleanup(exclude: Name[], left: DustSpeck[]): RoundPlan | null {
 
 // Construction gear: a hi-vis vest with reflective stripes, and a hard hat.
 function Workwear({ character }: { character: Character }) {
-  const { width, height, shape, radius, vest } = character;
+  const { width, height, shape, radius, vest, medic } = character;
+  if (medic) {
+    const capW = width * (shape === "block" ? 0.86 : 0.6);
+    return (
+      <>
+        {/* A white cap with a red cross, and a cross on the chest. */}
+        <svg
+          className="absolute"
+          style={{ left: (width - capW) / 2, top: -capW * 0.3, width: capW, height: capW * 0.42 }}
+          viewBox="0 0 100 42"
+          aria-hidden="true"
+        >
+          <path d="M8,40 C8,4 92,4 92,40 Z" fill="#f7f8fb" stroke="#c9ced9" strokeWidth="3" />
+          <rect x="45" y="12" width="10" height="24" rx="2" fill="#e0564f" />
+          <rect x="38" y="19" width="24" height="10" rx="2" fill="#e0564f" />
+        </svg>
+        <svg
+          className="absolute"
+          style={{ left: width / 2 - 8, top: height * (shape === "block" ? 0.55 : 0.62), width: 16, height: 16 }}
+          viewBox="0 0 16 16"
+          aria-hidden="true"
+        >
+          <rect x="0" y="0" width="16" height="16" rx="3" fill="#f7f8fb" />
+          <rect x="6.5" y="3" width="3" height="10" rx="1" fill="#e0564f" />
+          <rect x="3" y="6.5" width="10" height="3" rx="1" fill="#e0564f" />
+        </svg>
+      </>
+    );
+  }
   if (!vest) return null;
   const vestTop = height * (shape === "block" ? 0.46 : 0.6);
   const hatW = width * (shape === "block" ? 0.9 : 0.62);
@@ -4851,7 +5169,9 @@ interface Caught {
 }
 
 const crewByName = (name: string): Character | undefined =>
-  (CHARACTERS as Record<string, Character>)[name] ?? (BUILDERS as Record<string, Character>)[name];
+  (CHARACTERS as Record<string, Character>)[name] ??
+  (BUILDERS as Record<string, Character>)[name] ??
+  (MEDICS as Record<string, Character>)[name];
 
 // Where everything is the moment they're caught — read straight off the
 // screen, since they're mid-hop, mid-swing, mid-drive. `elapsed` is how far
@@ -5310,6 +5630,7 @@ function CleaningRound({ plan, onDone }: { plan: RoundPlan; onDone: () => void }
       ))}
       {plan.gondola && <Gondola actor={plan.gondola} cheerStyle={plan.cheerStyle} />}
       {plan.gondola?.shine && <Shine {...plan.gondola.shine} />}
+      {plan.rescue && <Ambulance plan={plan.rescue} total={plan.endAt} />}
       {plan.floor.map((actor) => (
         <FloorWorker key={actor.character.name} actor={actor} cheerStyle={plan.cheerStyle} moonwalk={plan.moonwalk} />
       ))}
