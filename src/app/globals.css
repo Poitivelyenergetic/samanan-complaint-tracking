@@ -39,6 +39,9 @@
     --tint-history-border: #235852;
     --tint-status-bg: #271f33;
     --tint-status-border: #47365c;
+    /* The cleaning crew's black character, lifted to charcoal so it
+       doesn't disappear into the dark background. */
+    --crew-black: #4a5060;
   }
 }
 
@@ -55,6 +58,7 @@
   --tint-history-border: #235852;
   --tint-status-bg: #271f33;
   --tint-status-border: #47365c;
+  --crew-black: #4a5060;
 }
 
 @theme inline {

@@ -112,7 +112,9 @@ const CHARACTERS: Record<Name, Character> = {
   },
   black: {
     name: "black",
-    color: LOGIN_CHARACTER_COLORS.black,
+    // Charcoal in dark mode (see --crew-black), where near-black would
+    // vanish into the background.
+    color: `var(--crew-black, ${LOGIN_CHARACTER_COLORS.black})`,
     width: 44,
     height: 106,
     shape: "block",
