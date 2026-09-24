@@ -442,17 +442,45 @@
 
     // A login screen should not spend megabytes before the form is usable, so unless
     // the host opts out we wait until the element is actually on screen.
-    var io = null;
+    var io = null, ro = null, kicked = false;
+
+    function kick() {
+      if (kicked || dead) return;
+      kicked = true;
+      if (io) { io.disconnect(); io = null; }
+      start();
+    }
+
+    // A host with no size never intersects, so the observer never fires and the
+    // spinner silently never loads. That is not hypothetical: the login page hides its
+    // illustration panel at narrow widths, which collapses the host to 0x0, and an
+    // entrance animation can hold it at zero for a moment on any width. Either way the
+    // element can gain size later - the window is resized, the panel comes back - and
+    // without this it would stay blank for the rest of the page's life.
+    function reconsider() {
+      if (kicked || dead) return;
+      if (!el.clientWidth || !el.clientHeight) return;
+      var r = el.getBoundingClientRect();
+      if (r.bottom > -200 && r.top < (global.innerHeight || 0) + 200 &&
+          r.right > -200 && r.left < (global.innerWidth || 0) + 200) {
+        kick();
+      }
+    }
+
     if (o.lazy && global.IntersectionObserver) {
       io = new IntersectionObserver(function (entries) {
-        if (entries.some(function (x) { return x.isIntersecting; })) {
-          io.disconnect();
-          start();
-        }
+        if (entries.some(function (x) { return x.isIntersecting; })) kick();
       }, { rootMargin: '200px' });
       io.observe(el);
+      global.addEventListener('resize', reconsider);
+      if (global.ResizeObserver) {
+        try {
+          ro = new global.ResizeObserver(reconsider);
+          ro.observe(el);
+        } catch (e) {}
+      }
     } else {
-      start();
+      kick();
     }
 
     global.addEventListener('resize', size);
@@ -481,10 +509,12 @@
         // destroys and remounts in development, and an observer left armed on the
         // dead instance fires start() on it later.
         if (io) { io.disconnect(); io = null; }
+        if (ro) { try { ro.disconnect(); } catch (e) {} ro = null; }
         for (var i = 0; i < BOUND.length; i++) {
           el.removeEventListener(BOUND[i][0], BOUND[i][1]);
         }
         global.removeEventListener('resize', size);
+        global.removeEventListener('resize', reconsider);
         if (cv.parentNode === el) el.removeChild(cv);
         el.__samnanSpinner = false;
       }
