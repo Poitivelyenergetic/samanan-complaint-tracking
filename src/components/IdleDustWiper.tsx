@@ -74,7 +74,7 @@ function hopTrip(fromPct: number, toPct: number, vw: number, run = false) {
 type Name = "purple" | "black" | "orange" | "yellow";
 // The construction crew who turn up when something breaks (see maintenance).
 type BuilderName = "foreman" | "welder";
-type Activity = "spray" | "wipe" | "polish" | "dunk" | "mopFloor" | "mopStep" | "weld" | "type";
+type Activity = "spray" | "wipe" | "polish" | "dunk" | "mopFloor" | "mopStep" | "weld" | "type" | "glue";
 type Quirk =
   | "confused"
   | "sneeze"
@@ -1903,6 +1903,28 @@ function Mop() {
   );
 }
 
+// The welder's glue: a bucket of it from the cement mixer, and a trowel to
+// spread it on with.
+function CementBucket() {
+  return (
+    <svg width="28" height="30" viewBox="0 -6 28 30" aria-hidden="true">
+      <path d="M7,5 C7,-6 21,-6 21,5" fill="none" stroke="#6b7280" strokeWidth="2.5" />
+      <path d="M2,5 L26,5 L22,23 L6,23 Z" fill="#9aa3b5" stroke="#6b7280" strokeWidth="1.5" />
+      <ellipse cx="14" cy="6" rx="11" ry="2.5" fill="#6f7580" />
+    </svg>
+  );
+}
+
+function Trowel() {
+  return (
+    <svg width="32" height="20" viewBox="0 0 32 20" aria-hidden="true">
+      <rect x="0" y="8" width="11" height="4" rx="2" fill="#b07d4f" />
+      <path d="M11,10 L15,10 M15,4 L31,10 L15,16 Z" fill="#c3cad8" stroke="#8d97aa" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M22,7 L30,10 L22,13 Z" fill="#8e949e" />
+    </svg>
+  );
+}
+
 // The bucket can be drawn in two halves, so the mop can go down into it:
 // the handle behind the mop, and the bucket and water in front of it.
 function Bucket({ part = "whole" }: { part?: "whole" | "back" | "front" }) {
@@ -2310,12 +2332,13 @@ function Gear({ character, mode, bucketDown, holding }: { character: Character; 
     // (carrying, waving, scratching their head...) whatever they last used —
     // not suddenly their spray bottle again as they step back to admire the
     // glass they've just wiped.
-    const jobs: Mode[] = ["spray", "wipe", "polish", "dunk", "mopFloor", "mopStep", "weld"];
+    const jobs: Mode[] = ["spray", "wipe", "polish", "dunk", "mopFloor", "mopStep", "weld", "glue"];
     const tool = mode === "raise" ? stage2 : jobs.includes(mode) ? mode : (holding ?? stage1);
     const isSpray = tool === "spray";
     const isMop = tool === "dunk" || tool === "mopFloor";
     const isTorch = tool === "weld";
     const isLaptop = tool === "type";
+    const isGlue = tool === "glue";
     let wrapperClass = "";
     let wrapperStyle: React.CSSProperties = {};
     if (mode === "spray") {
@@ -2327,6 +2350,8 @@ function Gear({ character, mode, bucketDown, holding }: { character: Character; 
       wrapperClass = "crew-polish";
     } else if (mode === "raise") {
       wrapperClass = "crew-raise";
+    } else if (mode === "glue") {
+      wrapperClass = "crew-wipe-arc";
     } else {
       // Carrying (or busy with something else): held low at their side.
       wrapperStyle = { transform: isSpray ? "rotate(12deg)" : "rotate(24deg) translateY(4px)" };
@@ -2344,6 +2369,16 @@ function Gear({ character, mode, bucketDown, holding }: { character: Character; 
             </div>
           ) : isTorch ? (
             <Torch lit={mode === "weld"} />
+          ) : isGlue ? (
+            mode === "glue" ? (
+              <div className="absolute" style={{ left: -4, top: -10 }}>
+                <Trowel />
+              </div>
+            ) : (
+              <div className="absolute" style={{ left: -14, top: -4 }}>
+                <CementBucket />
+              </div>
+            )
           ) : isLaptop ? (
             <div className="absolute rounded-sm" style={{ left: -22, top: -6, width: 34, height: 6, background: "#9aa3b5", border: "1.5px solid #6b7280" }} />
           ) : (
@@ -3574,6 +3609,23 @@ const showBetween = (from: number, to: number, total: number) =>
     total
   );
 
+// Faded in at `from`, and slowly back out from `to`, as it dries.
+const fadeBetween = (from: number, to: number, total: number) =>
+  track(
+    [
+      [0, { opacity: 0 }],
+      [from, { opacity: 0 }],
+      [from + 200, { opacity: 1 }],
+      [to, { opacity: 1 }],
+      [to + 900, { opacity: 0 }],
+    ],
+    total
+  );
+
+// A crack right across a piece `w` by `h`, for while it's the broken one.
+const crackAcross = (w: number, h: number) =>
+  [0, 1, 2, 3, 4, 5].map((i) => `${i ? "L" : "M"}${(w * (0.1 + i * 0.16)).toFixed(1)},${(h * (0.3 + i * 0.08) + (i % 2 ? -1 : 1) * h * 0.12).toFixed(1)}`).join(" ");
+
 const GRAVITY = "cubic-bezier(0.5, 0, 0.9, 0.5)";
 const SETTLE = "cubic-bezier(0.2, 0.7, 0.3, 1)";
 
@@ -3608,6 +3660,17 @@ interface RepairPlan {
   machines: MachinePlan[];
   /** Stairs up to the second floor, if they're fixing it from up there. */
   stairs?: Stairs | null;
+  /** The heap of rubble that came down on the piece, for the digger (see planMachines). */
+  heap?: { x: number; w: number; h: number; frames: Keyframe[] } | null;
+  /** Filler sprayed into the holes, and the glue seam round the piece once it's back — both drying off. */
+  patches?: { x: number; y: number; shows: Keyframe[] }[];
+  seam?:
+    | (({ kind: "box"; box: Box; radius: number } | { kind: "line"; x: number; y: number; h: number } | { kind: "path"; box: Box; d: string }) & {
+        shows: Keyframe[];
+      })
+    | null;
+  /** On the stand-in: a crack while it's the broken one, glue once it's been spread on. */
+  marks?: { cracked: Keyframe[] | null; glued: Keyframe[] | null };
   /** Things done to the real element along the way... */
   effects: { at: number; run: () => void }[];
   realMoves: { keyframes: Keyframe[]; options: KeyframeAnimationOptions }[];
@@ -3823,8 +3886,20 @@ function planRepair(): RepairPlan | null {
   const rightPivot = standBox.x + standBox.w + gap + TRUCK_W - PIVOT_X;
   const leftFits = leftPivot - PIVOT_X >= -40;
   const rightFits = rightPivot + PIVOT_X <= vw + 40;
+  // (With room either side, the side that leaves the other machines the most
+  // room to work on the far side of it.)
   const dir: 1 | -1 =
-    leftFits && rightFits ? (Math.random() < 0.5 ? 1 : -1) : leftFits ? 1 : rightFits ? -1 : leftPivot > vw - rightPivot ? 1 : -1;
+    leftFits && rightFits
+      ? vw - (standBox.x + standBox.w) > standBox.x
+        ? 1
+        : -1
+      : leftFits
+        ? 1
+        : rightFits
+          ? -1
+          : leftPivot > vw - rightPivot
+            ? 1
+            : -1;
   const pivot = { x: dir === 1 ? leftPivot : rightPivot, y: floorY - PIVOT_UP };
   const truckLeft = dir === 1 ? pivot.x - PIVOT_X : pivot.x - (TRUCK_W - PIVOT_X);
 
@@ -3843,13 +3918,10 @@ function planRepair(): RepairPlan | null {
   // Where the hook's catch has to get to: the stand-in's top edge back in
   // place (or the welder's platform, with his torch at the crack)...
   const topCatch = breakKind === "crack" ? crackY + welder.height * 0.55 - PLATFORM_HANG : piece.y + topShift.y;
-  // ...and down on the floor.
-  const floorCatch = breakKind === "crack" ? floorY - 2 - PLATFORM_HANG : floorY - piece.h;
   const tip = { x: hookX, y: topCatch - HOOK_DROP - 40 };
   const boomLen = Math.hypot(tip.x - pivot.x, pivot.y - tip.y);
   const boomAngle = (Math.atan2(pivot.y - tip.y, Math.abs(tip.x - pivot.x)) * 180) / Math.PI;
   const cableTop = topCatch - HOOK_DROP - tip.y;
-  const cableFloor = floorCatch - HOOK_DROP - tip.y;
 
   // --- the schedule ----------------------------------------------------------
   const truckInAt = landAt + 600;
@@ -3860,18 +3932,93 @@ function planRepair(): RepairPlan | null {
   const toward = (x: number, from: number): 1 | -1 => (x >= from ? 1 : -1);
   const lookUp = (c: Character) => lookToward(c, 10, 700);
 
+  // --- the mess: rubble where it hit the floor (or plaster dust sifting down
+  // under a crack), and bits knocked flying by an asteroid.
+  const pieceRubble: DustSpeck[] = [];
+  if (breakKind === "crack") debris.push(floorDebris(hookX - 22, breakAt + 1400, "rubble"), floorDebris(hookX + 28, breakAt + 1700, "mud"));
+  else pieceRubble.push(floorDebris(hookX - piece.w * 0.3, landAt, "rubble"), floorDebris(hookX + piece.w * 0.3, landAt + 60, "rubble"));
+  if (asteroid) {
+    for (let i = 0; i < 3; i++) {
+      const to = { x: clamp(impact.x + (Math.random() * 2 - 1) * 160, 20, vw - 20), y: floorY - 4 };
+      const ms = 700 + Math.random() * 400;
+      chunks.push({ from: impact, to, at: breakAt, ms });
+      debris.push(floorDebris(to.x, breakAt + ms, "rubble"));
+    }
+  }
+
+  // --- the machines, and what they do before the hook comes for it.
+  const workZone: [number, number] = [
+    standBox.x - 90 + Math.min(0, breakKind === "slice" ? rollDx : 0),
+    standBox.x + standBox.w + 90 + Math.max(0, breakKind === "slice" ? rollDx : 0),
+  ];
+  const lying = { ...pos };
+  const holes: Vec[] =
+    breakKind === "card"
+      ? boltSpots.slice(0, 3)
+      : breakKind === "bar"
+        ? [-0.3, 0, 0.3].map((f) => ({ x: boltSpots[0].x, y: boltSpots[0].y + f * piece.h }))
+        : breakKind === "slice"
+          ? [boltSpots[0], { x: boltSpots[0].x - 8, y: boltSpots[0].y + 6 }]
+          : [crackPts[1], crackPts[3], crackPts[5]];
+  const work = planMachines({
+    vw,
+    floorY,
+    count: Number(weightedPick<"2" | "3">([
+      ["2", 1],
+      ["3", 1],
+    ])),
+    truckSpan: [truckLeft - 20, truckLeft + TRUCK_W + 20],
+    workZone,
+    side: dir,
+    arriveFrom: truckInAt + 1500,
+    piece:
+      breakKind === "card" || breakKind === "bar"
+        ? {
+            left: piece.x,
+            right: piece.x + piece.w,
+            h: piece.h,
+            at: landAt + 300,
+            canShove: true,
+            move: (at, dx, up, easing) => moveTo(at, lying.x + dx, lying.y - up, lying.r, easing),
+          }
+        : null,
+    targetX: hookX,
+    glue: breakKind !== "crack",
+    holes,
+    pieceRubble,
+    debris,
+  });
+  // ...and down on the floor (or up on the forklift's forks, or a pallet).
+  const floorCatch = breakKind === "crack" ? floorY - 2 - PLATFORM_HANG : floorY - piece.h - work.raisedBy;
+  const cableFloor = floorCatch - HOOK_DROP - tip.y;
+
   // Both walk in behind the truck: the foreman to stand between it and the
-  // piece, the welder round the far side of it — pushing the slice back
-  // first if it rolled off, or onto the platform for a crack.
+  // piece, the welder round the far side of it (or in front, if there's a
+  // forklift there) — fetching the glue first if the mixer's brought some,
+  // and pushing the slice back first if it rolled off, or onto the platform
+  // for a crack.
   const foremanSteps: Step[] = [];
   const welderSteps: Step[] = [];
   const foremanX = pct(dir === 1 ? standBox.x - 45 : standBox.x + standBox.w + 45);
   let ft = hopTo(foremanSteps, entryX, foremanX, parkedAt - 2600, vw, dir);
   let wt = parkedAt - 2000;
   const farSide = pct(dir === 1 ? standBox.x + standBox.w + 42 : standBox.x - 42);
+  let welderFrom = entryX;
+  let gluePickedAt: number | null = null;
+  if (work.glue) {
+    const g = work.glue;
+    const pieceRight = hookX > g.x;
+    const standX = pct(pieceRight ? g.x + 12 : g.x - 12 - welder.width);
+    wt = hopTo(welderSteps, entryX, standX, Math.max(wt, g.at - hopTrip(entryX, standX, vw).ms - 400), vw, (pieceRight ? -1 : 1) as 1 | -1);
+    wt = waitUntil(welderSteps, wt, g.at);
+    welderSteps.push({ kind: "work", at: wt, ms: 700, activity: "glue", look: lookToward(welder, 24, 6) });
+    gluePickedAt = wt + 350;
+    wt += 700;
+    welderFrom = standX;
+  }
   if (breakKind === "slice") {
     const behind = farSide + pct(rollDx);
-    wt = hopTo(welderSteps, entryX, behind, wt, vw, (-dir) as 1 | -1);
+    wt = hopTo(welderSteps, welderFrom, behind, wt, vw, (-dir) as 1 | -1);
     const trip = hopTrip(behind, farSide, vw);
     wt = waitUntil(welderSteps, wt, landAt + 200);
     welderSteps.push({ kind: "walk", at: wt, ms: trip.ms, x: farSide, hopMs: trip.hopMs, face: (-dir) as 1 | -1 });
@@ -3880,11 +4027,21 @@ function planRepair(): RepairPlan | null {
     moveTo(wt + trip.ms, topShift.x, pos.y, 0);
     wt += trip.ms;
   } else if (breakKind === "crack") {
-    wt = hopTo(welderSteps, entryX, pct(hookX) - dir * 6, wt, vw, dir);
+    wt = hopTo(welderSteps, welderFrom, pct(hookX) - dir * 6, wt, vw, dir);
   } else {
-    wt = hopTo(welderSteps, entryX, farSide, wt, vw, toward(pct(hookX), farSide));
+    const spot = work.crowded ? pct(hookX - welder.width / 2) : farSide;
+    const trip = hopTrip(welderFrom, spot, vw).ms;
+    wt = hopTo(welderSteps, welderFrom, spot, Math.max(wt, work.readyAt - trip - 300), vw, toward(pct(hookX), spot));
   }
-  const hookDownAt = Math.max(boomUpEnd, ft, wt);
+  // The glue spread on, once the piece is ready for it.
+  let glueOn: number | null = null;
+  if (gluePickedAt !== null && breakKind !== "crack") {
+    wt = waitUntil(welderSteps, wt, work.readyAt);
+    glueOn = wt;
+    welderSteps.push({ kind: "work", at: wt, ms: GLUE_MS, activity: "glue", look: lookToward(welder, 30, piece.h * 0.5 + work.raisedBy) });
+    wt += GLUE_MS;
+  }
+  const hookDownAt = Math.max(boomUpEnd, ft, wt, work.readyAt);
   const hookDownEnd = hookDownAt + HOOK_MS;
   const cable: Frame[] = [
     [0, { height: `${CABLE_STOWED}px` }],
@@ -3900,6 +4057,8 @@ function planRepair(): RepairPlan | null {
   let fixedAt: number;
   // When the rubble under the piece can be got at (it's been lifted clear).
   let clearOfPiece: number;
+  let liftFrom: number;
+  let placedAt: number | null = null;
   let hookUpAt: number;
   let hookUpFrom: number;
   let riding: [number, number] | null = null;
@@ -3932,6 +4091,7 @@ function planRepair(): RepairPlan | null {
     );
     fixedAt = weldEnd;
     clearOfPiece = breakAt + 1700;
+    liftFrom = clearOfPiece;
     hookUpAt = alightAt + 300;
     hookUpFrom = cableFloor;
     ft = watch(foremanSteps, foreman, ft, fixedAt);
@@ -3980,11 +4140,9 @@ function planRepair(): RepairPlan | null {
         options: { delay: weldEnd - 400, duration: 600, easing: "ease-in-out", fill: "forwards" },
       }
     );
-    // Plaster dust sifting down to the floor under the crack.
-    debris.push(floorDebris(hookX - 22, breakAt + 1400, "rubble"), floorDebris(hookX + 28, breakAt + 1700, "mud"));
   } else {
     // The welder hooks it on; it's lifted back into place, and bolted on in
-    // a shower of sparks while they both watch.
+    // a shower of sparks while they both watch (or the glue left to set).
     welderSteps.push({ kind: "wait", at: wt, ms: Math.max(0, hookDownAt - wt) });
     wt = Math.max(wt, hookDownAt);
     welderSteps.push({ kind: "quirk", at: wt, ms: HOOK_MS + 500, quirk: "wave" });
@@ -4003,13 +4161,13 @@ function planRepair(): RepairPlan | null {
     if (breakKind === "slice") moveTo(liftEnd + 250, 0, 0, 0);
     fixedAt = liftEnd + BOLT_MS;
     clearOfPiece = liftEnd;
+    liftFrom = liftStart;
+    placedAt = liftEnd;
     hookUpAt = fixedAt + 200;
     hookUpFrom = cableTop;
     ft = watch(foremanSteps, foreman, ft, fixedAt);
     wt = watch(welderSteps, welder, wt, fixedAt);
-    bolting = [liftEnd + 200, fixedAt];
-    // Rubble where it hit the floor.
-    debris.push(floorDebris(hookX - piece.w * 0.3, landAt, "rubble"), floorDebris(hookX + piece.w * 0.3, landAt + 60, "rubble"));
+    if (glueOn === null) bolting = [liftEnd + 200, fixedAt];
   }
 
   // Job done: a wipe of the brow, the hook back up, the boom folded away,
@@ -4061,42 +4219,32 @@ function planRepair(): RepairPlan | null {
         endAt
       ),
     };
-    // Bits of rock and plaster knocked flying, landing on the floor.
-    for (let i = 0; i < 3; i++) {
-      const to = { x: clamp(impact.x + (Math.random() * 2 - 1) * 160, 20, vw - 20), y: floorY - 4 };
-      const ms = 700 + Math.random() * 400;
-      chunks.push({ from: impact, to, at: breakAt, ms });
-      debris.push(floorDebris(to.x, breakAt + ms, "rubble"));
-    }
   } else {
     puffs.push({ x: impact.x, y: impact.y, at: t0 + 300, big: false }, { x: impact.x, y: impact.y, at: t0 + 850, big: false });
   }
   puffs.push({ x: impact.x, y: impact.y, at: breakAt, big: true });
+  if (work.heap) puffs.push({ x: work.heap.x, y: floorY - 20, at: landAt + 400, big: true });
 
   // Back to the real thing once it's fixed.
   effects.push({ at: fixedAt, run: () => undo.forEach((u) => u()) });
 
-  // The other machines, in whatever floor's left over.
-  const workZone: [number, number] = [
-    standBox.x - 90 + Math.min(0, breakKind === "slice" ? rollDx : 0),
-    standBox.x + standBox.w + 90 + Math.max(0, breakKind === "slice" ? rollDx : 0),
-  ];
-  const machines = planMachines({
-    vw,
-    truckSpan: [truckLeft - 20, truckLeft + TRUCK_W + 20],
-    workZone,
-    rubble: debris.filter((d) => d.mess === "rubble"),
-    arriveFrom: truckInAt + 1500,
-    workFrom: clearOfPiece,
-    doneAt: fixedAt,
-    goneBy: leftAt,
-    debris,
-  });
+  // The machines' work after the lift: coming back for the pallet, off
+  // again, and the digger back for the rest of the rubble.
+  const machines = work.finish({ liftStart: liftFrom, clear: clearOfPiece, gluePickedAt });
   const machinesDone = Math.max(
     0,
     ...machines.flatMap((m) => [m.frames, ...Object.values(m.parts)].map((f) => (f && f.length ? f[f.length - 1][0] : 0)))
   );
-  endAt = Math.max(endAt, machinesDone + 200);
+  // (And time for the filler and the glue to dry off.)
+  const dryAt = fixedAt + 2500;
+  endAt = Math.max(endAt, machinesDone + 200, work.filler.length || glueOn !== null ? dryAt + 1100 : 0);
+  let seam: RepairPlan["seam"] = null;
+  if (glueOn !== null && placedAt !== null) {
+    const shows = fadeBetween(placedAt, dryAt, endAt);
+    if (standIn?.kind === "slice") seam = { kind: "path", box: standIn.box, d: standIn.d, shows };
+    else if (standIn?.kind === "bar") seam = { kind: "line", x: boltSpots[0].x, y: piece.y, h: piece.h, shows };
+    else seam = { kind: "box", box, radius: 12, shows };
+  }
 
   // --- truck and crane --------------------------------------------------------
   const offIn = dir === 1 ? -(truckLeft + TRUCK_W + 40) : vw - truckLeft + 40;
@@ -4191,6 +4339,13 @@ function planRepair(): RepairPlan | null {
     ],
     debris,
     machines,
+    heap: work.heap && { x: work.heap.x, w: work.heap.w, h: work.heap.h, frames: track(work.heap.frames, endAt) },
+    patches: work.filler.map((f) => ({ x: f.x, y: f.y, shows: fadeBetween(f.at, dryAt, endAt) })),
+    seam,
+    marks: {
+      cracked: work.cracked && showBetween(breakAt, work.cracked[1], endAt),
+      glued: glueOn !== null ? showBetween(glueOn + 300, endAt, endAt) : null,
+    },
     effects,
     realMoves,
     restore: () => undo.forEach((u) => u()),
@@ -4251,7 +4406,6 @@ function planTopRepair(target: Breakable, vw: number, vh: number): RepairPlan {
     [landAt + 300, { transform: `translate(${s * 26}px, ${dy.toFixed(1)}px) rotate(${s * 360}deg)` }],
   ];
   const lyingX = cx + s * 26;
-  debris.push(floorDebris(lyingX - 24, landAt, "rubble"), floorDebris(lyingX + 26, landAt + 60, "rubble"));
   const impact = { x: cx, y: box.y + box.h / 2 };
 
   // The tower crane: at the nearer edge, jib long enough to get right over it.
@@ -4265,21 +4419,69 @@ function planTopRepair(target: Breakable, vw: number, vh: number): RepairPlan {
   const across = swungIn + 1300;
   const trolleyOut = (lyingX - edge) * dir;
   const trolleyHome = (cx - edge) * dir;
-  const cableFloor = floorY - box.h - TOP_HOOK_H - TOP_CABLE_Y;
   const cableTop = Math.max(2, box.y - TOP_HOOK_H - TOP_CABLE_Y);
-  const hookDownAt = across;
-  const hookDownEnd = hookDownAt + 2400;
 
-  // The builders walk in: the foreman to wave the hook down, the welder to
-  // hook it on.
+  // The builders walk in from the nearer side: the foreman to wave the hook
+  // down, the welder to hook it on. The other machines work from the far
+  // side of it.
   const entryX = lyingX < vw / 2 ? -8 : 108;
   const side = entryX < 0 ? -1 : 1;
+  const work = planMachines({
+    vw,
+    floorY,
+    count: 1 + Math.floor(Math.random() * 2),
+    truckSpan: [edge - 40, edge + 40],
+    workZone: [lyingX - box.w / 2 - 110, lyingX + box.w / 2 + 110],
+    side: (-side) as 1 | -1,
+    arriveFrom: landAt + 1500,
+    piece: {
+      left: lyingX - box.w / 2,
+      right: lyingX + box.w / 2,
+      h: box.h,
+      at: landAt + 300,
+      canShove: false,
+      move: (at, dx, up, easing) =>
+        moves.push([at, { transform: `translate(${(s * 26 + dx).toFixed(1)}px, ${(dy - up).toFixed(1)}px) rotate(${s * 360}deg)` }, easing]),
+    },
+    targetX: cx,
+    glue: true,
+    holes: [
+      { x: box.x + 3, y: box.y + box.h / 2 },
+      { x: box.x + box.w - 3, y: box.y + box.h / 2 },
+    ],
+    pieceRubble: [floorDebris(lyingX - 24, landAt, "rubble"), floorDebris(lyingX + 26, landAt + 60, "rubble")],
+    debris,
+  });
+  const cableFloor = floorY - box.h - work.raisedBy - TOP_HOOK_H - TOP_CABLE_Y;
   const foremanSteps: Step[] = [];
   const welderSteps: Step[] = [];
   const foremanX = pct(lyingX + side * (box.w / 2 + 70));
   const welderX = pct(lyingX + side * (box.w / 2 + 26));
   let ft = hopTo(foremanSteps, entryX, foremanX, landAt + 500, vw, (-side) as 1 | -1);
-  let wt = hopTo(welderSteps, entryX, welderX, landAt + 1100, vw, (-side) as 1 | -1);
+  let wt = landAt + 1100;
+  let welderFrom = entryX;
+  let gluePickedAt: number | null = null;
+  if (work.glue) {
+    const g = work.glue;
+    const pieceRight = lyingX > g.x;
+    const standX = pct(pieceRight ? g.x + 12 : g.x - 12 - welder.width);
+    wt = hopTo(welderSteps, entryX, standX, Math.max(wt, g.at - hopTrip(entryX, standX, vw).ms - 400), vw, (pieceRight ? -1 : 1) as 1 | -1);
+    wt = waitUntil(welderSteps, wt, g.at);
+    welderSteps.push({ kind: "work", at: wt, ms: 700, activity: "glue", look: lookToward(welder, 24, 6) });
+    gluePickedAt = wt + 350;
+    wt += 700;
+    welderFrom = standX;
+  }
+  wt = hopTo(welderSteps, welderFrom, welderX, wt, vw, (-side) as 1 | -1);
+  let glueOn: number | null = null;
+  if (gluePickedAt !== null) {
+    wt = waitUntil(welderSteps, wt, work.readyAt);
+    glueOn = wt;
+    welderSteps.push({ kind: "work", at: wt, ms: GLUE_MS, activity: "glue", look: lookToward(welder, 30, box.h * 0.5 + work.raisedBy) });
+    wt += GLUE_MS;
+  }
+  const hookDownAt = Math.max(across, wt, work.readyAt);
+  const hookDownEnd = hookDownAt + 2400;
   ft = waitUntil(foremanSteps, ft, hookDownAt);
   foremanSteps.push({ kind: "quirk", at: ft, ms: hookDownEnd - hookDownAt, quirk: "wave" });
   ft = hookDownEnd;
@@ -4299,7 +4501,7 @@ function planTopRepair(target: Breakable, vw: number, vh: number): RepairPlan {
 
   // Lifted straight back up, righting itself, in step with the cable.
   moves.push(
-    [liftStart, { transform: `translate(${s * 26}px, ${dy.toFixed(1)}px) rotate(${s * 360}deg)` }, "linear"],
+    [liftStart, { transform: `translate(${s * 26}px, ${(dy - work.raisedBy).toFixed(1)}px) rotate(${s * 360}deg)` }, "linear"],
     [liftEnd, { transform: `translate(0px, 0px) rotate(${s * 360}deg)` }]
   );
 
@@ -4326,6 +4528,7 @@ function planTopRepair(target: Breakable, vw: number, vh: number): RepairPlan {
     kind: "tower",
     left: edge,
     dir,
+    from: (-dir) as 1 | -1,
     mastH,
     jib,
     frames: [
@@ -4388,25 +4591,15 @@ function planTopRepair(target: Breakable, vw: number, vh: number): RepairPlan {
   puffs.push({ x: impact.x, y: impact.y, at: breakAt, big: true }, { x: lyingX, y: floorY - 10, at: landAt, big: true });
   effects.push({ at: fixedAt, run: () => undo.forEach((u) => u()) });
 
-  // A couple of the other machines, down on the floor.
-  const machines = planMachines({
-    vw,
-    truckSpan: [edge - 40, edge + 40],
-    workZone: [lyingX - box.w / 2 - 110, lyingX + box.w / 2 + 110],
-    rubble: debris.filter((d) => d.mess === "rubble"),
-    arriveFrom: landAt + 1500,
-    workFrom: liftStart + 800,
-    doneAt: fixedAt,
-    goneBy: sunk,
-    debris,
-    count: 1 + Math.floor(Math.random() * 2),
-  });
+  // The other machines' work after the lift.
+  const machines = work.finish({ liftStart, clear: liftStart + 800, gluePickedAt });
   machines.unshift(tower);
   const machinesDone = Math.max(
     0,
     ...machines.flatMap((m) => [m.frames, ...Object.values(m.parts)].map((f) => (f && f.length ? f[f.length - 1][0] : 0)))
   );
-  endAt = Math.max(endAt, machinesDone) + 200;
+  const dryAt = fixedAt + 2500;
+  endAt = Math.max(endAt, machinesDone, work.filler.length || glueOn !== null ? dryAt + 1100 : 0) + 200;
 
   return {
     kind: "repair",
@@ -4421,10 +4614,13 @@ function planTopRepair(target: Breakable, vw: number, vh: number): RepairPlan {
     rider: null,
     asteroid: asteroidPlan,
     crack: null,
-    sparks: [
-      { x: box.x - 2, y: box.y + box.h / 2, shows: showBetween(liftEnd + 200, fixedAt, endAt) },
-      { x: box.x + box.w + 2, y: box.y + box.h / 2, shows: showBetween(liftEnd + 200, fixedAt, endAt) },
-    ],
+    sparks:
+      glueOn !== null
+        ? []
+        : [
+            { x: box.x - 2, y: box.y + box.h / 2, shows: showBetween(liftEnd + 200, fixedAt, endAt) },
+            { x: box.x + box.w + 2, y: box.y + box.h / 2, shows: showBetween(liftEnd + 200, fixedAt, endAt) },
+          ],
     puffs,
     chunks,
     builders: [
@@ -4433,6 +4629,13 @@ function planTopRepair(target: Breakable, vw: number, vh: number): RepairPlan {
     ],
     debris,
     machines,
+    heap: work.heap && { x: work.heap.x, w: work.heap.w, h: work.heap.h, frames: track(work.heap.frames, endAt) },
+    patches: work.filler.map((f) => ({ x: f.x, y: f.y, shows: fadeBetween(f.at, dryAt, endAt) })),
+    seam: glueOn !== null ? { kind: "box", box, radius: Math.min(box.w, box.h) / 2, shows: fadeBetween(liftEnd, dryAt, endAt) } : null,
+    marks: {
+      cracked: work.cracked && showBetween(breakAt, work.cracked[1], endAt),
+      glued: glueOn !== null ? showBetween(glueOn + 300, endAt, endAt) : null,
+    },
     effects,
     realMoves,
     restore: () => undo.forEach((u) => u()),
@@ -4852,12 +5055,20 @@ function TruckBody({ wheels }: { wheels: (el: SVGGElement | null) => void }) {
 
 // ------------------------------------------------------------ the machines
 
-// Besides the crane truck, each repair brings two or all three of: a digger
-// that scoops up rubble, a cement mixer that pours out a load, and a
-// forklift that drops off a pallet of spare pieces and collects it again.
-// Each has someone at the controls, and drives off (backing out the way it
-// came) once the job's done. The tower crane only comes for something up in
-// the top bar (see planTopRepair).
+// Besides the crane, each repair brings some of a digger, a cement mixer and
+// a forklift, each with someone at the controls and a job to do:
+// - The digger: a heap of rubble comes down on top of the fallen piece, and
+//   the digger digs it out a bucketful at a time, taking each load off the
+//   screen — then shoves the piece over under the hook, if nothing else is
+//   going to move it. Once the piece is back up, it comes back for every bit
+//   of rubble it can get at.
+// - The forklift: forks under the piece and holds it partway up for the
+//   hook — or takes the broken one away and brings a new one on a pallet.
+// - The cement mixer: backs in and pours glue into a bucket for the welder
+//   to stick the piece back on with, then swings its chute up and sprays
+//   filler into the holes it broke out of.
+// Each goes back out the way it came once its job's done. The tower crane
+// only comes for something up in the top bar (see planTopRepair).
 
 type MachineKind = "tower" | "digger" | "mixer" | "forklift";
 
@@ -4867,12 +5078,18 @@ interface MachinePlan {
   left: number;
   /** Which way it faces. */
   dir: 1 | -1;
+  /** The side it came in from (-1: the left), to back out that way if they're caught. */
+  from: 1 | -1;
   /** The machine as a whole, and its moving parts, as keyframe tracks (see track). */
   frames: Frame[];
   parts: Partial<Record<string, Frame[]>>;
   /** Tower crane only: how tall its mast is, and how far its jib reaches. */
   mastH?: number;
   jib?: number;
+  /** Forklift: the pallet a new piece comes on — where it's set down (px), and how wide it is. */
+  pallet?: { left: number; w: number };
+  /** Mixer: where its jet of filler starts (px from its own top left, parked) and how far it can reach. */
+  jet?: { x: number; y: number; len: number };
 }
 
 const DIGGER_W = 150;
@@ -4881,10 +5098,78 @@ const MIXER_W = 210;
 const MIXER_H = 92;
 const FORKLIFT_W = 112;
 const FORKLIFT_H = 96;
-// How far a machine gets in a second: slow and heavy.
+// How far a machine gets in a second: slow and heavy coming in, quicker once
+// it's to-ing and fro-ing.
 const MACHINE_PX_PER_S = 130;
+const TRIP_PX_PER_S = 280;
+// How far past its front the digger's bucket reaches.
+const DIGGER_REACH = 66;
+// How high the forklift holds the piece up for the hook; the pallet a new
+// one comes on.
+const FORK_RAISE = 60;
+const PALLET_H = 8;
+// How far off to one side the piece ends up when the digger has to shove it
+// back under the hook.
+const SHOVE_PX = 70;
+// Spreading the glue on.
+const GLUE_MS = 1800;
 
-const machineDriveMs = (px: number) => Math.max(900, (Math.abs(px) / MACHINE_PX_PER_S) * 1000);
+const machineDriveMs = (px: number, speed = MACHINE_PX_PER_S) => Math.max(700, (Math.abs(px) / speed) * 1000);
+const overlaps = (a: [number, number], b: [number, number]) => a[0] < b[1] && b[0] < a[1];
+
+// A machine's position through the round, drive by drive: how far (px) it
+// is from where it's drawn.
+function drivePath(x0: number) {
+  const frames: Frame[] = [[0, { transform: `translateX(${x0.toFixed(1)}px)` }]];
+  let x = x0;
+  return {
+    frames,
+    at: () => x,
+    /** Sits still until `from`, then drives to `to`; says when it gets there. */
+    drive(from: number, to: number, ms: number, easing = "ease-in-out") {
+      frames.push([from, { transform: `translateX(${x.toFixed(1)}px)` }, easing], [from + ms, { transform: `translateX(${to.toFixed(1)}px)` }]);
+      x = to;
+      return from + ms;
+    },
+  };
+}
+
+// A moving part, from one pose to the next.
+function poseTrack(first: Keyframe) {
+  const frames: Frame[] = [[0, first]];
+  let now = first;
+  return {
+    frames,
+    /** Holds until `from`, then moves to `to` over `ms`; says when it's there. */
+    to(from: number, ms: number, to: Keyframe, easing = "ease-in-out") {
+      frames.push([from, now, easing], [from + ms, to]);
+      now = to;
+      return from + ms;
+    },
+    /** Snaps to `to` (out of sight). */
+    set(at: number, to: Keyframe) {
+      frames.push([at, now], [at, to]);
+      now = to;
+    },
+  };
+}
+
+// The digger's treads, rolling round as it drives.
+function treadsFor(path: Frame[]): Frame[] {
+  const xOf = (f: Frame) => parseFloat(String(f[1].transform).replace("translateX(", ""));
+  const out: Frame[] = [[0, { transform: "translateX(0px)" }]];
+  let roll = 0;
+  for (let i = 1; i < path.length; i++) {
+    const d = xOf(path[i]) - xOf(path[i - 1]);
+    if (Math.abs(d) < 0.5) continue;
+    const to = roll - d * 0.25;
+    out.push([path[i - 1][0], { transform: `translateX(${roll.toFixed(1)}px)` }, path[i - 1][2]], [path[i][0], { transform: `translateX(${to.toFixed(1)}px)` }]);
+    // (Every 24px looks the same, so it can jump back while it's still.)
+    roll = ((to % 24) + 24) % 24;
+    out.push([path[i][0], { transform: `translateX(${roll.toFixed(1)}px)` }]);
+  }
+  return out;
+}
 
 // Someone at the controls: a head in a hard hat, looking the way it's going.
 function Driver({ x, y, color, size = 16 }: { x: number; y: number; color: string; size?: number }) {
@@ -4902,249 +5187,387 @@ function Driver({ x, y, color, size = 16 }: { x: number; y: number; color: strin
   );
 }
 
+// The fallen piece, lying on the floor under where the hook will come down.
+interface FallenPiece {
+  /** Its left and right edges (px), and how tall it is. */
+  left: number;
+  right: number;
+  h: number;
+  /** When it's down and still. */
+  at: number;
+  /** Whether it can be shoved along the floor to the hook (the truck's hook can't come to it). */
+  canShove: boolean;
+  /** Puts it `dx` px along and `up` px off the floor from where it's lying, at `at` (easing into its next move). */
+  move: (at: number, dx: number, up: number, easing?: string) => void;
+}
+
+// What the machines do before the hook comes, and what they need from the
+// builders' side of it.
+interface MachineWork {
+  /** When the piece is ready for the hook, and how high up it is by then. */
+  readyAt: number;
+  raisedBy: number;
+  /** A machine's still right up against the piece then (so the welder stands in front of it). */
+  crowded: boolean;
+  /** The bucket of glue: where it is (px, its middle), and when it's full. */
+  glue: { x: number; at: number } | null;
+  /** The heap of rubble on the piece, if the digger has that to dig out. */
+  heap: { x: number; w: number; h: number; frames: Frame[] } | null;
+  /** While it's the broken piece (it's swapped for a new one after). */
+  cracked: [number, number] | null;
+  /** Filler sprayed into the holes: where, and when. */
+  filler: { x: number; y: number; at: number }[];
+  /** The rest, once the builders have their schedule: gives back the machines. */
+  finish: (o: { liftStart: number; clear: number; gluePickedAt: number | null }) => MachinePlan[];
+}
+
 // Plans the machines for a repair, in the floor space left free by the
-// truck and the builders; `rubble` is what the digger can go for. Keyframe
-// times are ms into the round.
-function planMachines({
-  vw,
-  truckSpan,
-  workZone,
-  rubble,
-  arriveFrom,
-  workFrom,
-  doneAt,
-  goneBy,
-  debris,
-  count: wanted,
-}: {
+// crane and the builders. `side` is the side of the piece they work from.
+// Keyframe times are ms into the round.
+function planMachines(o: {
   vw: number;
-  /** How many to bring (by default two or all three). */
-  count?: number;
-  /** Where the truck parks (px), and where the builders are working. */
+  floorY: number;
+  /** How many to bring (at most). */
+  count: number;
+  /** Where the crane is (px), and where the builders are working. */
   truckSpan: [number, number];
   workZone: [number, number];
-  rubble: DustSpeck[];
+  side: 1 | -1;
   arriveFrom: number;
-  /** When the digger can get at the rubble (the piece lifted clear of it). */
-  workFrom: number;
-  doneAt: number;
-  goneBy: number;
+  piece: FallenPiece | null;
+  /** Where the break is (px), for the mixer to back up to. */
+  targetX: number;
+  /** Whether the piece can be glued back on, and the holes it left to fill. */
+  glue: boolean;
+  holes: Vec[];
+  /** Rubble where the piece hit the floor — unless it all comes down on top of it. */
+  pieceRubble: DustSpeck[];
   debris: DustSpeck[];
-}): MachinePlan[] {
-  const count = wanted ?? Number(weightedPick<"2" | "3">([
-    ["2", 1],
-    ["3", 1],
-  ]));
-  // (The tower crane only comes when something up in the top bar needs it —
-  // see planTopRepair.)
-  const kinds = (["digger", "mixer", "forklift"] as MachineKind[]).sort(() => Math.random() - 0.5);
-  const taken: [number, number][] = [truckSpan, workZone];
-  const free = (a: number, b: number) => a >= 0 && b <= vw && taken.every(([x, y]) => b <= x || a >= y);
-  // The digger only has to keep clear of the truck and the other machines —
-  // it reaches in over where the builders are standing.
-  const machineSpans: [number, number][] = [];
-  const clearForDigger = (a: number, b: number) =>
-    a >= 0 && b <= vw && [truckSpan, ...machineSpans].every(([x, y]) => b <= x || a >= y);
-  // A free spot `w` wide somewhere on the floor, trying spots at random.
-  const findSpot = (w: number, near?: (x: number) => boolean) => {
-    const tries = Array.from({ length: 40 }, () => 10 + Math.random() * (vw - w - 20));
-    const spot = tries.find((a) => free(a, a + w) && (!near || near(a)));
-    if (spot !== undefined) {
-      taken.push([spot - 10, spot + w + 10]);
-      machineSpans.push([spot - 10, spot + w + 10]);
-    }
-    return spot;
-  };
-  // In from the nearer edge.
-  const sideFor = (a: number, w: number): 1 | -1 => (a + w / 2 < vw / 2 ? 1 : -1);
-  const plans: MachinePlan[] = [];
-  let arrival = arriveFrom;
+}): MachineWork {
+  const { vw, floorY, side: s, piece, debris } = o;
+  const options: MachineKind[] = ["digger"];
+  if (o.glue || o.holes.length) options.push("mixer");
+  if (piece) options.push("forklift");
+  const chosen = new Set(options.sort(() => Math.random() - 0.5).slice(0, o.count));
+  const taken: [number, number][] = [o.truckSpan, o.workZone];
+  const work: MachineWork = { readyAt: 0, raisedBy: 0, crowded: false, glue: null, heap: null, cracked: null, filler: [], finish: () => [] };
+  let arrival = o.arriveFrom;
 
-  for (const kind of kinds) {
-    if (plans.length >= count) break;
-    if (kind === "digger") {
-      // Parks with its bucket reaching the rubble.
-      const target = rubble.find((d) => {
-        const x = d.spot ?? 0;
-        return clearForDigger(x - 66 - DIGGER_W, x - 66) || clearForDigger(x + 66, x + 66 + DIGGER_W);
-      });
-      if (!target) continue;
-      const x = target.spot ?? 0;
-      const fromLeft = clearForDigger(x - 66 - DIGGER_W, x - 66);
-      const dir: 1 | -1 = fromLeft ? 1 : -1;
-      const left = fromLeft ? x - 66 - DIGGER_W : x + 66;
-      taken.push([left - 10, left + DIGGER_W + 10]);
-      machineSpans.push([left - 10, left + DIGGER_W + 10]);
-      const off = dir === 1 ? -(left + DIGGER_W + 30) : vw - left + 30;
-      const inMs = machineDriveMs(off);
-      const parked = arrival + inMs;
-      const reachAt = Math.max(parked + 600, workFrom, target.appearAt + 300);
-      const scooped = reachAt + 900 + 600;
-      const raised = scooped + 900;
-      const leaveAt = Math.max(raised + 800, doneAt + 600);
-      const outMs = Math.min(machineDriveMs(off), Math.max(900, goneBy - leaveAt));
-      // Scooped up: gone from the floor, and nothing for the cleaners to do there.
-      target.clearAt = scooped;
-      const carry = { boom: "rotate(-38deg)", stick: "rotate(96deg)", bucket: "rotate(30deg)" };
-      const dig = { boom: "rotate(2deg)", stick: "rotate(44deg)", bucket: "rotate(0deg)" };
-      const curl = { boom: "rotate(4deg)", stick: "rotate(30deg)", bucket: "rotate(-85deg)" };
-      const full = { boom: "rotate(-34deg)", stick: "rotate(80deg)", bucket: "rotate(-85deg)" };
-      const part = (p: "boom" | "stick" | "bucket"): Frame[] => [
-        [0, { transform: carry[p] }],
-        [reachAt, { transform: carry[p] }, "ease-in-out"],
-        [reachAt + 900, { transform: dig[p] }, "ease-in-out"],
-        [scooped, { transform: curl[p] }, "ease-in-out"],
-        [raised, { transform: full[p] }],
-      ];
-      plans.push({
-        kind,
-        left,
-        dir,
-        frames: [
-          [0, { transform: `translateX(${off}px)` }],
-          [arrival, { transform: `translateX(${off}px)` }, "cubic-bezier(0.25, 0.6, 0.35, 1)"],
-          [parked, { transform: "translateX(0px)" }],
-          [leaveAt, { transform: "translateX(0px)" }, "ease-in"],
-          [leaveAt + outMs, { transform: `translateX(${off}px)` }],
-        ],
-        parts: {
-          boom: part("boom"),
-          stick: part("stick"),
-          bucket: part("bucket"),
-          load: [
-            [0, { opacity: 0 }],
-            [scooped - 100, { opacity: 0 }],
-            [scooped, { opacity: 1 }],
-          ],
-          treads: [
-            [0, { transform: "translateX(0px)" }],
-            [arrival, { transform: "translateX(0px)" }, "cubic-bezier(0.25, 0.6, 0.35, 1)"],
-            [parked, { transform: `translateX(${Math.abs(off) % 24}px)` }],
-            [leaveAt, { transform: `translateX(${Math.abs(off) % 24}px)` }, "ease-in"],
-            [leaveAt + outMs, { transform: "translateX(0px)" }],
-          ],
-        },
-      });
-      arrival += 1300;
-      continue;
-    }
+  // --- the forklift, if the piece can be got at from this side.
+  const forkDir = (-s) as 1 | -1;
+  const under = piece ? Math.min(40, (piece.right - piece.left) * 0.45) : 0;
+  // Its forks run from 99px to 149px along it (mirrored when it faces left).
+  const forkLeft = piece ? (forkDir === 1 ? piece.left + under - 149 : piece.right - under + 37) : 0;
+  const fork = piece && chosen.has("forklift") && forkLeft > -30 && forkLeft + FORKLIFT_W < vw + 30 ? { swap: Math.random() < 0.5 } : null;
 
-    if (kind === "mixer") {
-      const puddle = 70;
-      const left = findSpot(MIXER_W + puddle);
-      if (left === undefined) continue;
-      const dir = sideFor(left, MIXER_W + puddle);
-      // The chute's at the back, so the puddle goes behind it.
-      const body = dir === 1 ? left + puddle : left;
-      const off = dir === 1 ? -(body + MIXER_W + 30) : vw - body + 30;
-      const inMs = machineDriveMs(off);
-      const parked = arrival + inMs;
-      const pourAt = parked + 1500;
-      const poured = pourAt + 3000;
-      const leaveAt = Math.max(poured + 700, doneAt + 900);
-      const outMs = Math.min(machineDriveMs(off), Math.max(900, goneBy - leaveAt));
-      const spot = dir === 1 ? body - 34 : body + MIXER_W + 34;
-      debris.push({
-        left: `${spot.toFixed(1)}px`,
-        bottom: FLOOR - 4,
-        size: 62,
-        floor: true,
-        mess: "cement",
-        spot,
-        appearAt: poured,
-        wetAt: null,
-        clearAt: Number.POSITIVE_INFINITY,
-      });
-      plans.push({
-        kind,
-        left: body,
-        dir,
-        frames: [
-          [0, { transform: `translateX(${off}px)` }],
-          [arrival, { transform: `translateX(${off}px)` }, "cubic-bezier(0.25, 0.6, 0.35, 1)"],
-          [parked, { transform: "translateX(0px)" }],
-          [leaveAt, { transform: "translateX(0px)" }, "ease-in"],
-          [leaveAt + outMs, { transform: `translateX(${off}px)` }],
-        ],
-        parts: {
-          chute: [
-            [0, { transform: "rotate(-60deg)" }],
-            [pourAt - 500, { transform: "rotate(-60deg)" }, "ease-in-out"],
-            [pourAt, { transform: "rotate(0deg)" }],
-            [poured + 300, { transform: "rotate(0deg)" }, "ease-in-out"],
-            [poured + 800, { transform: "rotate(-60deg)" }],
-          ],
-          stream: [
-            [0, { transform: "scaleY(0)", opacity: 1 }],
-            [pourAt, { transform: "scaleY(0)", opacity: 1 }, "ease-in"],
-            [pourAt + 350, { transform: "scaleY(1)", opacity: 1 }],
-            [poured, { transform: "scaleY(1)", opacity: 1 }, "ease-out"],
-            [poured + 300, { transform: "scaleY(1)", opacity: 0 }],
-          ],
-        },
-      });
-      arrival += 1600;
-      continue;
+  // --- the digger: digging the piece out, if there's room on this side.
+  // Parked facing the piece, its bucket reaching `x`.
+  const digDir = (-s) as 1 | -1;
+  const digLeftFor = (x: number) => (digDir === -1 ? x + DIGGER_REACH : x - DIGGER_REACH - DIGGER_W);
+  // (Somewhere it can get to without going through the crane.)
+  const digFits = (left: number) =>
+    left > -40 && left + DIGGER_W < vw + 40 && (s === 1 ? o.truckSpan[1] <= left : o.truckSpan[0] >= left + DIGGER_W);
+  let heap: { x: number; w: number; h: number; reach: number[] } | null = null;
+  let shove = false;
+  if (piece && chosen.has("digger")) {
+    for (const shoved of piece.canShove && !fork ? [true, false] : [false]) {
+      const dx = shoved ? s * SHOVE_PX : 0;
+      const w = piece.right - piece.left + 36;
+      const x = (piece.left + piece.right) / 2 + dx;
+      const reach = w > 110 ? [x + s * w * 0.28, x + s * w * 0.02] : [x + s * w * 0.15];
+      const contact = (s === 1 ? piece.right : piece.left) + dx + s * 4;
+      if (reach.every((r) => digFits(digLeftFor(r))) && (!shoved || digFits(digLeftFor(contact)))) {
+        heap = { x, w, h: Math.min(piece.h * 0.85 + 8, 84), reach };
+        shove = shoved;
+        break;
+      }
     }
+  }
+  if (!heap) debris.push(...o.pieceRubble);
+  const rubble = () => debris.filter((d) => d.mess === "rubble" && !Number.isFinite(d.clearAt));
+  const canReach = (d: DustSpeck) => digFits(digLeftFor(d.spot ?? 0));
+  const digger = chosen.has("digger") && !!(heap || rubble().some(canReach));
 
-    // The forklift: brings a pallet of spare pieces, sets it down, backs off
-    // to let the others work, and takes it away again at the end.
-    // Room for it, the pallet out in front on its forks, and to back off.
-    const backRoom = 80;
-    const span = backRoom + FORKLIFT_W + 110;
-    const left = findSpot(span);
-    if (left === undefined) continue;
-    const dir = sideFor(left, span);
-    const body = dir === 1 ? left + backRoom : left + 110;
-    const off = dir === 1 ? -(body + FORKLIFT_W + 70) : vw - body + 70;
-    const inMs = machineDriveMs(off);
-    const parked = arrival + inMs;
-    const lowered = parked + 700;
-    const backed = lowered + 1100;
-    const returnAt = Math.max(backed + 1200, doneAt - 1400);
-    const atPallet = returnAt + 1100;
-    const raisedAgain = atPallet + 700;
-    const outMs = Math.min(machineDriveMs(off), Math.max(900, goneBy - raisedAgain));
-    const backOff = -dir * 70;
-    plans.push({
-      kind,
-      left: body,
-      dir,
-      frames: [
-        [0, { transform: `translateX(${off}px)` }],
-        [arrival, { transform: `translateX(${off}px)` }, "cubic-bezier(0.25, 0.6, 0.35, 1)"],
-        [parked, { transform: "translateX(0px)" }],
-        [lowered, { transform: "translateX(0px)" }, "ease-in-out"],
-        [backed, { transform: `translateX(${backOff}px)` }],
-        [returnAt, { transform: `translateX(${backOff}px)` }, "ease-in-out"],
-        [atPallet, { transform: "translateX(0px)" }],
-        [raisedAgain, { transform: "translateX(0px)" }, "ease-in"],
-        [raisedAgain + outMs, { transform: `translateX(${off}px)` }],
-      ],
-      parts: {
-        forks: [
-          [0, { transform: "translateY(-26px)" }],
-          [parked, { transform: "translateY(-26px)" }, "ease-in-out"],
-          [lowered, { transform: "translateY(0px)" }],
-          [atPallet, { transform: "translateY(0px)" }, "ease-in-out"],
-          [raisedAgain, { transform: "translateY(-26px)" }],
-        ],
-        // The pallet rides the forks, except while it's been set down.
-        pallet: [
-          [0, { transform: `translate(${off}px, -26px)` }],
-          [arrival, { transform: `translate(${off}px, -26px)` }, "cubic-bezier(0.25, 0.6, 0.35, 1)"],
-          [parked, { transform: "translate(0px, -26px)" }],
-          [parked, { transform: "translate(0px, -26px)" }, "ease-in-out"],
-          [lowered, { transform: "translate(0px, 0px)" }],
-          [atPallet, { transform: "translate(0px, 0px)" }, "ease-in-out"],
-          [raisedAgain, { transform: "translate(0px, -26px)" }, "ease-in"],
-          [raisedAgain + outMs, { transform: `translate(${off}px, -26px)` }],
-        ],
-      },
+  // Out of the way of whoever works the piece (the mixer parks elsewhere).
+  if (piece && (heap || fork)) taken.push(s === 1 ? [piece.right, piece.right + 300] : [piece.left - 300, piece.left]);
+
+  // --- the digger's trips: each bucketful off the screen and back.
+  const dig = (() => {
+    if (!digger) return null;
+    const first = heap ? heap.reach[0] : (rubble().find(canReach)?.spot ?? 0);
+    const left = digLeftFor(first);
+    const offX = s === 1 ? vw + 30 - left : -(left + DIGGER_W + 30);
+    const path = drivePath(offX);
+    const carry = { boom: "rotate(-38deg)", stick: "rotate(96deg)", bucket: "rotate(30deg)" };
+    const down = { boom: "rotate(2deg)", stick: "rotate(44deg)", bucket: "rotate(0deg)" };
+    const curl = { boom: "rotate(4deg)", stick: "rotate(30deg)", bucket: "rotate(-85deg)" };
+    const full = { boom: "rotate(-34deg)", stick: "rotate(80deg)", bucket: "rotate(-85deg)" };
+    const arm = { boom: poseTrack({ transform: carry.boom }), stick: poseTrack({ transform: carry.stick }), bucket: poseTrack({ transform: carry.bucket }) };
+    const pose = (from: number, ms: number, p: typeof carry) => {
+      (["boom", "stick", "bucket"] as const).forEach((k) => arm[k].to(from, ms, { transform: p[k] }));
+      return from + ms;
+    };
+    const load = poseTrack({ opacity: 0 });
+    let t = o.arriveFrom;
+    let trips = 0;
+    // One bucketful from `x`: in, scoop, and back out to tip it somewhere
+    // off the screen. Says when it's scooped up.
+    const bite = (from: number, x: number) => {
+      const parkX = digLeftFor(x) - left;
+      t = path.drive(from, parkX, machineDriveMs(parkX - path.at(), trips ? TRIP_PX_PER_S : MACHINE_PX_PER_S), trips ? "ease-in-out" : "cubic-bezier(0.25, 0.6, 0.35, 1)");
+      trips++;
+      t = pose(t + 150, 750, down);
+      t = pose(t, 550, curl);
+      const scooped = t;
+      load.to(scooped - 150, 150, { opacity: 1 });
+      t = pose(t, 750, full);
+      t = path.drive(t + 150, offX, machineDriveMs(offX - parkX, TRIP_PX_PER_S), "ease-in");
+      load.set(t, { opacity: 0 });
+      arm.boom.set(t, { transform: carry.boom });
+      arm.stick.set(t, { transform: carry.stick });
+      arm.bucket.set(t, { transform: carry.bucket });
+      t += 500;
+      return scooped;
+    };
+    return { left, path, arm, load, bite, pose, down, carry, get t() { return t; }, set t(v: number) { t = v; }, get trips() { return trips; } };
+  })();
+
+  // --- the heap, dug out; and the piece shoved over to the hook.
+  let pieceFree = piece ? piece.at : 0;
+  if (piece && heap && dig) {
+    const heapAt = piece.at + (shove ? 520 : 100);
+    if (shove) {
+      piece.move(piece.at, 0, 0, "ease-out");
+      piece.move(piece.at + 500, s * SHOVE_PX, 0);
+    }
+    const heapFrames: Frame[] = [
+      [0, { transform: "scale(0)" }],
+      [heapAt, { transform: "scale(0.2, 0)" }, "cubic-bezier(0.2, 0.9, 0.3, 1.2)"],
+      [heapAt + 450, { transform: "scale(1)" }],
+    ];
+    dig.t = Math.max(o.arriveFrom, heapAt + 800);
+    heap.reach.forEach((x, i) => {
+      const scooped = dig.bite(dig.t, x);
+      const left = 1 - (i + 1) / heap!.reach.length;
+      heapFrames.push([scooped - 550, heapFrames[heapFrames.length - 1][1], "ease-in"], [scooped, { transform: left ? `scale(0.75, ${left})` : "scale(0.4, 0)" }]);
     });
+    pieceFree = dig.t;
+    if (shove) {
+      // Bucket down against the side of it, and pushed along to the hook.
+      const contact = (s === 1 ? piece.right : piece.left) + s * SHOVE_PX + s * 4;
+      const parkX = digLeftFor(contact) - dig.left;
+      dig.pose(dig.t, 900, dig.down);
+      let t = dig.path.drive(dig.t, parkX, machineDriveMs(parkX - dig.path.at(), TRIP_PX_PER_S));
+      const pushAt = t + 200;
+      t = dig.path.drive(pushAt, parkX - s * SHOVE_PX, 1500);
+      piece.move(pushAt, s * SHOVE_PX, 0, "ease-in-out");
+      piece.move(t, 0, 0);
+      pieceFree = t;
+      dig.pose(t + 100, 700, dig.carry);
+      const offX = s === 1 ? vw + 30 - dig.left : -(dig.left + DIGGER_W + 30);
+      dig.t = dig.path.drive(t + 300, offX, machineDriveMs(offX - dig.path.at(), TRIP_PX_PER_S), "ease-in") + 400;
+    }
+    work.heap = { x: heap.x, w: heap.w, h: heap.h, frames: heapFrames };
+    arrival += 1300;
+  }
+  work.readyAt = pieceFree;
+
+  // --- the forklift: in once the piece is clear.
+  let forkPlan: { path: ReturnType<typeof drivePath>; forks: ReturnType<typeof poseTrack>; pallet: ReturnType<typeof poseTrack> | null; offX: number } | null = null;
+  if (piece && fork) {
+    const offX = s === 1 ? vw - forkLeft + 70 : -(forkLeft + FORKLIFT_W + 70);
+    const path = drivePath(offX);
+    const forks = poseTrack({ transform: "translateY(0px)" });
+    const up = (px: number) => ({ transform: `translateY(${-px}px)` });
+    // (After the digger's out of the way, if it's been digging it out.)
+    const start = Math.max(arrival, heap ? pieceFree : 0);
+    let t = path.drive(start, 0, machineDriveMs(offX), "cubic-bezier(0.25, 0.6, 0.35, 1)");
+    let pallet: ReturnType<typeof poseTrack> | null = null;
+    if (!fork.swap) {
+      // Forks under it, and up it goes, partway to where it belongs.
+      const from = t + 300;
+      t = forks.to(from, 1800, up(FORK_RAISE));
+      piece.move(from, 0, 0, "ease-in-out");
+      piece.move(t, 0, FORK_RAISE);
+      work.raisedBy = FORK_RAISE;
+      work.readyAt = t + 200;
+    } else {
+      // The broken one lifted and taken off the screen...
+      const from = t + 300;
+      t = forks.to(from, 600, up(20));
+      piece.move(from, 0, 0, "ease-in-out");
+      piece.move(t, 0, 20);
+      const outX = s === 1 ? vw - piece.left + 40 : -(piece.right + 40);
+      const goAt = t + 200;
+      t = path.drive(goAt, outX, machineDriveMs(outX, TRIP_PX_PER_S), "ease-in");
+      piece.move(goAt, 0, 20, "ease-in");
+      piece.move(t, outX, 20);
+      work.cracked = [0, t];
+      // ...and, out of sight, a new one on a pallet brought back in and set
+      // down under the hook.
+      const place = (dx: number, lift: number) => ({ transform: `translate(${dx.toFixed(1)}px, ${-lift}px)`, opacity: 1 });
+      pallet = poseTrack({ ...place(outX, 20), opacity: 0 });
+      pallet.set(t + 1, place(outX, 20));
+      piece.move(t + 1, outX, 20 + PALLET_H);
+      const backAt = t + 900;
+      piece.move(backAt, outX, 20 + PALLET_H, "ease-out");
+      pallet.to(backAt, machineDriveMs(outX, TRIP_PX_PER_S), place(0, 20), "ease-out");
+      t = path.drive(backAt, 0, machineDriveMs(outX, TRIP_PX_PER_S), "ease-out");
+      piece.move(t, 0, 20 + PALLET_H);
+      const downAt = t + 200;
+      forks.to(downAt, 700, up(0));
+      pallet.to(downAt, 700, place(0, 0));
+      piece.move(downAt, 0, 20 + PALLET_H, "ease-in-out");
+      t = downAt + 700;
+      piece.move(t, 0, PALLET_H);
+      // Backing off out of the welder's way.
+      t = path.drive(t + 200, s * 90, 900);
+      work.raisedBy = PALLET_H;
+      work.readyAt = t;
+    }
+    work.crowded = true;
+    forkPlan = { path, forks, pallet, offX };
     arrival += 1000;
   }
-  return plans;
+
+  // --- the mixer: backed up to the break, glue into a bucket, filler into
+  // the holes.
+  let mix: { body: number; dir: 1 | -1; from: 1 | -1; off: number; path: ReturnType<typeof drivePath>; chute: ReturnType<typeof poseTrack>; stream: ReturnType<typeof poseTrack>; fill: ReturnType<typeof poseTrack> | null; jet: ReturnType<typeof poseTrack> | null; jetAt: { x: number; y: number; len: number } | null; doneAt: number } | null = null;
+  if (chosen.has("mixer")) {
+    const room = MIXER_W + 40;
+    // Anywhere there's room for it.
+    const spots = Array.from({ length: Math.max(0, Math.floor((vw - room - 20) / 10)) }, (_, i) => 10 + i * 10).filter((a) =>
+      taken.every((z) => !overlaps([a, a + room], z))
+    );
+    const spot = spots.length ? spots[Math.floor(Math.random() * spots.length)] : undefined;
+    if (spot !== undefined) {
+      taken.push([spot - 10, spot + room + 10]);
+      // Backing up to it: its back (where the chute is) toward the break.
+      const middle = spot + room / 2;
+      const dir: 1 | -1 = o.targetX > middle ? -1 : 1;
+      const body = dir === 1 ? spot + 40 : spot;
+      const from: 1 | -1 = middle < vw / 2 ? -1 : 1;
+      const off = from === -1 ? -(body + MIXER_W + 30) : vw - body + 30;
+      const path = drivePath(off);
+      let t = path.drive(arrival, 0, machineDriveMs(off), "cubic-bezier(0.25, 0.6, 0.35, 1)");
+      const chute = poseTrack({ transform: "rotate(-60deg)" });
+      const stream = poseTrack({ transform: "scaleY(0)", opacity: 1 });
+      let fill: ReturnType<typeof poseTrack> | null = null;
+      if (o.glue) {
+        // Glue, poured into a bucket at the back.
+        fill = poseTrack({ transform: "scaleY(0)" });
+        const pourAt = chute.to(t + 600, 500, { transform: "rotate(0deg)" });
+        stream.to(pourAt, 350, { transform: "scaleY(1)", opacity: 1 }, "ease-in");
+        fill.to(pourAt + 300, 2000, { transform: "scaleY(1)" });
+        const poured = pourAt + 2300;
+        stream.to(poured, 300, { transform: "scaleY(1)", opacity: 0 }, "ease-out");
+        stream.set(poured + 300, { transform: "scaleY(0)", opacity: 1 });
+        t = chute.to(poured + 300, 500, { transform: "rotate(-60deg)" });
+        work.glue = { x: dir === 1 ? body - 10 : body + MIXER_W + 10, at: poured + 300 };
+      }
+      // Filler: the chute up, and a jet of it into each hole in turn.
+      let jet: ReturnType<typeof poseTrack> | null = null;
+      let jetAt: { x: number; y: number; len: number } | null = null;
+      if (o.holes.length) {
+        const origin = { x: dir === 1 ? body - 6 : body + MIXER_W + 6, y: floorY - 56 };
+        const aims = o.holes.map((h) => ({ h, a: (Math.atan2(h.y - origin.y, h.x - origin.x) * 180) / Math.PI, d: Math.hypot(h.x - origin.x, h.y - origin.y) }));
+        const len = Math.max(...aims.map((a) => a.d));
+        jetAt = { x: origin.x - body, y: origin.y - (floorY + 2 - MIXER_H), len };
+        const aim = (a: number, k: number) => ({ transform: `rotate(${a.toFixed(1)}deg) scaleX(${k.toFixed(3)})` });
+        jet = poseTrack(aim(aims[0].a, 0));
+        t = chute.to(t + 300, 600, { transform: "rotate(50deg)" });
+        for (const { h, a, d } of aims) {
+          jet.set(t, aim(a, 0));
+          const hit = jet.to(t, 350, aim(a, d / len), "ease-out");
+          work.filler.push({ x: h.x, y: h.y, at: hit });
+          t = jet.to(hit + 700, 250, aim(a, 0), "ease-in");
+          t += 150;
+        }
+        t = chute.to(t, 600, { transform: "rotate(-60deg)" });
+      }
+      mix = { body, dir, from, off, path, chute, stream, fill, jet, jetAt, doneAt: t };
+    }
+  }
+
+  work.finish = ({ liftStart, clear, gluePickedAt }) => {
+    const plans: MachinePlan[] = [];
+    let forkGone = 0;
+    if (forkPlan && piece && fork) {
+      const { path, forks, pallet, offX } = forkPlan;
+      let t: number;
+      if (!fork.swap) {
+        // Forks down once the hook's taken it, and off.
+        t = forks.to(liftStart + 700, 600, { transform: "translateY(0px)" });
+        t = path.drive(t + 200, offX, machineDriveMs(offX, TRIP_PX_PER_S), "ease-in");
+      } else {
+        // Back for the empty pallet once the new piece is up off it.
+        t = path.drive(Math.max(liftStart + 900, path.frames[path.frames.length - 1][0]), 0, 900);
+        forks.to(t + 150, 600, { transform: "translateY(-20px)" });
+        pallet!.to(t + 150, 600, { transform: "translate(0px, -20px)", opacity: 1 });
+        const goAt = t + 950;
+        const ms = machineDriveMs(offX, TRIP_PX_PER_S);
+        pallet!.to(goAt, ms, { transform: `translate(${offX.toFixed(1)}px, -20px)`, opacity: 1 }, "ease-in");
+        t = path.drive(goAt, offX, ms, "ease-in");
+      }
+      forkGone = t;
+      plans.push({
+        kind: "forklift",
+        left: forkLeft,
+        dir: forkDir,
+        from: s,
+        frames: path.frames,
+        parts: { forks: forks.frames, ...(pallet ? { pallet: pallet.frames } : {}) },
+        pallet: fork.swap ? { left: piece.left - 5, w: piece.right - piece.left + 10 } : undefined,
+      });
+    }
+    let mixGone = 0;
+    let mixSpan: [number, number] | null = null;
+    if (mix) {
+      const leaveAt = Math.max(mix.doneAt, gluePickedAt ?? 0) + 600;
+      mixGone = mix.path.drive(leaveAt, mix.off, machineDriveMs(mix.off), "ease-in");
+      mixSpan = [mix.body - 50, mix.body + MIXER_W + 50];
+      plans.push({
+        kind: "mixer",
+        left: mix.body,
+        dir: mix.dir,
+        from: mix.from,
+        frames: mix.path.frames,
+        parts: {
+          chute: mix.chute.frames,
+          stream: mix.stream.frames,
+          ...(mix.fill ? { fill: mix.fill.frames, bucket: gluePickedAt !== null ? [[0, { opacity: 1 }], [gluePickedAt, { opacity: 1 }], [gluePickedAt, { opacity: 0 }]] as Frame[] : [[0, { opacity: 1 }]] as Frame[] } : {}),
+          ...(mix.jet ? { jet: mix.jet.frames } : {}),
+        },
+        jet: mix.jetAt ?? undefined,
+      });
+    }
+    if (dig) {
+      // Back for the rest of the rubble, now nothing else is in the way.
+      dig.t = Math.max(dig.t, clear + 300, forkGone);
+      const order = rubble()
+        .filter(canReach)
+        .sort((a, b) => s * ((b.spot ?? 0) - (a.spot ?? 0)));
+      for (const d of order) {
+        const x = d.spot ?? 0;
+        const left = digLeftFor(x);
+        let from = Math.max(dig.t, d.appearAt + 300);
+        if (mixSpan && overlaps([left, left + DIGGER_W], mixSpan)) from = Math.max(from, mixGone);
+        d.clearAt = dig.bite(from, x);
+      }
+      if (dig.trips) {
+        plans.push({
+          kind: "digger",
+          left: dig.left,
+          dir: digDir,
+          from: s,
+          frames: dig.path.frames,
+          parts: { boom: dig.arm.boom.frames, stick: dig.arm.stick.frames, bucket: dig.arm.bucket.frames, load: dig.load.frames, treads: treadsFor(dig.path.frames) },
+        });
+      }
+    }
+    return plans;
+  };
+  return work;
 }
 
 // A machine, playing its keyframes over the round (`total` ms).
@@ -5165,6 +5588,8 @@ function Machine({ plan, total }: { plan: MachinePlan; total: number }) {
     return () => anims.forEach((a) => a.cancel());
   }, [plan, total]);
   const mirror = plan.dir === -1 ? "scaleX(-1)" : undefined;
+  // (Which way to back it out, if they're caught: back the way it came.)
+  const exit = plan.from === -1 ? 1 : -1;
 
   if (plan.kind === "tower") {
     const mastH = plan.mastH ?? 400;
@@ -5233,7 +5658,7 @@ function Machine({ plan, total }: { plan: MachinePlan; total: number }) {
         ref={root}
         className="absolute"
         data-crew-machine="digger"
-        data-crew-dir={plan.dir}
+        data-crew-dir={exit}
         style={{ left: plan.left, bottom: FLOOR - 2, width: DIGGER_W, height: DIGGER_H, zIndex: 2 }}
       >
         <div className="absolute inset-0" style={{ transform: mirror }}>
@@ -5246,8 +5671,8 @@ function Machine({ plan, total }: { plan: MachinePlan; total: number }) {
             <rect x={6} y={64} width={112} height={20} rx={10} fill="#2b2f36" />
             <g clipPath={`url(#digger-track-${plan.left.toFixed(0)})`}>
               <g data-part="treads">
-                {Array.from({ length: 8 }, (_, i) => (
-                  <rect key={i} x={-18 + i * 24} y={64} width={4} height={20} fill="#4b5563" />
+                {Array.from({ length: 44 }, (_, i) => (
+                  <rect key={i} x={-450 + i * 24} y={64} width={4} height={20} fill="#4b5563" />
                 ))}
               </g>
             </g>
@@ -5291,7 +5716,7 @@ function Machine({ plan, total }: { plan: MachinePlan; total: number }) {
         ref={root}
         className="absolute"
         data-crew-machine="mixer"
-        data-crew-dir={plan.dir}
+        data-crew-dir={exit}
         style={{ left: plan.left, bottom: FLOOR - 2, width: MIXER_W, height: MIXER_H, zIndex: 2 }}
       >
         <div className="absolute inset-0" style={{ transform: mirror }}>
@@ -5321,30 +5746,55 @@ function Machine({ plan, total }: { plan: MachinePlan; total: number }) {
               </g>
             ))}
           </svg>
-          {/* The chute at the back, and the cement pouring out of it. */}
+          {/* The chute at the back, and the glue pouring out of it. */}
           <div data-part="chute" className="absolute" style={{ left: 16, top: 52, width: 30, height: 7, transformOrigin: "100% 50%" }}>
             <div className="absolute inset-0 rounded-sm" style={{ backgroundColor: "#9aa3b5", transform: "translateX(-24px) rotate(18deg)" }} />
           </div>
           <div
             data-part="stream"
             className="absolute rounded-full"
-            style={{ left: -12, top: 60, width: 7, height: MIXER_H - 60 + 2, backgroundColor: "#8e949e", transformOrigin: "50% 0%" }}
+            style={{ left: -12, top: 60, width: 7, height: MIXER_H - 60 - 14, backgroundColor: "#8e949e", transformOrigin: "50% 0%" }}
           />
+          {/* The bucket the glue goes in, for the welder to come and get. */}
+          {plan.parts.fill && (
+            <div data-part="bucket" className="absolute" style={{ left: -23, top: MIXER_H - 26, width: 26, height: 24 }}>
+              <svg className="absolute inset-0 overflow-visible" width={26} height={24} aria-hidden="true">
+                <path d="M6,6 C6,-6 20,-6 20,6" fill="none" stroke="#6b7280" strokeWidth={2.5} />
+                <path d="M1,5 L25,5 L21,24 L5,24 Z" fill="#9aa3b5" stroke="#6b7280" strokeWidth={1.5} />
+              </svg>
+              <div data-part="fill" className="absolute rounded-sm" style={{ left: 3, top: 6, width: 20, height: 6, backgroundColor: "#6f7580", transformOrigin: "50% 100%" }} />
+            </div>
+          )}
         </div>
+        {/* A jet of filler from the chute, into the holes it broke out of. */}
+        {plan.jet && (
+          <div
+            data-part="jet"
+            className="absolute"
+            style={{
+              left: plan.jet.x,
+              top: plan.jet.y - 3,
+              width: plan.jet.len,
+              height: 6,
+              borderRadius: 3,
+              transformOrigin: "0% 50%",
+              background: "linear-gradient(90deg, rgba(142,148,158,0.95), rgba(142,148,158,0.8) 80%, rgba(142,148,158,0.35))",
+            }}
+          />
+        )}
       </div>
     );
   }
 
-  // Forklift, and the pallet of spare pieces it brings — on the forks,
-  // which stick out past its front (mirrored when it faces left).
-  const palletLeft = plan.dir === 1 ? plan.left + 99 : plan.left + FORKLIFT_W - 149;
+  // Forklift — and the pallet it brings a new piece on, which it sets down
+  // and comes back for.
   return (
     <>
       <div
         ref={root}
         className="absolute"
         data-crew-machine="forklift"
-        data-crew-dir={plan.dir}
+        data-crew-dir={exit}
         style={{ left: plan.left, bottom: FLOOR - 2, width: FORKLIFT_W, height: FORKLIFT_H, zIndex: 2 }}
       >
         <div className="absolute inset-0" style={{ transform: mirror, transformOrigin: `${FORKLIFT_W / 2}px 50%` }}>
@@ -5368,30 +5818,20 @@ function Machine({ plan, total }: { plan: MachinePlan; total: number }) {
           </div>
         </div>
       </div>
-      {/* The pallet: planks, and on them a spare bar, a spare card and a donut slice. */}
-      <div
-        ref={pallet}
-        className="absolute"
-        data-crew-machine="pallet"
-        data-crew-dir={plan.dir}
-        style={{
-          left: palletLeft,
-          bottom: FLOOR + 6,
-          width: 50,
-          height: 34,
-          zIndex: 2,
-        }}
-      >
-        <div className="absolute rounded-sm" style={{ left: 0, bottom: 0, width: 50, height: 6, backgroundColor: "#9a6b3f" }} />
-        <div className="absolute rounded-sm" style={{ left: 2, bottom: 6, width: 46, height: 8, backgroundColor: "#385bc1", borderRadius: "0 3px 3px 0" }} />
-        <div className="absolute rounded" style={{ left: 6, bottom: 14, width: 32, height: 18, backgroundColor: "#ffffff", border: "1px solid #d7dce6" }}>
-          <div className="absolute rounded-sm bg-[#d7dce6]" style={{ left: 4, top: 4, width: 14, height: 3 }} />
-          <div className="absolute rounded-sm bg-[#385bc1]" style={{ left: 4, top: 10, width: 9, height: 4 }} />
+      {plan.pallet && (
+        <div
+          ref={pallet}
+          className="absolute"
+          data-crew-machine="pallet"
+          data-crew-dir={exit}
+          style={{ left: plan.pallet.left, bottom: FLOOR, width: plan.pallet.w, height: PALLET_H, zIndex: 2, opacity: 0 }}
+        >
+          <div className="absolute inset-x-0 top-0 rounded-sm" style={{ height: 3, backgroundColor: "#b5854f" }} />
+          {[0, 0.5, 1].map((f) => (
+            <div key={f} className="absolute rounded-sm" style={{ left: `calc(${f * 100}% - ${f * 10}px)`, top: 3, width: 10, height: PALLET_H - 3, backgroundColor: "#8a5f33" }} />
+          ))}
         </div>
-        <svg className="absolute" style={{ left: 34, bottom: 14 }} width={16} height={16} aria-hidden="true">
-          <path d="M0,16 L0,2 A14,14 0 0,1 14,16 Z" fill="#f2b632" />
-        </svg>
-      </div>
+      )}
     </>
   );
 }
@@ -5442,6 +5882,11 @@ function RepairRound({ plan, onDone }: { plan: RepairPlan; onDone: () => void })
   const wheels = useRef<SVGGElement[]>([]);
   const sparkRefs = useRef<(HTMLDivElement | null)[]>([]);
   const chunkRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const heap = useRef<HTMLDivElement>(null);
+  const patchRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const seam = useRef<HTMLDivElement>(null);
+  const cracked = useRef<HTMLDivElement>(null);
+  const glued = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const total = plan.endAt;
@@ -5473,6 +5918,11 @@ function RepairRound({ plan, onDone }: { plan: RepairPlan; onDone: () => void })
     play(torch.current, plan.crack?.torch);
     play(torch.current, plan.crack?.torchShows);
     plan.sparks.forEach((sp, i) => play(sparkRefs.current[i], sp.shows));
+    play(heap.current, plan.heap?.frames);
+    plan.patches?.forEach((p, i) => play(patchRefs.current[i], p.shows));
+    play(seam.current, plan.seam?.shows);
+    play(cracked.current, plan.marks?.cracked);
+    play(glued.current, plan.marks?.glued);
     plan.chunks.forEach((c, i) => {
       const el = chunkRefs.current[i];
       if (!el) return;
@@ -5564,8 +6014,117 @@ function RepairRound({ plan, onDone }: { plan: RepairPlan; onDone: () => void })
               <path d={s.d} fill={s.fill} />
             </svg>
           )}
+          {/* A crack across it while it's the broken one; glue spread round
+              its edge once the welder's been at it. */}
+          {plan.marks?.cracked && (
+            <div ref={cracked} className="absolute inset-0" style={{ zIndex: 1, opacity: 0 }}>
+              <svg className="absolute inset-0 overflow-visible" width={s.box.w} height={s.box.h} aria-hidden="true">
+                {[
+                  { stroke: "rgba(255, 255, 255, 0.45)", width: 5 },
+                  { stroke: "rgba(20, 24, 33, 0.85)", width: 2.5 },
+                ].map((line) => (
+                  <path key={line.width} d={crackAcross(s.box.w, s.box.h)} fill="none" stroke={line.stroke} strokeWidth={line.width} strokeLinejoin="round" strokeLinecap="round" />
+                ))}
+              </svg>
+            </div>
+          )}
+          {plan.marks?.glued && (
+            <div ref={glued} className="absolute inset-0" style={{ zIndex: 1, opacity: 0 }}>
+              {s.kind === "slice" ? (
+                <svg className="absolute inset-0 overflow-visible" width={s.box.w} height={s.box.h} aria-hidden="true">
+                  <path d={s.d} fill="none" stroke="rgba(142, 148, 158, 0.95)" strokeWidth={3} strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    borderRadius: s.kind === "bar" ? (s.round === "right" ? "0 4px 4px 0" : "4px 0 0 4px") : 12,
+                    boxShadow: "inset 0 0 0 3px rgba(142, 148, 158, 0.95)",
+                  }}
+                />
+              )}
+            </div>
+          )}
         </div>
       )}
+      {/* The heap of rubble that came down on it, for the digger to dig out. */}
+      {plan.heap && (
+        <div
+          ref={heap}
+          className="absolute"
+          style={{
+            left: plan.heap.x - plan.heap.w / 2,
+            bottom: FLOOR - 4,
+            width: plan.heap.w,
+            height: plan.heap.h,
+            zIndex: 2,
+            transformOrigin: "50% 100%",
+            transform: "scale(0)",
+          }}
+        >
+          <svg className="absolute inset-0 overflow-visible" width={plan.heap.w} height={plan.heap.h} viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0,60 C6,40 14,26 26,22 C32,10 46,4 56,10 C66,6 78,12 82,24 C92,30 97,44 100,60 Z" fill="#8b8478" />
+            <path d="M10,60 C16,46 24,38 34,36 C42,28 54,26 62,32 C72,32 80,40 86,60 Z" fill="#9a9286" />
+            {[
+              [20, 40, 5],
+              [40, 24, 6],
+              [58, 18, 5],
+              [74, 34, 6],
+              [48, 44, 4],
+              [30, 52, 5],
+              [66, 50, 5],
+              [86, 48, 4],
+            ].map(([x, y, r], i) => (
+              <ellipse key={i} cx={x} cy={y} rx={r} ry={r * 0.9} fill={i % 2 ? "#6f685e" : "#7d7466"} />
+            ))}
+          </svg>
+        </div>
+      )}
+      {/* The glue round it once it's back, and the filler in the holes. */}
+      {plan.seam && (
+        <div ref={seam} className="absolute" style={{ left: 0, top: 0, zIndex: 3, opacity: 0 }}>
+          {plan.seam.kind === "box" ? (
+            <div
+              className="absolute"
+              style={{
+                left: plan.seam.box.x - 2,
+                top: plan.seam.box.y - 2,
+                width: plan.seam.box.w + 4,
+                height: plan.seam.box.h + 4,
+                borderRadius: plan.seam.radius + 2,
+                border: "3px solid rgba(142, 148, 158, 0.9)",
+              }}
+            />
+          ) : plan.seam.kind === "line" ? (
+            <div
+              className="absolute rounded-full"
+              style={{ left: plan.seam.x - 2, top: plan.seam.y - 2, width: 4, height: plan.seam.h + 4, backgroundColor: "rgba(142, 148, 158, 0.95)" }}
+            />
+          ) : (
+            <svg className="absolute overflow-visible" style={{ left: plan.seam.box.x, top: plan.seam.box.y }} width={plan.seam.box.w} height={plan.seam.box.h} aria-hidden="true">
+              <path d={plan.seam.d} fill="none" stroke="rgba(142, 148, 158, 0.95)" strokeWidth={3} strokeLinejoin="round" />
+            </svg>
+          )}
+        </div>
+      )}
+      {plan.patches?.map((p, i) => (
+        <div
+          key={i}
+          ref={(el) => {
+            patchRefs.current[i] = el;
+          }}
+          className="absolute rounded-full"
+          style={{
+            left: p.x - 9,
+            top: p.y - 7,
+            width: 18,
+            height: 14,
+            zIndex: 4,
+            opacity: 0,
+            background: "radial-gradient(ellipse at 45% 40%, #b3b9c2, #8e949e 60%, rgba(142, 148, 158, 0) 76%)",
+          }}
+        />
+      ))}
       {/* The truck, and its crane: boom, then a hanger that keeps the cable
           hanging straight down, the cable, the hook — and for a crack, the
           welder's platform. */}
