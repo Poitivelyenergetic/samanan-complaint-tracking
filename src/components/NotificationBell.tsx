@@ -139,6 +139,8 @@ export default function NotificationBell() {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label={t("title")}
+        // The idle cleaning crew fix it if it falls off.
+        data-crew-bell
         className="relative rounded-full p-2 text-foreground/60 hover:bg-black/5 hover:text-foreground"
       >
         <svg width="19" height="19" viewBox="0 0 20 20" fill="none">

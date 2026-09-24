@@ -3466,7 +3466,7 @@ const HOOK_DROP = 16;
 const PLATFORM_HANG = 46;
 const CABLE_STOWED = 22;
 
-type BreakKind = "card" | "bar" | "crack" | "slice";
+type BreakKind = "card" | "bar" | "crack" | "slice" | "top";
 
 // The construction crew: two new faces in the same flat style, in hard hats
 // and hi-vis vests (see Workwear).
@@ -3556,8 +3556,9 @@ interface RepairPlan {
   standIn: StandIn | null;
   standInMoves: Keyframe[];
   standInShows: Keyframe[];
-  truck: { left: number; dir: 1 | -1; moves: Keyframe[]; wheels: Keyframe[] };
-  boom: { moves: Keyframe[]; counter: Keyframe[]; cable: Keyframe[] };
+  /** The crane truck, unless it's a job for the tower crane. */
+  truck: { left: number; dir: 1 | -1; moves: Keyframe[]; wheels: Keyframe[] } | null;
+  boom: { moves: Keyframe[]; counter: Keyframe[]; cable: Keyframe[] } | null;
   /** When the welder's riding the platform that hangs from the hook, if there is one. */
   rider: Keyframe[] | null;
   asteroid: { from: Vec; at: Vec; flight: Keyframe[] } | null;
@@ -3589,6 +3590,11 @@ interface Breakable {
 function findBreakables(vw: number, vh: number): Breakable[] {
   const fits = (b: Box) => b.w > 12 && b.h > 8 && b.x >= 8 && b.x + b.w <= vw - 8 && b.y >= 48 && b.y + b.h <= vh - 140;
   const found: Breakable[] = [];
+  // Up in the top bar: the clock, the profile picture, the notifications bell.
+  document.querySelectorAll("[data-crew-clock], [data-crew-pfp], [data-crew-bell]").forEach((el) => {
+    const box = boxOf(el);
+    if (box.w > 8 && box.h > 8 && box.y >= 0 && box.y + box.h <= 90 && box.x >= 8 && box.x + box.w <= vw - 8) found.push({ kind: "top", el, box });
+  });
   document.querySelectorAll("[data-crew-card]").forEach((el) => {
     const box = boxOf(el);
     if (fits(box)) found.push({ kind: "card", el, box });
@@ -3624,6 +3630,8 @@ function planRepair(): RepairPlan | null {
   const breakKind = kinds[Math.floor(Math.random() * kinds.length)];
   const options = all.filter((b) => b.kind === breakKind);
   const target = options[Math.floor(Math.random() * options.length)];
+  // Up in the top bar: a job for the tower crane instead.
+  if (breakKind === "top") return planTopRepair(target, vw, vh);
   const asteroid = Math.random() < 0.5;
   const { el, box } = target;
   const welder = BUILDERS.welder;
@@ -4032,7 +4040,6 @@ function planRepair(): RepairPlan | null {
   ];
   const machines = planMachines({
     vw,
-    vh,
     truckSpan: [truckLeft - 20, truckLeft + TRUCK_W + 20],
     workZone,
     rubble: debris.filter((d) => d.mess === "rubble"),
@@ -4133,6 +4140,248 @@ function planRepair(): RepairPlan | null {
         }
       : null,
     sparks: bolting ? boltSpots.map((p) => ({ ...p, shows: showBetween(bolting![0], bolting![1], endAt) })) : [],
+    puffs,
+    chunks,
+    builders: [
+      { character: foreman, entryX, steps: foremanSteps, endAt: ft },
+      { character: welder, entryX, steps: welderSteps, endAt: wt },
+    ],
+    debris,
+    machines,
+    effects,
+    realMoves,
+    restore: () => undo.forEach((u) => u()),
+  };
+}
+
+// Something up in the top bar — the clock, the profile picture, the
+// notifications bell — comes off and falls all the way to the floor. It's
+// too high for the truck's crane, so the tower crane comes instead: it rises
+// at the nearer edge, reaches its jib right over, and its hook goes all the
+// way down for it; the builders hook it on, and it's lifted all the way back
+// up and bolted into place.
+const TOP_LIFT_MS = 4200;
+// The tower crane's hook, a small clamp, and where its cable starts (px down
+// from the top of the screen — the jib itself is just above it).
+const TOP_HOOK_H = 12;
+const TOP_CABLE_Y = 2;
+
+function planTopRepair(target: Breakable, vw: number, vh: number): RepairPlan {
+  const floorY = vh - FLOOR;
+  const pct = (px: number) => (px / vw) * 100;
+  const { el, box } = target;
+  const asteroid = Math.random() < 0.5;
+  const welder = BUILDERS.welder;
+  const foreman = BUILDERS.foreman;
+  const t0 = 400;
+  const breakAt = t0 + (asteroid ? 700 : 1300);
+  const effects: RepairPlan["effects"] = [];
+  const realMoves: RepairPlan["realMoves"] = [];
+  const undo: (() => void)[] = [];
+  const debris: DustSpeck[] = [];
+  const puffs: RepairPlan["puffs"] = [];
+  const chunks: RepairPlan["chunks"] = [];
+
+  // The real thing: hidden while its stand-in's away.
+  const style = (el as HTMLElement).style;
+  const shown = style.visibility;
+  effects.push({ at: breakAt, run: () => (style.visibility = "hidden") });
+  undo.push(() => (style.visibility = shown));
+  if (!asteroid) {
+    realMoves.push({
+      keyframes: [0, 2, -2, 3, -3, 2, 0].map((a) => ({ transform: `rotate(${a}deg)` })),
+      options: { delay: t0, duration: breakAt - t0, easing: "ease-in-out" },
+    });
+  }
+
+  // It pops off, tumbling, and drops all the way down, landing with a bounce.
+  const s = Math.random() < 0.5 ? 1 : -1;
+  const dy = floorY - box.y - box.h;
+  const cx = box.x + box.w / 2;
+  const landAt = breakAt + 1200;
+  const moves: Frame[] = [
+    [0, { transform: "translate(0px, 0px) rotate(0deg)" }],
+    [breakAt, { transform: "translate(0px, 0px) rotate(0deg)" }, "ease-out"],
+    [breakAt + 220, { transform: `translate(${s * 10}px, -16px) rotate(${s * 30}deg)` }, GRAVITY],
+    [landAt, { transform: `translate(${s * 24}px, ${dy.toFixed(1)}px) rotate(${s * 360}deg)` }, "ease-out"],
+    [landAt + 140, { transform: `translate(${s * 26}px, ${(dy - 12).toFixed(1)}px) rotate(${s * 360}deg)` }, "ease-in"],
+    [landAt + 300, { transform: `translate(${s * 26}px, ${dy.toFixed(1)}px) rotate(${s * 360}deg)` }],
+  ];
+  const lyingX = cx + s * 26;
+  debris.push(floorDebris(lyingX - 24, landAt, "rubble"), floorDebris(lyingX + 26, landAt + 60, "rubble"));
+  const impact = { x: cx, y: box.y + box.h / 2 };
+
+  // The tower crane: at the nearer edge, jib long enough to get right over it.
+  const edge = cx < vw / 2 ? 34 : vw - 34;
+  const dir: 1 | -1 = edge < vw / 2 ? 1 : -1;
+  const mastH = floorY - TOP_CABLE_Y;
+  const over = (cx - edge) * dir;
+  const jib = over + 70;
+  const craneAt = landAt + 600;
+  const swungIn = craneAt + 1800 + 1100;
+  const across = swungIn + 1300;
+  const trolleyOut = (lyingX - edge) * dir;
+  const trolleyHome = (cx - edge) * dir;
+  const cableFloor = floorY - box.h - TOP_HOOK_H - TOP_CABLE_Y;
+  const cableTop = Math.max(2, box.y - TOP_HOOK_H - TOP_CABLE_Y);
+  const hookDownAt = across;
+  const hookDownEnd = hookDownAt + 2400;
+
+  // The builders walk in: the foreman to wave the hook down, the welder to
+  // hook it on.
+  const entryX = lyingX < vw / 2 ? -8 : 108;
+  const side = entryX < 0 ? -1 : 1;
+  const foremanSteps: Step[] = [];
+  const welderSteps: Step[] = [];
+  const foremanX = pct(lyingX + side * (box.w / 2 + 70));
+  const welderX = pct(lyingX + side * (box.w / 2 + 26));
+  let ft = hopTo(foremanSteps, entryX, foremanX, landAt + 500, vw, (-side) as 1 | -1);
+  let wt = hopTo(welderSteps, entryX, welderX, landAt + 1100, vw, (-side) as 1 | -1);
+  ft = waitUntil(foremanSteps, ft, hookDownAt);
+  foremanSteps.push({ kind: "quirk", at: ft, ms: hookDownEnd - hookDownAt, quirk: "wave" });
+  ft = hookDownEnd;
+  wt = waitUntil(welderSteps, wt, hookDownEnd);
+  welderSteps.push({ kind: "quirk", at: wt, ms: HOOK_MS, quirk: "wave" });
+  wt += HOOK_MS;
+  const liftStart = wt + 200;
+  const liftEnd = liftStart + TOP_LIFT_MS;
+  const fixedAt = liftEnd + BOLT_MS;
+  const lookUp = (c: Character) => lookToward(c, 10, 700);
+  foremanSteps.push({ kind: "inspect", at: ft, ms: fixedAt - ft, look: lookUp(foreman) });
+  ft = fixedAt;
+  welderSteps.push({ kind: "inspect", at: wt, ms: fixedAt - wt, look: lookUp(welder) });
+  wt = fixedAt;
+  foremanSteps.push({ kind: "quirk", at: ft, ms: QUIRK_MS.phew, quirk: "phew" });
+  ft += QUIRK_MS.phew;
+
+  // Lifted straight back up, righting itself, in step with the cable.
+  moves.push(
+    [liftStart, { transform: `translate(${s * 26}px, ${dy.toFixed(1)}px) rotate(${s * 360}deg)` }, "linear"],
+    [liftEnd, { transform: `translate(0px, 0px) rotate(${s * 360}deg)` }]
+  );
+
+  // Then the crane lets go and packs away.
+  const released = fixedAt + 600;
+  const home = released + 1100;
+  const swungAway = home + 900;
+  const sunk = swungAway + 1500;
+  const exitX = entryX;
+  let endAt = sunk;
+  for (const [steps, from] of [
+    [foremanSteps, ft],
+    [welderSteps, wt],
+  ] as const) {
+    const lastWalk = [...steps].reverse().find((st): st is WalkStep => st.kind === "walk")!;
+    const t = waitUntil(steps, from, released);
+    const trip = hopTrip(lastWalk.x, exitX, vw);
+    steps.push({ kind: "walk", at: t, ms: trip.ms, x: exitX, hopMs: trip.hopMs });
+    steps.push({ kind: "gone", at: t + trip.ms, ms: 0 });
+    endAt = Math.max(endAt, t + trip.ms);
+  }
+
+  const tower: MachinePlan = {
+    kind: "tower",
+    left: edge,
+    dir,
+    mastH,
+    jib,
+    frames: [
+      [0, { transform: `translateY(${mastH + 120}px)` }],
+      [craneAt, { transform: `translateY(${mastH + 120}px)` }, "cubic-bezier(0.2, 0.7, 0.3, 1)"],
+      [craneAt + 1800, { transform: "translateY(0px)" }],
+      [swungAway, { transform: "translateY(0px)" }, "ease-in"],
+      [sunk, { transform: `translateY(${mastH + 120}px)` }],
+    ],
+    parts: {
+      jib: [
+        [0, { transform: "scaleX(0.04)" }],
+        [craneAt + 1800, { transform: "scaleX(0.04)" }, "ease-in-out"],
+        [swungIn, { transform: "scaleX(1)" }],
+        [home, { transform: "scaleX(1)" }, "ease-in-out"],
+        [swungAway, { transform: "scaleX(0.04)" }],
+      ],
+      trolley: [
+        [0, { transform: "translateX(40px)" }],
+        [swungIn, { transform: "translateX(40px)" }, "ease-in-out"],
+        [across, { transform: `translateX(${trolleyOut.toFixed(1)}px)` }],
+        [liftStart, { transform: `translateX(${trolleyOut.toFixed(1)}px)` }, "linear"],
+        [liftEnd, { transform: `translateX(${trolleyHome.toFixed(1)}px)` }],
+        [released, { transform: `translateX(${trolleyHome.toFixed(1)}px)` }, "ease-in-out"],
+        [home, { transform: "translateX(40px)" }],
+      ],
+      cable: [
+        [0, { height: "2px" }],
+        [hookDownAt, { height: "2px" }, "ease-in-out"],
+        [hookDownEnd, { height: `${cableFloor.toFixed(1)}px` }],
+        [liftStart, { height: `${cableFloor.toFixed(1)}px` }, "linear"],
+        [liftEnd, { height: `${cableTop.toFixed(1)}px` }],
+        [fixedAt, { height: `${cableTop.toFixed(1)}px` }, "ease-in-out"],
+        [released, { height: "2px" }],
+      ],
+    },
+  };
+
+  // An asteroid, if that's what did it.
+  let asteroidPlan: RepairPlan["asteroid"] = null;
+  if (asteroid) {
+    const from = { x: impact.x < vw / 2 ? vw + 80 : -80, y: -80 };
+    const off = `translate(${(from.x - impact.x).toFixed(1)}px, ${(from.y - impact.y).toFixed(1)}px)`;
+    asteroidPlan = {
+      from,
+      at: impact,
+      flight: track(
+        [
+          [0, { transform: off, opacity: 0 }],
+          [t0, { transform: off, opacity: 1 }, "cubic-bezier(0.4, 0, 1, 1)"],
+          [breakAt, { transform: "translate(0px, 0px)", opacity: 1 }],
+          [breakAt + 1, { transform: "translate(0px, 0px)", opacity: 0 }],
+        ],
+        endAt
+      ),
+    };
+  } else {
+    puffs.push({ x: impact.x, y: impact.y, at: t0 + 300, big: false });
+  }
+  puffs.push({ x: impact.x, y: impact.y, at: breakAt, big: true }, { x: lyingX, y: floorY - 10, at: landAt, big: true });
+  effects.push({ at: fixedAt, run: () => undo.forEach((u) => u()) });
+
+  // A couple of the other machines, down on the floor.
+  const machines = planMachines({
+    vw,
+    truckSpan: [edge - 40, edge + 40],
+    workZone: [lyingX - box.w / 2 - 110, lyingX + box.w / 2 + 110],
+    rubble: debris.filter((d) => d.mess === "rubble"),
+    arriveFrom: landAt + 1500,
+    workFrom: liftStart + 800,
+    doneAt: fixedAt,
+    goneBy: sunk,
+    debris,
+    count: 1 + Math.floor(Math.random() * 2),
+  });
+  machines.unshift(tower);
+  const machinesDone = Math.max(
+    0,
+    ...machines.flatMap((m) => [m.frames, ...Object.values(m.parts)].map((f) => (f && f.length ? f[f.length - 1][0] : 0)))
+  );
+  endAt = Math.max(endAt, machinesDone) + 200;
+
+  return {
+    kind: "repair",
+    target: el,
+    endAt,
+    cast: [],
+    standIn: { kind: "clone", box, origin: "50% 50%" },
+    standInMoves: track(moves, endAt),
+    standInShows: showBetween(breakAt, fixedAt, endAt),
+    truck: null,
+    boom: null,
+    rider: null,
+    asteroid: asteroidPlan,
+    crack: null,
+    sparks: [
+      { x: box.x - 2, y: box.y + box.h / 2, shows: showBetween(liftEnd + 200, fixedAt, endAt) },
+      { x: box.x + box.w + 2, y: box.y + box.h / 2, shows: showBetween(liftEnd + 200, fixedAt, endAt) },
+    ],
     puffs,
     chunks,
     builders: [
@@ -4393,12 +4642,12 @@ function TruckBody({ wheels }: { wheels: (el: SVGGElement | null) => void }) {
 
 // ------------------------------------------------------------ the machines
 
-// Besides the crane truck, each repair brings two, three or all four of: a
-// tower crane that rises up at the edge of the page, swings its jib in and
-// lowers a pallet of bricks; a digger that scoops up rubble; a cement mixer
-// that pours out a load; and a forklift that drops off a pallet of spare
-// pieces and collects it again. Each has someone at the controls, and each
-// drives off (backing out the way it came) once the job's done.
+// Besides the crane truck, each repair brings two or all three of: a digger
+// that scoops up rubble, a cement mixer that pours out a load, and a
+// forklift that drops off a pallet of spare pieces and collects it again.
+// Each has someone at the controls, and drives off (backing out the way it
+// came) once the job's done. The tower crane only comes for something up in
+// the top bar (see planTopRepair).
 
 type MachineKind = "tower" | "digger" | "mixer" | "forklift";
 
@@ -4448,7 +4697,6 @@ function Driver({ x, y, color, size = 16 }: { x: number; y: number; color: strin
 // times are ms into the round.
 function planMachines({
   vw,
-  vh,
   truckSpan,
   workZone,
   rubble,
@@ -4457,9 +4705,11 @@ function planMachines({
   doneAt,
   goneBy,
   debris,
+  count: wanted,
 }: {
   vw: number;
-  vh: number;
+  /** How many to bring (by default two or all three). */
+  count?: number;
   /** Where the truck parks (px), and where the builders are working. */
   truckSpan: [number, number];
   workZone: [number, number];
@@ -4471,12 +4721,13 @@ function planMachines({
   goneBy: number;
   debris: DustSpeck[];
 }): MachinePlan[] {
-  const count = Number(weightedPick<"2" | "3" | "4">([
+  const count = wanted ?? Number(weightedPick<"2" | "3">([
     ["2", 1],
     ["3", 1],
-    ["4", 1],
   ]));
-  const kinds = (["tower", "digger", "mixer", "forklift"] as MachineKind[]).sort(() => Math.random() - 0.5);
+  // (The tower crane only comes when something up in the top bar needs it —
+  // see planTopRepair.)
+  const kinds = (["digger", "mixer", "forklift"] as MachineKind[]).sort(() => Math.random() - 0.5);
   const taken: [number, number][] = [truckSpan, workZone];
   const free = (a: number, b: number) => a >= 0 && b <= vw && taken.every(([x, y]) => b <= x || a >= y);
   // The digger only has to keep clear of the truck and the other machines —
@@ -4501,73 +4752,6 @@ function planMachines({
 
   for (const kind of kinds) {
     if (plans.length >= count) break;
-    if (kind === "tower") {
-      // Stands at the edge of the page and reaches in.
-      const edge = taken.every(([x]) => x > 70) ? 34 : taken.every(([, y]) => y < vw - 70) ? vw - 34 : null;
-      if (edge === null) continue;
-      const dir: 1 | -1 = edge < vw / 2 ? 1 : -1;
-      const jib = Math.min(vw * 0.42, 620);
-      const crateW = 64;
-      const reach = findSpot(crateW, (a) => {
-        const d = (a + crateW / 2 - edge) * dir;
-        return d > 90 && d < jib - 30;
-      });
-      if (reach === undefined) continue;
-      taken.push([edge - 30, edge + 30]);
-      const mastH = vh - FLOOR - 56;
-      const trolleyTo = (reach + crateW / 2 - edge) * dir;
-      const up = arrival;
-      const swungIn = up + 1800 + 1100;
-      const out = swungIn + 1300;
-      const down = out + 2200;
-      const liftAt = Math.max(down + 1500, doneAt);
-      const lifted = liftAt + 2000;
-      const back = lifted + 1100;
-      const swungAway = back + 900;
-      const sunk = Math.min(swungAway + 1500, goneBy);
-      // Down until the pallet's sitting on the floor.
-      const cableDown = mastH - 45;
-      plans.push({
-        kind,
-        left: edge,
-        dir,
-        mastH,
-        jib,
-        frames: [
-          [0, { transform: `translateY(${mastH + 120}px)` }],
-          [up, { transform: `translateY(${mastH + 120}px)` }, "cubic-bezier(0.2, 0.7, 0.3, 1)"],
-          [up + 1800, { transform: "translateY(0px)" }],
-          [swungAway, { transform: "translateY(0px)" }, "ease-in"],
-          [sunk, { transform: `translateY(${mastH + 120}px)` }],
-        ],
-        parts: {
-          jib: [
-            [0, { transform: "scaleX(0.04)" }],
-            [up + 1800, { transform: "scaleX(0.04)" }, "ease-in-out"],
-            [swungIn, { transform: "scaleX(1)" }],
-            [back, { transform: "scaleX(1)" }, "ease-in-out"],
-            [swungAway, { transform: "scaleX(0.04)" }],
-          ],
-          trolley: [
-            [0, { transform: "translateX(40px)" }],
-            [swungIn, { transform: "translateX(40px)" }, "ease-in-out"],
-            [out, { transform: `translateX(${trolleyTo.toFixed(1)}px)` }],
-            [lifted, { transform: `translateX(${trolleyTo.toFixed(1)}px)` }, "ease-in-out"],
-            [back, { transform: "translateX(40px)" }],
-          ],
-          cable: [
-            [0, { height: "30px" }],
-            [out, { height: "30px" }, "ease-in-out"],
-            [down, { height: `${cableDown}px` }],
-            [liftAt, { height: `${cableDown}px` }, "ease-in-out"],
-            [lifted, { height: "30px" }],
-          ],
-        },
-      });
-      arrival += 900;
-      continue;
-    }
-
     if (kind === "digger") {
       // Parks with its bucket reaching the rubble.
       const target = rubble.find((d) => {
@@ -4816,18 +5000,13 @@ function Machine({ plan, total }: { plan: MachinePlan; total: number }) {
                   fill="none"
                 />
               </svg>
-              {/* The trolley, and the pallet of bricks on its hook. */}
+              {/* The trolley, and its hook. */}
               <div data-part="trolley" className="absolute" style={{ left: 0, top: 12, width: 0, height: 0 }}>
                 <div className="absolute rounded-sm" style={{ left: -9, top: 0, width: 18, height: 8, backgroundColor: "#4b5563" }} />
                 <div data-part="cable" className="absolute" style={{ left: -1, top: 8, width: 2, height: 30, backgroundColor: "#3a3f4a" }}>
-                  <svg className="absolute" width={70} height={46} style={{ left: -34, top: "100%" }} aria-hidden="true">
-                    <path d="M35,0 L6,18 M35,0 L64,18" stroke="#6b7280" strokeWidth={2} />
-                    {[0, 1, 2].flatMap((c) =>
-                      [0, 1].map((r) => (
-                        <rect key={`${c}${r}`} x={5 + c * 20 + (r % 2) * 4} y={18 + r * 11} width={18} height={9} rx={1.5} fill="#b5523b" stroke="#8e3d2b" strokeWidth={1} />
-                      ))
-                    )}
-                    <rect x={2} y={40} width={66} height={5} rx={1} fill="#9a6b3f" />
+                  <svg className="absolute" width={18} height={TOP_HOOK_H} style={{ left: -8, top: "100%" }} aria-hidden="true">
+                    <rect x="3" y="0" width="12" height="5" rx="1.5" fill="#6b7280" />
+                    <path d="M9,5 L9,8 Q9,12 13,11" fill="none" stroke="#4b5563" strokeWidth="2.5" strokeLinecap="round" />
                   </svg>
                 </div>
               </div>
@@ -5072,11 +5251,11 @@ function RepairRound({ plan, onDone }: { plan: RepairPlan; onDone: () => void })
     }
     play(standIn.current, plan.standInMoves);
     play(standIn.current, plan.standInShows);
-    play(truck.current, plan.truck.moves);
-    wheels.current.forEach((w) => play(w, plan.truck.wheels));
-    play(boom.current, plan.boom.moves);
-    play(hanger.current, plan.boom.counter);
-    play(cable.current, plan.boom.cable);
+    play(truck.current, plan.truck?.moves);
+    wheels.current.forEach((w) => play(w, plan.truck?.wheels));
+    play(boom.current, plan.boom?.moves);
+    play(hanger.current, plan.boom?.counter);
+    play(cable.current, plan.boom?.cable);
     play(rider.current, plan.rider);
     play(rock.current, plan.asteroid?.flight);
     play(crackBox.current, plan.crack?.tilt);
@@ -5179,6 +5358,7 @@ function RepairRound({ plan, onDone }: { plan: RepairPlan; onDone: () => void })
       {/* The truck, and its crane: boom, then a hanger that keeps the cable
           hanging straight down, the cable, the hook — and for a crack, the
           welder's platform. */}
+      {t && (
       <div ref={truck} className="absolute" data-crew-truck style={{ left: t.left, bottom: FLOOR - 2, width: TRUCK_W, height: TRUCK_H, zIndex: 2 }}>
         <div className="absolute inset-0" style={{ transform: t.dir === -1 ? "scaleX(-1)" : undefined }}>
           <TruckBody wheels={(el) => el && !wheels.current.includes(el) && wheels.current.push(el)} />
@@ -5224,6 +5404,7 @@ function RepairRound({ plan, onDone }: { plan: RepairPlan; onDone: () => void })
           </div>
         </div>
       </div>
+      )}
       {plan.crack && (
         <div ref={torch} className="absolute" style={{ left: 0, top: 0, zIndex: 4, opacity: 0 }}>
           <SparkBurst big />
@@ -5377,7 +5558,7 @@ function catchThem(layer: HTMLElement, plan: RoundPlan | RepairPlan | null, elap
 
   let truck: Caught["truck"] = null;
   const tr = layer.querySelector<HTMLElement>("[data-crew-truck]");
-  if (tr && plan?.kind === "repair") {
+  if (tr && plan?.kind === "repair" && plan.truck) {
     const r = tr.getBoundingClientRect();
     if (r.right > 0 && r.left < vw) truck = { left: r.left, dir: plan.truck.dir };
   }

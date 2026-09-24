@@ -39,9 +39,10 @@ export default function LiveClock() {
   const day = new Intl.DateTimeFormat(loc, { weekday: "long" }).format(now);
   const date = new Intl.DateTimeFormat(loc, { day: "numeric", month: "long", year: "numeric" }).format(now);
 
-  // Plain text straight on the top bar — no box of its own.
+  // Plain text straight on the top bar — no box of its own. (Marked for the
+  // idle cleaning crew, who fix it if it falls off.)
   return (
-    <div className="hidden items-center gap-3 lg:flex">
+    <div data-crew-clock className="hidden items-center gap-3 lg:flex">
       <span className="font-mono text-base font-semibold tabular-nums text-foreground" dir="ltr">
         {time}
       </span>
