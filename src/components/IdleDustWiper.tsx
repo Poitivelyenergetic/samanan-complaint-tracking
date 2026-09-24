@@ -31,6 +31,8 @@ const STEP_MOP_MS = 1100;
 // then a moment to steady themselves before the next.
 const CLIMB_HOP_MS = 800;
 const CLIMB_PAUSE_MS = 350;
+// Coming down: one steady hop after another, no stopping.
+const CLIMB_DOWN_HOP_MS = 620;
 // Done spraying: bottle away, cloth out.
 const SWAP_MS = 450;
 // About half the time a sprayer on the floor waves a teammate over to wipe
@@ -88,7 +90,10 @@ type Quirk =
   // Only when they're caught at it (see panic).
   | "startle"
   | "bonk"
-  | "shove";
+  | "shove"
+  // A stain that won't come off (see buildFloorScript).
+  | "fume"
+  | "fling";
 type CheerStyle = "nod" | "wave" | "bow" | "jump";
 
 interface Vec {
@@ -180,7 +185,12 @@ const QUIRK_MS: Record<Quirk, number> = {
   startle: 650,
   bonk: 650,
   shove: 600,
+  fume: 1100,
+  fling: 900,
 };
+// How often a spot just won't come off, and how long scrubbing it does.
+const STUBBORN_CHANCE = 0.18;
+const HARD_SCRUB_MS = 2200;
 
 // Face layout, shared by Face itself and by the scripts working out where
 // someone's eyes are when they look at a patch.
@@ -221,6 +231,8 @@ type Step =
       away?: boolean;
       /** Which way to face on arriving, if not the way they walked. */
       face?: 1 | -1;
+      /** Coming down the stairs, watching their feet. */
+      down?: boolean;
       /** Fleeing in terror, arms flying (see panic)... */
       panic?: boolean;
       /** ...or clutching the thing they went back for. */
@@ -228,7 +240,15 @@ type Step =
     }
   | { kind: "fall"; at: number; ms: number; x: number; y: number; panic?: boolean }
   | { kind: "dangle"; at: number; ms: number; x: number; y: number }
-  | { kind: "work"; at: number; ms: number; activity: Activity; look: Vec }
+  | {
+      kind: "work";
+      at: number;
+      ms: number;
+      activity: Activity;
+      look: Vec;
+      /** Scrubbing twice as hard at a stain that won't come off. */
+      hard?: boolean;
+    }
   | { kind: "inspect"; at: number; ms: number; look: Vec }
   | { kind: "quirk"; at: number; ms: number; quirk: Quirk }
   | {
@@ -530,28 +550,34 @@ const stepLiftAt = (s: Stairs, k: number) => s.outAt + 150 + (landingLevel(s) - 
 // ripple, so they all move together.
 const stepBob = (k: number) => `crew-step-bob ${STEP_BOB_MS}ms ease-in-out ${-k * STEP_BOB_LAG_MS}ms infinite`;
 
-// One slow hop per step, and a moment to steady themselves, from step
-// `from` to step `to` (either way; n + 1 is the landing). Going up, they
-// face into the stairs, away from us. Calls `landed(k, at)` as they land on
-// each one.
+// From step `from` to step `to` (either way; n + 1 is the landing): going
+// up, one slow hop per step and a moment to steady themselves on each,
+// facing into the stairs, away from us; coming down, a steady hop after
+// hop, watching their feet. Calls `landed(k, at)` as they land on each one.
 function climb(steps: Step[], s: Stairs, from: number, to: number, t: number, landed?: (k: number, at: number) => void) {
   const dir = Math.sign(to - from);
   if (dir === 0) return t;
-  for (let k = from + dir; dir > 0 ? k <= to : k >= to; k += dir) {
+  const up = dir > 0;
+  const hop = up ? CLIMB_HOP_MS : CLIMB_DOWN_HOP_MS;
+  for (let k = from + dir; up ? k <= to : k >= to; k += dir) {
     steps.push({
       kind: "walk",
       at: t,
-      ms: CLIMB_HOP_MS,
+      ms: hop,
       x: stairPct(s, k),
       y: k * s.riseH,
-      hopMs: CLIMB_HOP_MS,
+      hopMs: hop,
       tread: k || undefined,
-      away: dir > 0,
+      away: up,
+      down: !up,
     });
-    t += CLIMB_HOP_MS;
+    t += hop;
     landed?.(k, t);
-    steps.push({ kind: "wait", at: t, ms: CLIMB_PAUSE_MS, steady: { away: dir > 0 } });
-    t += CLIMB_PAUSE_MS;
+    // Going up, a moment to steady themselves on each step.
+    if (up) {
+      steps.push({ kind: "wait", at: t, ms: CLIMB_PAUSE_MS, steady: { away: true } });
+      t += CLIMB_PAUSE_MS;
+    }
   }
   return t;
 }
@@ -668,12 +694,28 @@ function wipeForTeammates(steps: Step[], c: Character, x: number, t: number, job
     x = stand;
     const look = lookToward(c, ahead, h.up);
     steps.push({ kind: "work", at: t, ms: SECOND_JOB_MS, activity: "wipe", look });
-    h.patch.forEach((s, i) => (s.clearAt = t + (i + 0.7) * (SECOND_JOB_MS / (h.patch.length + 0.4))));
+    h.patch.forEach((s, i) => (s.clearAt = t + ((i + 0.85) / h.patch.length) * SECOND_JOB_MS));
     t += SECOND_JOB_MS;
     steps.push({ kind: "inspect", at: t, ms: INSPECT_MS, look });
     t += INSPECT_MS;
   }
   return { x, t };
+}
+
+// A spot that won't come off: stamping and fuming, the cloth thrown down,
+// picked up again — and scrubbed at twice as hard until it finally goes.
+function fightStain(steps: Step[], t: number, c: Character, look: Vec, speck: DustSpeck) {
+  for (const quirk of ["fume", "fling"] as Quirk[]) {
+    steps.push({ kind: "quirk", at: t, ms: QUIRK_MS[quirk], quirk });
+    t += QUIRK_MS[quirk];
+  }
+  steps.push({ kind: "pull", at: t, ms: 450 });
+  t += 450;
+  steps.push({ kind: "work", at: t, ms: HARD_SCRUB_MS, activity: c.stage2, look, hard: true });
+  speck.clearAt = t + HARD_SCRUB_MS * 0.85;
+  t += HARD_SCRUB_MS;
+  steps.push({ kind: "quirk", at: t, ms: QUIRK_MS.phew, quirk: "phew" });
+  return t + QUIRK_MS.phew;
 }
 
 function waitUntil(steps: Step[], t: number, until: number) {
@@ -709,6 +751,7 @@ function buildFloorScript(
   };
   const sprays = character.stage1 === "spray";
   const mopper = character.stage2 === "mopFloor";
+  let stubbornDone = false;
 
   // Between their own stops, anything they've been called over to by now.
   const helpOut = (by?: number) => {
@@ -780,13 +823,21 @@ function buildFloorScript(
       t += QUIRK_MS[q2];
     }
 
+    // Now and then one spot just won't come off.
+    const stubborn = !mopper && !given && !stubbornDone && Math.random() < STUBBORN_CHANCE ? patch[patch.length - 1] : null;
+    const wiped = stubborn ? patch.slice(0, -1) : patch;
     steps.push({ kind: "work", at: t, ms: SECOND_JOB_MS, activity: character.stage2, look });
-    patch.forEach((s, i) => (s.clearAt = t + (i + 0.7) * (SECOND_JOB_MS / (count + 0.4))));
+    wiped.forEach((s, i) => (s.clearAt = t + ((i + 0.85) / wiped.length) * SECOND_JOB_MS));
     t += SECOND_JOB_MS;
     keep(patch);
 
     steps.push({ kind: "inspect", at: t, ms: INSPECT_MS, look });
     t += INSPECT_MS;
+
+    if (stubborn) {
+      stubbornDone = true;
+      t = fightStain(steps, t, character, look, stubborn);
+    }
   });
 
   // Anyone still waiting on them once their own stretch is done.
@@ -813,6 +864,7 @@ function buildClimberScript(
   const landed = (step: number, at: number) => (landedAt[step] ??= at);
   let t = hopTo(steps, entryX, stairPct(s, 0), startAt, vw);
   t = waitUntil(steps, t, stairsReadyAt(s));
+  let stubbornDone = false;
   const clean = (u: number, y: number, facing: 1 | -1 = s.dirUp, scale = 1) => {
     const { specks: patch, look } = glassPatch(character, stairPct(s, u), y, facing, 3, scale);
     steps.push({ kind: "work", at: t, ms: FIRST_JOB_MS, activity: character.stage1, look });
@@ -822,12 +874,19 @@ function buildClimberScript(
       steps.push({ kind: "wait", at: t, ms: SWAP_MS, steady: { away: false } });
       t += SWAP_MS;
     }
+    // Now and then one spot just won't come off, up here too.
+    const stubborn = !stubbornDone && Math.random() < STUBBORN_CHANCE ? patch[patch.length - 1] : null;
+    const wiped = stubborn ? patch.slice(0, -1) : patch;
     steps.push({ kind: "work", at: t, ms: SECOND_JOB_MS, activity: character.stage2, look });
-    patch.forEach((p, i) => (p.clearAt = t + (i + 0.7) * (SECOND_JOB_MS / 3.4)));
+    wiped.forEach((p, i) => (p.clearAt = t + ((i + 0.85) / wiped.length) * SECOND_JOB_MS));
     t += SECOND_JOB_MS;
     specks.push(...patch);
     steps.push({ kind: "inspect", at: t, ms: INSPECT_MS, look });
     t += INSPECT_MS;
+    if (stubborn) {
+      stubbornDone = true;
+      t = fightStain(steps, t, character, look, stubborn);
+    }
   };
   const half = Math.ceil(s.n / 2);
   const level = landingLevel(s);
@@ -951,7 +1010,6 @@ function buildGondolaScript(riders: Character[], startAt: number, specks: DustSp
   let t = startAt;
   let prev: { x: number; y: number } | null = null;
   const workWindows: { at: number; ms: number }[] = [];
-  const anySprays = riders.some((r) => r.stage1 === "spray");
 
   // Each rider cleans the glass by their own hand, not some spot in between.
   const total = riders.reduce((sum, r) => sum + r.width, 0) + GONDOLA_RIDER_GAP * (riders.length - 1);
@@ -972,6 +1030,7 @@ function buildGondolaScript(riders: Character[], startAt: number, specks: DustSp
     prev = stop;
 
     const patch: DustSpeck[] = [];
+    const mine = new Map<DustSpeck, Character>();
     for (const { rider, center } of riderSpots) {
       const ahead = (rider.width / 2 + 26) * GONDOLA_RIDER_SCALE;
       const up = (rider.height * 0.55 + 24) * GONDOLA_RIDER_SCALE;
@@ -987,16 +1046,29 @@ function buildGondolaScript(riders: Character[], startAt: number, specks: DustSp
           wetAt: null,
           clearAt: 0,
         });
+        mine.set(patch[patch.length - 1], rider);
       }
     }
 
+    // The one with the bottle sprays their bit while the other gets a head
+    // start wiping theirs (their first spot); then both wipe until their own
+    // bit's clean.
+    const sprayAt = t;
     steps.push({ kind: "work", at: t, ms: FIRST_JOB_MS, activity: "spray", look: { x: 1, y: 0 } });
-    if (anySprays) patch.forEach((s, i) => (s.wetAt = t + 250 + i * 350));
     t += FIRST_JOB_MS;
-
     steps.push({ kind: "work", at: t, ms: SECOND_JOB_MS, activity: "wipe", look: { x: 1, y: 0 } });
     workWindows.push({ at: t, ms: SECOND_JOB_MS });
-    patch.forEach((s, i) => (s.clearAt = t + (i + 0.7) * (SECOND_JOB_MS / (patch.length + 0.4))));
+    for (const { rider } of riderSpots) {
+      const own = patch.filter((d) => mine.get(d) === rider);
+      if (rider.stage1 === "spray") {
+        own.forEach((d, i) => {
+          d.wetAt = sprayAt + 250 + i * 450;
+          d.clearAt = t + ((i + 0.85) / own.length) * SECOND_JOB_MS;
+        });
+      } else {
+        own.forEach((d, i) => (d.clearAt = i === 0 ? sprayAt + FIRST_JOB_MS * 0.85 : t + SECOND_JOB_MS * 0.85));
+      }
+    }
     t += SECOND_JOB_MS;
     specks.push(...patch);
 
@@ -1456,7 +1528,8 @@ type Expression =
   | "squeeze"
   | "yawn"
   | "dizzy"
-  | "shock";
+  | "shock"
+  | "angry";
 
 const INK = "#2D2D2D";
 
@@ -1554,56 +1627,45 @@ function Eye({
 
 // Blocks get the login screen's plain dark line of a mouth; the blobs keep
 // their red cartoon smile.
+// Mouths in the same dark ink as the eyes, like the login characters':
+// mostly a plain closed line, a thin smile only when they celebrate.
 function Mouth({ width, expression, block }: { width: number; expression: Expression; block: boolean }) {
-  const ink = block ? INK : "#d1453b";
   if (expression === "yeah") {
-    // Celebrating: a big grin as one even curved line, rounded at the ends.
-    const w = width * 0.4;
-    const h = w * 0.4;
-    const line = block ? 3 : 4;
+    const w = width * 0.3;
+    const h = w * 0.34;
     return (
       <svg width={w} height={h} aria-hidden="true" className="overflow-visible">
-        <path
-          d={`M${line / 2},${line / 2} Q${w / 2},${2 * h - 1.5 * line} ${w - line / 2},${line / 2}`}
-          stroke={ink}
-          strokeWidth={line}
-          strokeLinecap="round"
-          fill="none"
-        />
+        <path d={`M1.5,1.5 Q${w / 2},${2 * h - 2} ${w - 1.5},1.5`} stroke={INK} strokeWidth={2.5} strokeLinecap="round" fill="none" />
       </svg>
     );
   }
   if (expression === "yawn") {
+    return <div className="crew-yawn rounded-full" style={{ width: width * 0.2, height: width * 0.26, backgroundColor: INK }} />;
+  }
+  if (expression === "angry") {
+    // A frown: the smile turned upside down.
+    const w = width * 0.26;
+    const h = w * 0.3;
     return (
-      <div
-        className="crew-yawn rounded-full"
-        style={{ width: width * 0.2, height: width * 0.26, backgroundColor: block ? INK : "#8e1f1a" }}
-      />
+      <svg width={w} height={h} aria-hidden="true" className="overflow-visible">
+        <path d={`M1.5,${h} Q${w / 2},${-h + 2} ${w - 1.5},${h}`} stroke={INK} strokeWidth={2.5} strokeLinecap="round" fill="none" />
+      </svg>
     );
   }
   if (expression === "squeeze" || expression === "shock") {
     const o = expression === "shock" ? 13 : 10;
-    return <div className="rounded-full" style={{ width: o, height: o, border: `3px solid ${ink}` }} />;
+    return <div className="rounded-full" style={{ width: o, height: o, border: `3px solid ${INK}` }} />;
   }
   if (expression === "confused" || expression === "dizzy") {
     return (
       <svg width={width * 0.3} height="10" viewBox="0 0 30 10" aria-hidden="true">
-        <path d="M2,5 Q6,1 10,5 T18,5 T26,5" stroke={ink} strokeWidth="3" fill="none" strokeLinecap="round" />
+        <path d="M2,5 Q6,1 10,5 T18,5 T26,5" stroke={INK} strokeWidth="3" fill="none" strokeLinecap="round" />
       </svg>
     );
   }
-  if (expression === "focus") {
-    // Lips pressed together in concentration.
-    return <div className="rounded-full" style={{ width: width * (block ? 0.2 : 0.14), height: block ? 3 : 4, backgroundColor: ink }} />;
-  }
-  if (block && expression !== "content") {
-    return <div className="rounded-full" style={{ width: width * 0.3, height: 3, backgroundColor: INK }} />;
-  }
-  // A smile arc — wider when pleased with their work.
-  const w = width * (expression === "content" ? 0.34 : 0.26);
-  return (
-    <div style={{ width: w, height: w * 0.42, borderBottom: `${block ? 3 : 4}px solid ${ink}`, borderRadius: `0 0 ${w}px ${w}px` }} />
-  );
+  // Pressed tight in concentration, or just the plain line.
+  const w = width * (expression === "focus" ? (block ? 0.2 : 0.14) : 0.28);
+  return <div className="rounded-full" style={{ width: w, height: block ? 3 : 3.5, backgroundColor: INK }} />;
 }
 
 function Face({ character, expression, gaze }: { character: Character; expression: Expression; gaze: Vec | null }) {
@@ -1621,6 +1683,22 @@ function Face({ character, expression, gaze }: { character: Character; expressio
       className="absolute inset-x-0 top-0 flex flex-col items-center"
       style={{ paddingTop: eyesTop, backfaceVisibility: "hidden", transform: turned, transition: "transform 300ms ease-out" }}
     >
+      {/* Brows down, cross. */}
+      {expression === "angry" &&
+        [-1, 1].map((side) => (
+          <div
+            key={side}
+            className="absolute rounded-full"
+            style={{
+              top: eyesTop - 7,
+              left: width / 2 + side * (eyeSize * 0.5 + width * (block ? 0.08 : 0.06)) - eyeSize * 0.55,
+              width: eyeSize * 1.1,
+              height: 3,
+              transform: `rotate(${side * -18}deg)`,
+              backgroundColor: INK,
+            }}
+          />
+        ))}
       {expression === "confused" && (
         <div
           className="absolute rounded-full"
@@ -1659,7 +1737,7 @@ function Face({ character, expression, gaze }: { character: Character; expressio
 
 type Mode = Activity | "carry" | "raise" | "scratch" | "hi" | "brow" | "backfire" | "flail" | "hang" | "none";
 
-function Gear({ character, mode, bucketDown }: { character: Character; mode: Mode; bucketDown: boolean }) {
+function Gear({ character, mode, bucketDown, holding }: { character: Character; mode: Mode; bucketDown: boolean; holding?: Activity }) {
   const { width, height, color, stage1, stage2 } = character;
   if (mode === "none") return null;
   // Losing their balance: both hands out and windmilling. Hanging off the
@@ -1739,9 +1817,11 @@ function Gear({ character, mode, bucketDown }: { character: Character; mode: Mod
   } else {
     // Spraying with the bottle, wiping and polishing with a cloth, mopping
     // with the mop; cheering with their last tool held up; otherwise
-    // (carrying, waving, scratching their head...) their usual kit.
+    // (carrying, waving, scratching their head...) whatever they last used —
+    // not suddenly their spray bottle again as they step back to admire the
+    // glass they've just wiped.
     const jobs: Mode[] = ["spray", "wipe", "polish", "dunk", "mopFloor", "mopStep", "weld"];
-    const tool = mode === "raise" ? stage2 : jobs.includes(mode) ? mode : stage1;
+    const tool = mode === "raise" ? stage2 : jobs.includes(mode) ? mode : (holding ?? stage1);
     const isSpray = tool === "spray";
     const isMop = tool === "dunk" || tool === "mopFloor";
     const isTorch = tool === "weld";
@@ -1905,6 +1985,24 @@ function QuirkOverlay({ character, quirk, facing }: { character: Character; quir
       </>
     );
   }
+  if (quirk === "fume" || quirk === "fling") {
+    return (
+      <>
+        {/* A grumble cloud over their head. */}
+        <div
+          className="crew-grumble absolute flex items-center justify-center rounded-full bg-[#3a3f4a] font-black text-white shadow-md"
+          style={{ left: width / 2 - 24, top: -48, width: 48, height: 30, fontSize: 13, letterSpacing: 1 }}
+        >
+          <span style={unmirror}>#@!</span>
+        </div>
+        {quirk === "fling" && (
+          <div className="crew-fling absolute" style={{ left: width - 26, top: height * 0.45 - 14, "--drop": `${height * 0.55}px` } as React.CSSProperties}>
+            <Cloth />
+          </div>
+        )}
+      </>
+    );
+  }
   if (quirk === "startle") {
     return (
       <div
@@ -1954,6 +2052,10 @@ interface Pose {
   bodyOrigin?: string;
   /** Climbing into the stairs: seen from behind. */
   back?: boolean;
+  /** What's in their hand when they're not using it: whatever they last worked with. */
+  holding?: Activity;
+  /** Scrubbing hard (see HARD_SCRUB_MS). */
+  hard?: boolean;
 }
 
 const BASE_POSE: Pose = {
@@ -2003,6 +2105,12 @@ function quirkPose(quirk: Quirk, facing: 1 | -1): Pose {
     // Heaving a broken piece back where it goes before running for it.
     case "shove":
       return { ...base, mode: "raise", expression: "squeeze", bodyClass: "crew-nod", bucketDown: false };
+    // That spot's still there: stamping about, fuming.
+    case "fume":
+      return { ...base, expression: "angry", bodyClass: "crew-stomp", bucketDown: false };
+    // ...and throwing the cloth down.
+    case "fling":
+      return { ...base, mode: "none", expression: "angry", bodyClass: "crew-stomp", bucketDown: false };
   }
 }
 
@@ -2025,7 +2133,8 @@ function poseFor(step: Step | undefined, cheerStyle: CheerStyle, facing: 1 | -1,
       }
       return {
         ...base,
-        expression: "walk",
+        expression: step.down ? "focus" : "walk",
+        gaze: step.down ? { x: 0.25, y: 0.95 } : null,
         bodyClass: "",
         hopMs: step.hopMs ?? HOP_MS,
         run: (step.hopMs ?? HOP_MS) < HOP_MS,
@@ -2041,11 +2150,12 @@ function poseFor(step: Step | undefined, cheerStyle: CheerStyle, facing: 1 | -1,
       return {
         ...base,
         mode: step.activity,
-        expression: "focus",
+        expression: step.hard ? "angry" : "focus",
         bodyClass: "crew-work",
         gaze: step.look,
-        lean: -step.look.x * 4,
+        lean: -step.look.x * (step.hard ? 7 : 4),
         bucketDown: step.activity !== "mopStep",
+        hard: step.hard,
       };
     case "inspect":
       // Step back, look over the spot just cleaned, a satisfied nod.
@@ -2113,7 +2223,7 @@ function Figure({ character, pose }: { character: Character; pose: Pose }) {
   const hopping = pose.hopMs !== null;
   const hopTiming = hopping ? { animationDuration: `${pose.hopMs}ms` } : undefined;
   return (
-    <div className="relative" style={{ width, height }}>
+    <div className={`relative ${pose.hard ? "crew-hard" : ""}`} style={{ width, height }}>
       {/* Ground shadow — tightens while they're up in the air. */}
       <div
         className={`absolute rounded-full bg-black/15 ${pose.spin ? "crew-shadow-jump" : hopping ? "crew-hop-shadow" : ""}`}
@@ -2145,7 +2255,7 @@ function Figure({ character, pose }: { character: Character; pose: Pose }) {
                 >
                   {/* From behind, whatever they're carrying is on the far
                       side of them — only what pokes out past them shows. */}
-                  {pose.back && <Gear character={character} mode={pose.mode} bucketDown={pose.bucketDown} />}
+                  {pose.back && <Gear character={character} mode={pose.mode} bucketDown={pose.bucketDown} holding={pose.holding} />}
                   <Body character={character} />
                   <Workwear character={character} />
                   {pose.back ? (
@@ -2153,7 +2263,7 @@ function Figure({ character, pose }: { character: Character; pose: Pose }) {
                   ) : (
                     <Face character={character} expression={pose.expression} gaze={pose.gaze} />
                   )}
-                  {!pose.back && <Gear character={character} mode={pose.mode} bucketDown={pose.bucketDown} />}
+                  {!pose.back && <Gear character={character} mode={pose.mode} bucketDown={pose.bucketDown} holding={pose.holding} />}
                   {pose.quirk && <QuirkOverlay character={character} quirk={pose.quirk} facing={pose.facing} />}
                 </div>
               </div>
@@ -2178,6 +2288,8 @@ function FloorWorker({ actor, cheerStyle, moonwalk }: { actor: FloorActor; cheer
     facing: actor.entryFacing,
   });
   const isLeaving = step?.kind === "walk" && index === actor.steps.length - 2;
+  const lastWork = actor.steps.slice(0, index + 1).findLast((st) => st.kind === "work");
+  const holding = lastWork?.kind === "work" ? lastWork.activity : undefined;
   // Walking: linear, so the ground covered keeps pace with the hops.
   // Falling (or dropping onto the rail): gathering speed as they go down.
   const gravity = "cubic-bezier(0.55, 0, 0.9, 0.5)";
@@ -2211,7 +2323,7 @@ function FloorWorker({ actor, cheerStyle, moonwalk }: { actor: FloorActor; cheer
           } as React.CSSProperties
         }
       >
-        <Figure character={actor.character} pose={poseFor(step, cheerStyle, facing, moonwalk && isLeaving)} />
+        <Figure character={actor.character} pose={{ ...poseFor(step, cheerStyle, facing, moonwalk && isLeaving), holding }} />
       </div>
     </div>
   );
@@ -2224,6 +2336,7 @@ function GondolaRider({
   look,
   cheerStyle,
   panic = false,
+  holding,
 }: {
   character: Character;
   step: Step | undefined;
@@ -2231,6 +2344,7 @@ function GondolaRider({
   look: Vec;
   cheerStyle: CheerStyle;
   panic?: boolean;
+  holding?: Activity;
 }) {
   const quirkActive = useActiveWindow(quirk ? quirk.at : null, quirk ? quirk.ms : 0);
   let pose: Pose;
@@ -2258,7 +2372,7 @@ function GondolaRider({
   }
   return (
     <div style={{ transform: `scale(${GONDOLA_RIDER_SCALE})`, transformOrigin: "bottom center" }}>
-      <Figure character={character} pose={{ ...pose, bucketDown: false }} />
+      <Figure character={character} pose={{ ...pose, bucketDown: false, holding }} />
     </div>
   );
 }
@@ -2268,6 +2382,10 @@ function Gondola({ actor, cheerStyle, panic = false }: { actor: GondolaActor; ch
   const step = actor.steps[index];
   if (step?.kind === "gone") return null;
   const { x, top } = positionAt(actor.steps, index, { x: actor.entryX, top: actor.entryTop ?? GONDOLA_OFFSCREEN });
+  // Each rider's own part of the last job: the bottle, or the cloth.
+  const lastWork = actor.steps.slice(0, index + 1).findLast((st) => st.kind === "work");
+  const heldBy = (c: Character): Activity | undefined =>
+    lastWork?.kind === "work" ? (lastWork.activity === "spray" ? c.stage1 : c.stage2) : undefined;
   // Yanked up and away when they're caught, rather than eased.
   const ease = panic ? "cubic-bezier(0.55, 0, 1, 0.45)" : "cubic-bezier(0.45, 0.05, 0.4, 1)";
   return (
@@ -2298,6 +2416,7 @@ function Gondola({ actor, cheerStyle, panic = false }: { actor: GondolaActor; ch
               look={actor.riderLooks[c.name] ?? { x: 1, y: 0 }}
               cheerStyle={cheerStyle}
               panic={panic}
+              holding={heldBy(c)}
             />
           ))}
         </div>
