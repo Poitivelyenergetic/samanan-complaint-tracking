@@ -13,7 +13,7 @@ import SamnanPumpSpinner from "./SamnanPumpSpinner";
 const PRODUCTS = [
   { key: "pump", name: "Star-high pump", file: "pump.glb", v: "23197bca" },
   { key: "coway18", name: "Coway-18", file: "coway18.glb", v: "74548c04" },
-  { key: "coway6330", name: "Coway-6330", file: "coway6330.glb", v: "6e64f3b5" },
+  { key: "coway6330", name: "Coway-6330", file: "coway6330.glb", v: "2c272ea9" },
   { key: "filter7", name: "7-stage water filter", file: "filter7.glb", v: "bac919f8" },
 ] as const;
 

@@ -279,10 +279,12 @@ export function mount(el, opts = {}) {
   // styled to read on a light or a dark host page.
   if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
   const tip = document.createElement('div');
+  // Wraps rather than truncating: in a ~365 px box on the login page the one-line pill
+  // cut the instruction off mid-sentence, so the user never saw how to go further.
   tip.style.cssText = 'position:absolute;left:50%;bottom:12px;transform:translateX(-50%);' +
-    'max-width:calc(100% - 24px);padding:6px 12px;border-radius:999px;' +
-    'background:rgba(20,24,33,.76);color:#fff;font:600 13px/1.3 system-ui,sans-serif;' +
-    'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;' +
+    'width:max-content;max-width:calc(100% - 24px);padding:6px 12px;border-radius:14px;' +
+    'background:rgba(20,24,33,.76);color:#fff;font:600 13px/1.35 system-ui,sans-serif;' +
+    'white-space:normal;text-align:center;pointer-events:none;' +
     'opacity:0;transition:opacity .2s';
   if (o.interactive) el.appendChild(tip);
   let tipText = '';
