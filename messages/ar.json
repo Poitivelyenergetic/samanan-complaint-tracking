@@ -146,6 +146,7 @@
     "ticketTopAssignees": "الأكثر تكليفاً"
   },
   "theme": {
+    "title": "المظهر",
     "light": "فاتح",
     "dark": "داكن",
     "system": "النظام"

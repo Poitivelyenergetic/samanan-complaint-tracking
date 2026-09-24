@@ -42,12 +42,12 @@ const OPTIONS: { value: Theme; icon: React.ReactNode }[] = [
   },
 ];
 
-export default function ThemeToggle() {
+export default function ThemeToggle({ className = "" }: { className?: string }) {
   const t = useTranslations("theme");
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className="flex items-center gap-0.5 rounded-md border border-border bg-background p-0.5">
+    <div className={`flex items-center gap-0.5 rounded-md border border-border bg-background p-0.5 ${className}`}>
       {OPTIONS.map((opt) => (
         <button
           key={opt.value}

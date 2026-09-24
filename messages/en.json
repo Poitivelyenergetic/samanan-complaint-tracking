@@ -146,6 +146,7 @@
     "ticketTopAssignees": "Top Assignees"
   },
   "theme": {
+    "title": "Theme",
     "light": "Light",
     "dark": "Dark",
     "system": "System"

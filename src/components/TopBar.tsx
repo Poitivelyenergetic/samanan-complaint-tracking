@@ -19,6 +19,7 @@ function initialsOf(name: string): string {
 
 export default function TopBar() {
   const t = useTranslations("nav");
+  const tTheme = useTranslations("theme");
   const locale = useLocale();
   const { profile, signOut } = useAuth();
   const [open, setOpen] = useState(false);
@@ -33,7 +34,6 @@ export default function TopBar() {
       <LiveClock />
       <div className="flex items-center justify-end gap-2">
         <LanguageSwitcher compact />
-        <ThemeToggle />
         <div className="relative">
           <button
             type="button"
@@ -85,6 +85,23 @@ export default function TopBar() {
                     </svg>
                     {t("profile")}
                   </Link>
+                  {/* Picking one leaves the menu open, so the change can be seen
+                      behind it. */}
+                  <div className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-foreground">
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                      <path
+                        d="M10 2.75a7.25 7.25 0 1 0 0 14.5c.97 0 1.5-.6 1.5-1.35 0-.4-.16-.72-.4-.98-.24-.26-.38-.57-.38-.95 0-.8.63-1.42 1.43-1.42h1.6a3.5 3.5 0 0 0 3.5-3.5c0-3.45-3.25-6.3-7.25-6.3Z"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinejoin="round"
+                      />
+                      <circle cx="6.5" cy="9.5" r="1" fill="currentColor" />
+                      <circle cx="8.75" cy="6.25" r="1" fill="currentColor" />
+                      <circle cx="12.5" cy="6.5" r="1" fill="currentColor" />
+                    </svg>
+                    {tTheme("title")}
+                    <ThemeToggle className="ms-auto" />
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
