@@ -353,6 +353,10 @@ const DEPTH_Y = 16;
 // Handrail height above the steps, and how far in from a step's lower edge
 // its posts stand.
 const RAIL_H = 58;
+// Lower on the way up to the second floor, so the rail along it runs under
+// the stat cards' numbers rather than through them.
+const DECK_RAIL_H = 36;
+const railH = (s: Stairs) => (s.deck ? DECK_RAIL_H : RAIL_H);
 const RAIL_THICKNESS = 7;
 const POST_INSET = 10;
 // Below this the flight and landing don't fit alongside room to work on
@@ -373,6 +377,14 @@ interface Stairs {
   vw: number;
   inAt: number;
   outAt: number;
+  /** How far the landing at the top runs on, in step widths. */
+  landing: number;
+  /** Where along the top they stop (step positions). */
+  stops: number[];
+  /** Up to the second floor instead: a platform right across the page (px) in
+   *  the gap under the stat cards, where they either clean the cards or just
+   *  wander along it. */
+  deck: { left: number; right: number; mode: "clean" | "wander"; reachUp: number } | null;
 }
 
 function makeStairs(vw: number, vh: number): Stairs {
@@ -392,7 +404,89 @@ function makeStairs(vw: number, vh: number): Stairs {
     vw,
     inAt: 150,
     outAt: Number.POSITIVE_INFINITY,
+    landing: LANDING_STEPS,
+    stops: [n + 1, n + LANDING_STEPS - 0.1],
+    deck: null,
   };
+}
+
+// The second floor: the gap between the row of stat cards and the charts
+// below them, if both are on screen with room between them and the floor —
+// its height above the floor, how far it runs (px), and the cards above it.
+function findDeck(vw: number, vh: number) {
+  const onScreen = (b: Box) => b.w > 0 && b.y >= 0 && b.y + b.h <= vh && b.x >= -2 && b.x + b.w <= vw + 2;
+  const cards = [...document.querySelectorAll("[data-crew-card]")].map(boxOf).filter(onScreen);
+  const charts = [...document.querySelectorAll("[data-crew-chart]")].map(boxOf).filter(onScreen);
+  if (cards.length < 2 || charts.length === 0) return null;
+  const cardsBottom = Math.max(...cards.map((b) => b.y + b.h));
+  const below = charts.filter((b) => b.y >= cardsBottom - 2);
+  if (below.length === 0) return null;
+  const chartsTop = Math.min(...below.map((b) => b.y));
+  if (chartsTop - cardsBottom < 16) return null;
+  // Along the top of the charts, so its rail runs through the gap under the
+  // cards rather than across their numbers.
+  const surface = chartsTop - 2;
+  const height = vh - FLOOR - surface;
+  if (height < 260) return null;
+  const all = [...cards, ...below];
+  return {
+    height,
+    left: Math.max(4, Math.min(...all.map((b) => b.x)) - 8),
+    right: Math.min(vw - 4, Math.max(...all.map((b) => b.x + b.w)) + 8),
+    cards,
+    // How far up from the platform the bottom of the cards' dirt is.
+    reachUp: surface - cardsBottom + 26,
+  };
+}
+
+// A steeper flight up to the second floor, its top against one end of the
+// platform, which runs back across the page over the top of it. Null if it
+// won't fit.
+function makeDeckStairs(vw: number, deck: NonNullable<ReturnType<typeof findDeck>>): Stairs | null {
+  const side = Math.random() < 0.5 ? "left" : "right";
+  const n = Math.round(clamp(deck.height / 64 - 1, 4, 11));
+  const riseH = deck.height / (n + 1);
+  const stepW = clamp(vw * 0.05, 60, 86);
+  const landing = 0.6;
+  const run = (n + 0.5 + landing) * stepW;
+  const edge = side === "left" ? deck.left + 10 : deck.right - 10;
+  const footPx = side === "left" ? edge + run : edge - run;
+  if (footPx < 60 || footPx > vw - 60 || deck.right - deck.left < run + 160) return null;
+  const dirUp: 1 | -1 = side === "left" ? -1 : 1;
+  const s: Stairs = {
+    side,
+    dirUp,
+    footPx,
+    stepW,
+    riseH,
+    n,
+    vw,
+    inAt: 150,
+    outAt: Number.POSITIVE_INFINITY,
+    landing,
+    stops: [],
+    deck: { left: deck.left, right: deck.right, mode: Math.random() < 0.5 ? "clean" : "wander", reachUp: deck.reachUp },
+  };
+  // Where they stop along it, working away from the top of the stairs: under
+  // two or three of the stat cards to clean them, or just a few spots to
+  // look around from.
+  const u = (px: number) => (px - footPx) / (dirUp * stepW);
+  const top = u(edge);
+  const far = u(side === "left" ? deck.right - 40 : deck.left + 40);
+  if (s.deck!.mode === "clean") {
+    const reach = 58;
+    s.stops = deck.cards
+      .map((b) => u(b.x + b.w / 2 + dirUp * reach))
+      .filter((k) => k < top - 0.3 && k > far)
+      .sort((a, b) => b - a)
+      .slice(0, 3);
+    if (s.stops.length === 0) s.deck!.mode = "wander";
+  }
+  if (s.deck!.mode === "wander") {
+    const count = 2 + Math.floor(Math.random() * 2);
+    s.stops = Array.from({ length: count }, (_, i) => top - ((top - far) * (i + 0.5 + (Math.random() - 0.5) * 0.4)) / count);
+  }
+  return s;
 }
 
 // Centre of step k (0 = the floor in front of the first step; in between
@@ -403,8 +497,8 @@ const stairPct = (s: Stairs, k: number) => (stairPx(s, k) / s.vw) * 100;
 // anyone standing on it rides. Where it ends, and the two spots along it
 // where they stop to work.
 const landingLevel = (s: Stairs) => s.n + 1;
-const landingEnd = (s: Stairs) => s.n + 0.5 + LANDING_STEPS;
-const landingStops = (s: Stairs) => [s.n + 1, s.n + LANDING_STEPS - 0.1];
+const landingEnd = (s: Stairs) => s.n + 0.5 + s.landing;
+const landingStops = (s: Stairs) => s.stops;
 
 // A handrail's centre line at step position u: `side` -1 for the near one,
 // along the front edge of the steps, +1 for the far one along the back. It
@@ -413,8 +507,14 @@ const landingStops = (s: Stairs) => [s.n + 1, s.n + LANDING_STEPS - 0.1];
 function railPoint(s: Stairs, u: number, side: 1 | -1) {
   return {
     x: stairPx(s, u) - (side * s.dirUp * DEPTH_X) / 2,
-    y: FLOOR + Math.min(u, landingLevel(s)) * s.riseH + (side * DEPTH_Y) / 2 + RAIL_H,
+    y: FLOOR + Math.min(u, landingLevel(s)) * s.riseH + (side * DEPTH_Y) / 2 + railH(s),
   };
+}
+
+// The same along the second floor, which is level all the way — even out
+// over the stairs.
+function deckRailPoint(s: Stairs, u: number, side: 1 | -1) {
+  return { x: railPoint(s, u, side).x, y: FLOOR + landingLevel(s) * s.riseH + (side * DEPTH_Y) / 2 + DECK_RAIL_H };
 }
 
 // Level k's drop (k = 1..n for the steps, n + 1 for the landing), the
@@ -713,8 +813,8 @@ function buildClimberScript(
   const landed = (step: number, at: number) => (landedAt[step] ??= at);
   let t = hopTo(steps, entryX, stairPct(s, 0), startAt, vw);
   t = waitUntil(steps, t, stairsReadyAt(s));
-  const clean = (u: number, y: number) => {
-    const { specks: patch, look } = glassPatch(character, stairPct(s, u), y, s.dirUp, 3);
+  const clean = (u: number, y: number, facing: 1 | -1 = s.dirUp, scale = 1) => {
+    const { specks: patch, look } = glassPatch(character, stairPct(s, u), y, facing, 3, scale);
     steps.push({ kind: "work", at: t, ms: FIRST_JOB_MS, activity: character.stage1, look });
     t += FIRST_JOB_MS;
     if (character.stage1 === "spray") {
@@ -731,24 +831,51 @@ function buildClimberScript(
   };
   const half = Math.ceil(s.n / 2);
   const level = landingLevel(s);
-  const [first, second] = landingStops(s);
-  t = climbUp(steps, s, character, 0, half, t, vw, mishap, landed);
-  clean(half, half * s.riseH);
-  t = climbUp(steps, s, character, half, level, t, vw, mishap, landed);
-  clean(first, level * s.riseH);
-  t = alongLanding(steps, s, first, second, t);
-  const secondAt = t;
-  clean(second, level * s.riseH);
-  t = alongLanding(steps, s, second, first, t);
+  const stops = landingStops(s);
+  const stopAt: number[] = [];
+  if (s.deck) {
+    // All the way up to the second floor, then along it — cleaning the
+    // stat card above each stop, or just stopping to look about — and back.
+    t = climbUp(steps, s, character, 0, level, t, vw, mishap, landed);
+    let at = level;
+    const away = (-s.dirUp) as 1 | -1;
+    stops.forEach((u, i) => {
+      t = alongLanding(steps, s, at, u, t);
+      at = u;
+      stopAt.push(t);
+      if (s.deck!.mode === "clean") {
+        // Stretching up to the bottom of the card above.
+        clean(u, level * s.riseH, away, Math.max(1, s.deck!.reachUp / (character.height * 0.55 + 24)));
+      } else {
+        const quirk = (["wave", "yawn", "confused", "dance"] as Quirk[])[(i + Math.floor(Math.random() * 4)) % 4];
+        steps.push({ kind: "inspect", at: t, ms: INSPECT_MS * 1.6, look: lookToward(character, 60, character.height) });
+        t += INSPECT_MS * 1.6;
+        steps.push({ kind: "quirk", at: t, ms: QUIRK_MS[quirk], quirk });
+        t += QUIRK_MS[quirk];
+      }
+    });
+    t = alongLanding(steps, s, at, level, t);
+  } else {
+    const [first, second] = stops;
+    t = climbUp(steps, s, character, 0, half, t, vw, mishap, landed);
+    clean(half, half * s.riseH);
+    t = climbUp(steps, s, character, half, level, t, vw, mishap, landed);
+    stopAt.push(t);
+    clean(first, level * s.riseH);
+    t = alongLanding(steps, s, first, second, t);
+    stopAt.push(t);
+    clean(second, level * s.riseH);
+    t = alongLanding(steps, s, second, first, t);
+  }
   t = climb(steps, s, level, 0, t);
   // Three hops out onto the open floor, clearing the way for the mop.
   const clearX = stairPct(s, 0) - s.dirUp * ((3 * WALK_PX_PER_S * HOP_MS) / 1000 / vw) * 100;
   t = hopTo(steps, stairPct(s, 0), clearX, t, vw);
-  return { actor: { character, entryX, steps, endAt: t } as FloorActor, landedAt, secondAt, clearAt: t };
+  return { actor: { character, entryX, steps, endAt: t } as FloorActor, landedAt, stopAt, clearAt: t };
 }
 
-// The mop's last job of the round: every step, bottom to top, then the two
-// spots along the landing, then back down. Footprints go as the mop passes
+// The mop's last job of the round: every step, bottom to top, then the
+// spots along the top where the climber stopped, then back down. Footprints go as the mop passes
 // over them.
 function addStairMopping(
   actor: FloorActor,
@@ -777,12 +904,14 @@ function addStairMopping(
     mopHere(treads[k]);
   }
   const level = landingLevel(s);
-  const [first, second] = landingStops(s);
   t = climb(steps, s, s.n, level, t);
-  mopHere(landingPrints[0]);
-  t = alongLanding(steps, s, first, second, t);
-  mopHere(landingPrints[1]);
-  t = alongLanding(steps, s, second, first, t);
+  let at = level;
+  landingStops(s).forEach((u, i) => {
+    t = alongLanding(steps, s, at, u, t);
+    at = u;
+    mopHere(landingPrints[i]);
+  });
+  t = alongLanding(steps, s, at, level, t);
   t = climb(steps, s, level, 0, t);
   // One hop out onto the floor, next to whoever climbed before them.
   t = hopTo(steps, stairPct(s, 0), stairPct(s, 0) - s.dirUp * ((WALK_PX_PER_S * HOP_MS) / 1000 / vw) * 100, t, vw);
@@ -946,11 +1075,15 @@ function planRound(exclude: Name[]): RoundPlan {
   );
   const cast = available.slice(0, size);
 
+  // Stairs, if there's room: half the time right up to the second floor, if
+  // the page has one.
+  const deck = vw >= STAIRS_MIN_VW && Math.random() < 0.5 ? findDeck(vw, vh) : null;
+  const stairs = vw >= STAIRS_MIN_VW ? ((deck && makeDeckStairs(vw, deck)) ?? makeStairs(vw, vh)) : null;
+  // No gondola with the second floor in the way.
   const riderNames =
-    cast.length >= 3 ?(["yellow", "black", "purple"] as Name[]).filter((n) => cast.includes(n)).slice(0, 2) : [];
+    cast.length >= 3 && !stairs?.deck ? (["yellow", "black", "purple"] as Name[]).filter((n) => cast.includes(n)).slice(0, 2) : [];
   const floorNames = cast.filter((n) => !riderNames.includes(n));
 
-  const stairs = vw >= STAIRS_MIN_VW ? makeStairs(vw, vh) : null;
   const dust: DustSpeck[] = [];
   const climberName = stairs ? (floorNames.find((n) => n !== "orange") ?? null) : null;
   const mopperName: Name | null = floorNames.includes("orange") ? "orange" : null;
@@ -979,7 +1112,7 @@ function planRound(exclude: Name[]): RoundPlan {
   let startAt = 60;
   let climberClearAt = 0;
   let landedAt: number[] = [];
-  let climberSecondAt: number | undefined;
+  let climberStopAt: number[] = [];
 
   if (climberName && stairs) {
     const c = buildClimberScript(
@@ -994,7 +1127,7 @@ function planRound(exclude: Name[]): RoundPlan {
     floor.push(c.actor);
     climberClearAt = c.clearAt;
     landedAt = c.landedAt;
-    climberSecondAt = c.secondAt;
+    climberStopAt = c.stopAt;
     startAt += 700;
   }
 
@@ -1057,7 +1190,7 @@ function planRound(exclude: Name[]): RoundPlan {
     for (let k = 1; k <= stairs.n; k++) treads.push(footprint(k, k, landedAt[k] ?? stepLandedAt(stairs, k) + 200));
     const level = landingLevel(stairs);
     const landingPrints = landingStops(stairs).map((u, i) =>
-      footprint(u, level, (i === 0 ? landedAt[level] : climberSecondAt) ?? stepLandedAt(stairs, level) + 200)
+      footprint(u, level, climberStopAt[i] ?? stepLandedAt(stairs, level) + 200)
     );
     const mop = floor.find((a) => a.character.name === mopperName)!;
     addStairMopping(mop, stairs, climberClearAt, treads, landingPrints, vw, mishapFor === mopperName ? mishap : null);
@@ -2240,25 +2373,43 @@ function StairFlight({ stairs: s }: { stairs: Stairs }) {
   // Each slab: which level it's at, where its middle is along the flight,
   // how long it is, and the posts on it (as step positions) holding up the
   // near rail and the far one.
+  // The second floor, if that's where it goes: a long platform right across
+  // the page, from one end (step position) to the other, posts all along.
+  const u = (px: number) => (px - s.footPx) / (dirUp * stepW);
+  const deck = s.deck && { a: u(s.deck.left + DEPTH_X / 2 + 4), b: u(s.deck.right - DEPTH_X / 2 - 4) };
+  const along = (a: number, b: number, every: number) => {
+    const count = Math.max(1, Math.round((Math.abs(b - a) * stepW) / every));
+    return Array.from({ length: count + 1 }, (_, i) => a + ((b - a) * i) / count);
+  };
   const slabs = [
     ...Array.from({ length: n }, (_, i) => {
       const k = i + 1;
       const post = k - 0.5 + inset;
-      return { k, mid: k, length: stepW - SLAB_GAP, near: [post], far: [post] };
+      return { k, mid: k, length: stepW - SLAB_GAP, near: [post], far: [post], flat: false };
     }),
-    {
-      k: level,
-      mid: (n + 0.5 + start + landingEnd(s)) / 2,
-      length: (landingEnd(s) - n - 0.5 - start) * stepW,
-      near: [level, (level + lastPost) / 2, lastPost],
-      far: [level],
-    },
+    deck && s.deck
+      ? {
+          k: level,
+          mid: u((s.deck.left + s.deck.right) / 2),
+          length: s.deck.right - s.deck.left - DEPTH_X,
+          near: along(deck.a, deck.b, 130),
+          far: along(deck.a, deck.b, 260),
+          flat: true,
+        }
+      : {
+          k: level,
+          mid: (n + 0.5 + start + landingEnd(s)) / 2,
+          length: (landingEnd(s) - n - 0.5 - start) * stepW,
+          near: [level, (level + lastPost) / 2, lastPost],
+          far: [level],
+          flat: false,
+        },
   ];
   const railFrom = 0.5 + inset - 8 / stepW;
   const railTo = lastPost + 8 / stepW;
   return (
     <>
-      {slabs.map(({ k, mid, length, near, far }) => {
+      {slabs.map(({ k, mid, length, near, far, flat }) => {
         const left = stairPx(s, mid) - (length + DEPTH_X) / 2;
         const bottom = FLOOR + k * riseH - DEPTH_Y / 2 - SLAB_THICKNESS;
         const layer = (z: number): React.CSSProperties => ({
@@ -2273,7 +2424,7 @@ function StairFlight({ stairs: s }: { stairs: Stairs }) {
         // edge — up to just short of the rail's centre line, so it stays
         // tucked behind the rail however the step bobs.
         const post = (u: number, side: 1 | -1) => {
-          const rail = railPoint(s, u, side);
+          const rail = flat ? deckRailPoint(s, u, side) : railPoint(s, u, side);
           const foot = FLOOR + k * riseH + (side * DEPTH_Y) / 2;
           return (
             <div
@@ -2317,7 +2468,15 @@ function StairFlight({ stairs: s }: { stairs: Stairs }) {
       })}
       <RailBar s={s} from={railPoint(s, railFrom, 1)} to={railPoint(s, level, 1)} far />
       <RailBar s={s} from={railPoint(s, railFrom, -1)} to={railPoint(s, level, -1)} />
-      <RailBar s={s} from={railPoint(s, level, -1)} to={railPoint(s, railTo, -1)} />
+      {deck ? (
+        <>
+          {/* Along the second floor: behind them, and in front. */}
+          <RailBar s={s} from={deckRailPoint(s, deck.a, 1)} to={deckRailPoint(s, deck.b, 1)} far />
+          <RailBar s={s} from={deckRailPoint(s, deck.a, -1)} to={deckRailPoint(s, deck.b, -1)} />
+        </>
+      ) : (
+        <RailBar s={s} from={railPoint(s, level, -1)} to={railPoint(s, railTo, -1)} />
+      )}
     </>
   );
 }
