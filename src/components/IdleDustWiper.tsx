@@ -6305,6 +6305,113 @@ function LeverJobSlot({ assignment, onFinish }: { assignment: Assignment; onFini
 
 const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"] as const;
 
+// ============================================================ the clock
+
+// When the top bar's clock turns over to a new hour (or a new day): a little
+// crew member hops over, climbs a ladder up to it, peels off the old number
+// — which goes flying — and sticks the new one on, then climbs down and hops
+// off. LiveClock puts this right next to the number, holds the old one till
+// `onPeel`, and shows the new one at `onSwap`.
+export const CLOCK_VISIT_MS = 5200;
+const CLOCK_SCALE = 0.42;
+const CLOCK_PEEL_AT = 1900;
+const CLOCK_SWAP_AT = 2500;
+
+type ClockPhase = "in" | "climb" | "peel" | "stick" | "down" | "out";
+
+export function ClockCrew({ oldText, onPeel, onSwap, onDone }: { oldText: string; onPeel: () => void; onSwap: () => void; onDone: () => void }) {
+  const [character] = useState(() => CHARACTERS[ALL_NAMES[Math.floor(Math.random() * ALL_NAMES.length)]]);
+  // The number that was up when they came (it's the new one by the end).
+  const [peeled] = useState(oldText);
+  const [phase, setPhase] = useState<ClockPhase>("in");
+  const walker = useRef<HTMLDivElement>(null);
+  const ladder = useRef<HTMLDivElement>(null);
+  const done = useRef({ onPeel, onSwap, onDone });
+  useEffect(() => {
+    done.current = { onPeel, onSwap, onDone };
+  });
+  useEffect(() => {
+    const w = character.width * CLOCK_SCALE;
+    const moves = walker.current?.animate(
+      [
+        { transform: `translate(${-96 - w}px, 0px)`, offset: 0 },
+        { transform: `translate(${-14 - w}px, 0px)`, offset: 1300 / CLOCK_VISIT_MS },
+        { transform: `translate(${-6 - w}px, -13px)`, offset: CLOCK_PEEL_AT / CLOCK_VISIT_MS },
+        { transform: `translate(${-6 - w}px, -13px)`, offset: 3200 / CLOCK_VISIT_MS },
+        { transform: `translate(${-14 - w}px, 0px)`, offset: 3700 / CLOCK_VISIT_MS },
+        { transform: `translate(${-120 - w}px, 0px)`, offset: 1 },
+      ],
+      { duration: CLOCK_VISIT_MS, fill: "both" }
+    );
+    const up = ladder.current?.animate(
+      [
+        { transform: "translateY(44px)", opacity: 0, offset: 0 },
+        { transform: "translateY(0px)", opacity: 1, offset: 300 / CLOCK_VISIT_MS },
+        { transform: "translateY(0px)", opacity: 1, offset: 4400 / CLOCK_VISIT_MS },
+        { transform: "translateY(44px)", opacity: 0, offset: 1 },
+      ],
+      { duration: CLOCK_VISIT_MS, fill: "both" }
+    );
+    const at = (ms: number, run: () => void) => setTimeout(run, ms);
+    const timers = [
+      at(1300, () => setPhase("climb")),
+      at(CLOCK_PEEL_AT, () => {
+        setPhase("peel");
+        done.current.onPeel();
+      }),
+      at(CLOCK_SWAP_AT, () => {
+        setPhase("stick");
+        done.current.onSwap();
+      }),
+      at(3200, () => setPhase("down")),
+      at(3700, () => setPhase("out")),
+      at(CLOCK_VISIT_MS, () => done.current.onDone()),
+    ];
+    return () => {
+      timers.forEach(clearTimeout);
+      moves?.cancel();
+      up?.cancel();
+    };
+  }, [character]);
+
+  const walking = phase === "in" || phase === "out";
+  const pose: Pose = {
+    ...BASE_POSE,
+    mode: phase === "peel" || phase === "stick" ? "raise" : "none",
+    expression: phase === "stick" ? "content" : walking ? "walk" : "focus",
+    bodyClass: phase === "peel" ? "crew-pull" : phase === "stick" ? "crew-nod" : "",
+    hopMs: walking ? HOP_MS : phase === "climb" || phase === "down" ? 300 : null,
+    facing: phase === "out" ? -1 : 1,
+    gaze: walking ? null : { x: 0.6, y: -0.8 },
+    bucketDown: false,
+  };
+  return (
+    <span className="pointer-events-none absolute" style={{ left: 0, bottom: -14, width: 0, height: 0, zIndex: 50 }} aria-hidden="true">
+      {/* The ladder, leaning up against it. */}
+      <div ref={ladder} className="absolute" style={{ left: -12, bottom: 0, width: 14, height: 40, opacity: 0 }}>
+        <svg width="14" height="40" viewBox="0 0 14 40">
+          <rect x="1" y="0" width="2.5" height="40" rx="1" fill="#b07d4f" />
+          <rect x="10.5" y="0" width="2.5" height="40" rx="1" fill="#b07d4f" />
+          {[6, 15, 24, 33].map((y) => (
+            <rect key={y} x="2" y={y} width="10" height="2.2" rx="1" fill="#c9955f" />
+          ))}
+        </svg>
+      </div>
+      <div ref={walker} className="absolute" style={{ left: 0, bottom: 0 }}>
+        <div style={{ transform: `scale(${CLOCK_SCALE})`, transformOrigin: "0% 100%" }}>
+          <Figure character={character} pose={pose} />
+        </div>
+      </div>
+      {/* The old number, peeled off and flung away. */}
+      {(phase === "peel" || phase === "stick" || phase === "down" || phase === "out") && (
+        <span className="crew-toss absolute whitespace-nowrap font-mono text-base font-semibold text-foreground" style={{ left: 0, bottom: 14 }}>
+          {peeled}
+        </span>
+      )}
+    </span>
+  );
+}
+
 // Nobody about; the crew out on a shift; between shifts; or caught, and
 // running for it.
 type Phase = "off" | "visit" | "break" | "caught";

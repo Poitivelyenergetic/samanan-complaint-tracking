@@ -818,6 +818,22 @@ body {
   }
 }
 
+/* The clock's old number, peeled off and tossed away: up, over, and gone. */
+@keyframes crew-toss {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  30% {
+    transform: translate(-18px, -16px) rotate(-40deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-46px, 60px) rotate(-200deg);
+    opacity: 0;
+  }
+}
+
 /* Caught at it: a crouch and a jump straight up in fright. */
 @keyframes crew-startle {
   0%,
@@ -1353,6 +1369,9 @@ body {
   }
   .crew-sit {
     animation: crew-sit 2800ms ease-in-out both;
+  }
+  .crew-toss {
+    animation: crew-toss 900ms ease-in both;
   }
   .crew-startle {
     animation: crew-startle 650ms ease-out both;
