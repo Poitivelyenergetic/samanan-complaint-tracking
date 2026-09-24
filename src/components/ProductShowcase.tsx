@@ -12,7 +12,7 @@ import SamnanPumpSpinner from "./SamnanPumpSpinner";
 // copy — change it whenever a model file changes.
 const PRODUCTS = [
   { key: "pump", name: "Star-high pump", file: "pump.glb", v: "23197bca" },
-  { key: "coway18", name: "Coway-18", file: "coway18.glb", v: "69bc7cf9" },
+  { key: "coway18", name: "Coway-18", file: "coway18.glb", v: "7295d7ce" },
   { key: "coway6330", name: "Coway-6330", file: "coway6330.glb", v: "36792a57" },
   { key: "filter7", name: "7-stage water filter", file: "filter7.glb", v: "bac919f8" },
 ] as const;
@@ -110,16 +110,9 @@ export function Product3D({
       cancelled = true;
       el.removeEventListener("samnan-3d:ready", ready);
       el.removeEventListener("samnan-3d:fallback", fallback);
-      if (viewer) {
-        // destroy() leaves the WebGL context alive until the browser gets
-        // round to collecting the canvas, and the main product is swapped
-        // every 30 s — so let go of it now, or they pile up and the browser
-        // starts dropping them.
-        const canvas = el.querySelector("canvas");
-        viewer.destroy();
-        const gl = canvas?.getContext("webgl2") ?? canvas?.getContext("webgl");
-        gl?.getExtension("WEBGL_lose_context")?.loseContext();
-      }
+      // destroy() lets go of the WebGL context straight away — the main one
+      // is swapped every 30 s, and leftover contexts would pile up.
+      viewer?.destroy();
       callbacks.current.onViewer?.(null);
     };
   }, [product, interactive, maxPixelRatio]);

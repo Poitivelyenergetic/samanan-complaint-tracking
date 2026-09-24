@@ -34,14 +34,24 @@ const DEFAULTS = {
   // the small products stacked beside the main one, where a click should select them.
   interactive: true,
   maxPixelRatio: 3,        // thumbnails can use less; native up to 3x otherwise
+  // GPU budget. Both default by role: a display-only thumbnail gets no shadow pass at all
+  // and draws at 30 fps; the interactive view gets a 2048 shadow map at full rate. The
+  // first version gave every instance a 4096 map - about 64 MB of GPU memory EACH, a
+  // quarter of a gigabyte for a main plus three thumbnails - and drew all four at 60 fps.
+  shadowMapSize: null,     // null = by role (2048 interactive, 0 = off otherwise)
+  maxFps: null,            // null = by role (60 interactive, 30 otherwise)
   poster: null,            // still image shown if the browser cannot do WebGL at all
 };
 
 function webglOK() {
   try {
     const c = document.createElement('canvas');
-    return !!(window.WebGL2RenderingContext && c.getContext('webgl2')) ||
-           !!(window.WebGLRenderingContext && c.getContext('webgl'));
+    const gl = (window.WebGL2RenderingContext && c.getContext('webgl2')) ||
+               (window.WebGLRenderingContext && c.getContext('webgl'));
+    // The probe's context counts toward the browser's live-context limit until the
+    // canvas is collected, and every mount probes - let it go now.
+    if (gl) gl.getExtension('WEBGL_lose_context')?.loseContext();
+    return !!gl;
   } catch (_) { return false; }
 }
 
@@ -51,6 +61,8 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 export function mount(el, opts = {}) {
   const o = Object.assign({}, DEFAULTS, opts);
+  if (o.shadowMapSize == null) o.shadowMapSize = o.interactive ? 2048 : 0;
+  if (o.maxFps == null) o.maxFps = o.interactive ? 60 : 30;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // No WebGL (very old devices, some locked-down corporate browsers, GPU blocklists):
@@ -77,7 +89,7 @@ export function mount(el, opts = {}) {
   // photos agree on how bright a white is and how a highlight rolls off.
   renderer.toneMapping = THREE.AgXToneMapping;
   renderer.toneMappingExposure = o.exposure;
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = o.shadowMapSize > 0;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const cv = renderer.domElement;
   cv.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;' +
@@ -100,8 +112,10 @@ export function mount(el, opts = {}) {
   // than bolted together. Fixed to the camera's world, like a studio light: the product
   // turns under it.
   const key = new THREE.DirectionalLight(0xfff6ec, 1.6);
-  key.castShadow = true;
-  key.shadow.mapSize.set(4096, 4096);   // crisp self-shadows at 4K; 2048 stair-stepped
+  key.castShadow = o.shadowMapSize > 0;
+  // 2048 across a product well under a metre is under half a millimetre per texel,
+  // which PCF softening makes indistinguishable from 4096 even on a 4K panel.
+  if (key.castShadow) key.shadow.mapSize.set(o.shadowMapSize, o.shadowMapSize);
   key.shadow.bias = -0.0004;
   key.shadow.normalBias = 0.02;
   scene.add(key, key.target);
@@ -329,7 +343,7 @@ export function mount(el, opts = {}) {
 
   // ------------------------------------------------------------------ motion
   const homePitch = 0;
-  let prev = 0, onScreen = !o.lazy;
+  let prev = 0, onScreen = !o.lazy, lastDraw = -1e9;
   function tick(t) {
     if (dead) return;
     // Off screen, stop drawing entirely - a 60 fps WebGL loop nobody can see is a
@@ -368,7 +382,9 @@ export function mount(el, opts = {}) {
     if (moved || mode === 'move') { pose(); frame(); }
     yawG.rotation.y = yaw;
     pitchG.rotation.x = pitch;
-    if (ready) renderer.render(scene, camera);
+    // Animation state advances every frame; the draw itself is capped at maxFps. A
+    // thumbnail turning slowly at 72 px loses nothing at 30.
+    if (ready && t - lastDraw >= 1000 / o.maxFps - 2) { renderer.render(scene, camera); lastDraw = t; }
     // the name under the pointer, or of the part in focus, or the hint
     if (focus && fk > 0.5) setTip(focus.label);
     else if (hovered && xk > 0.95) setTip(hovered.label);
@@ -536,7 +552,21 @@ export function mount(el, opts = {}) {
       dead = true; cancelAnimationFrame(raf); ro.disconnect(); if (io) io.disconnect();
       clearTimeout(clickTimer);
       BOUND.forEach(([t, f]) => el.removeEventListener(t, f));
-      renderer.dispose(); pmrem.dispose();
+      // Free the GPU side now, not whenever the canvas happens to be collected. The host
+      // swaps the main product every 30 s and remounts a thumbnail each time, so leaked
+      // contexts would pile up past the browser's limit on a page left open.
+      scene.traverse((n) => {
+        if (n.geometry) n.geometry.dispose();
+        const ms = n.material ? (Array.isArray(n.material) ? n.material : [n.material]) : [];
+        for (const m of ms) {
+          for (const k in m) { const v = m[k]; if (v && v.isTexture) v.dispose(); }
+          m.dispose();
+        }
+      });
+      if (scene.environment) scene.environment.dispose();
+      pmrem.dispose();
+      renderer.dispose();
+      renderer.forceContextLoss();
       if (cv.parentNode === el) el.removeChild(cv);
       if (tip.parentNode === el) el.removeChild(tip);
     },
