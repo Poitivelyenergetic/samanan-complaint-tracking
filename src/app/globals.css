@@ -584,6 +584,55 @@ body {
   }
 }
 
+/* Maintenance: sparks flying off a weld or a bolt going in. */
+@keyframes crew-spark-fly {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--sx), var(--sy)) scale(0.3);
+    opacity: 0;
+  }
+}
+
+/* The welding torch's flame flickering. */
+@keyframes crew-flame {
+  0%,
+  100% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(0.75);
+  }
+}
+
+/* The crane truck's roof beacon. */
+@keyframes crew-beacon {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* A puff of dust bursting out from where something cracks or breaks. */
+@keyframes crew-repair-puff {
+  0% {
+    transform: translate(0, 0) scale(0.4);
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(var(--px), var(--py)) scale(1.6);
+    opacity: 0;
+  }
+}
+
 /* Arms windmilling. */
 @keyframes crew-flail {
   0%,
@@ -1084,6 +1133,18 @@ body {
   }
   .crew-peek {
     animation: crew-peek 2400ms ease-in-out infinite;
+  }
+  .crew-spark-fly {
+    animation: crew-spark-fly 520ms ease-out infinite;
+  }
+  .crew-flame {
+    animation: crew-flame 120ms linear infinite;
+  }
+  .crew-beacon {
+    animation: crew-beacon 700ms steps(2, jump-none) infinite;
+  }
+  .crew-repair-puff {
+    animation: crew-repair-puff 900ms ease-out both;
   }
   .crew-tumble {
     animation: crew-tumble 520ms linear both;

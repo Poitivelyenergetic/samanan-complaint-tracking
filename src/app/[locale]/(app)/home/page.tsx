@@ -181,7 +181,12 @@ function ChartCard({
     // as its own content — a card whose filter is a single control would
     // otherwise end up visibly shorter than one next to it whose filter
     // wraps onto two lines (e.g. PersonChartFilters' status + date pair).
-    <div className="flex h-full flex-col rounded-xl border border-border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md">
+    // data-crew-chart: one of the things the idle crew's maintenance
+    // breaks (and fixes) now and then — see IdleDustWiper.
+    <div
+      data-crew-chart
+      className="flex h-full flex-col rounded-xl border border-border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md"
+    >
       <div className="flex items-start justify-between gap-2">
         <h2 className="pt-1 text-sm font-semibold text-foreground">{title}</h2>
         {filter}
