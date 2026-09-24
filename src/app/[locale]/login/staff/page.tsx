@@ -109,6 +109,8 @@ export default function StaffLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  // A double-clicked product filling the illustration panel (see ProductShowcase).
+  const [productTakeover, setProductTakeover] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loginFailedSignal, setLoginFailedSignal] = useState(0);
@@ -337,19 +339,28 @@ export default function StaffLoginPage() {
             up to 440px stretching while you type, and its hands above that)
             and across from the stack to the far edge — and the other three
             stacked small in the outer top corner. */}
+        {/* Double-clicked, it opens up and takes the whole panel, and the
+            characters duck down out of the way until you click elsewhere. */}
         <ProductShowcase
           mainClassName="absolute start-[112px] end-4 top-4 bottom-[476px] z-10 min-h-[120px] cursor-grab animate-pump-enter"
+          takeoverClassName="absolute start-[112px] end-4 top-4 bottom-4 z-10 min-h-[120px] cursor-grab animate-pump-enter"
           stackClassName="absolute start-6 top-6 z-20 flex flex-col gap-3"
+          onTakeover={setProductTakeover}
         />
-        <LoginCharacters
-          isTyping={isTyping}
-          showPassword={showPassword}
-          passwordLength={password.length}
-          loginFailedSignal={loginFailedSignal}
-          reaching={reaching}
-          revealing={revealing}
-          isRtl={isRtl}
-        />
+        <div
+          className="transition-transform duration-500 ease-in-out"
+          style={{ transform: productTakeover ? "translateY(110%)" : undefined }}
+        >
+          <LoginCharacters
+            isTyping={isTyping}
+            showPassword={showPassword}
+            passwordLength={password.length}
+            loginFailedSignal={loginFailedSignal}
+            reaching={reaching}
+            revealing={revealing}
+            isRtl={isRtl}
+          />
+        </div>
       </div>
     </div>
   );

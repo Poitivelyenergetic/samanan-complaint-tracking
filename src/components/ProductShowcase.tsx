@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import SamnanPumpSpinner from "./SamnanPumpSpinner";
 
 // Samnan's products as live 3D models (drawn in the browser from the Blender
@@ -61,6 +61,8 @@ interface ViewerState {
 interface Viewer {
   state: () => ViewerState;
   destroy: () => void;
+  /** Opens it up — or, opened up or looking closer, goes back a step. */
+  toggleExplode: () => void;
 }
 
 // One live 3D model in a box. The viewer is loaded only on the client, only
@@ -141,8 +143,21 @@ export function PumpOnly({ className }: { className: string }) {
 
 // The login page's products: one big, which you can play with, and the
 // other three small in a stack in the corner — tap one to make it the big
-// one. Every 30 s the next one comes up by itself.
-export default function ProductShowcase({ mainClassName, stackClassName }: { mainClassName: string; stackClassName: string }) {
+// one. Every 30 s the next one comes up by itself. Double-click the big one
+// and it opens up and takes over the whole panel (`takeoverClassName`; the
+// page gets told, to get the characters out of the way) until you click
+// anywhere outside the panel.
+export default function ProductShowcase({
+  mainClassName,
+  takeoverClassName,
+  stackClassName,
+  onTakeover,
+}: {
+  mainClassName: string;
+  takeoverClassName: string;
+  stackClassName: string;
+  onTakeover?: (on: boolean) => void;
+}) {
   const wide = useWide();
   // The big one first, then the stack, top to bottom.
   const [order, setOrder] = useState<ProductKey[]>(() => PRODUCTS.map((p) => p.key));
@@ -152,6 +167,13 @@ export default function ProductShowcase({ mainClassName, stackClassName }: { mai
   // When someone last touched the big one, or it last changed.
   const lastTouch = useRef(0);
   const main = order[0];
+  const [takeover, setTakeover] = useState(false);
+  const takingOver = useRef(false);
+  const mainBox = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    takingOver.current = takeover;
+    onTakeover?.(takeover);
+  }, [takeover, onTakeover]);
 
   useEffect(() => {
     if (!wide) return;
@@ -161,7 +183,7 @@ export default function ProductShowcase({ mainClassName, stackClassName }: { mai
       // pulled apart, or are looking at one of its parts — and the 30 s only
       // start once they've let go.
       const s = viewer.current?.state();
-      if (s?.dragging || s?.exploded || s?.focus) {
+      if (takingOver.current || s?.dragging || s?.exploded || s?.focus) {
         stamp(lastTouch);
         return;
       }
@@ -188,13 +210,51 @@ export default function ProductShowcase({ mainClassName, stackClassName }: { mai
   };
   const touched = () => stamp(lastTouch);
 
+  // Back to how it was: put back together (from however far in you'd gone)
+  // and back in its place.
+  const settle = useCallback(() => {
+    const v = viewer.current;
+    for (let i = 0; v && i < 4; i++) {
+      const s = v.state();
+      if (!s.exploded && !s.focus) break;
+      v.toggleExplode();
+    }
+    stamp(lastTouch);
+    setTakeover(false);
+  }, []);
+  useEffect(() => {
+    if (!takeover) return;
+    const panel = mainBox.current?.parentElement;
+    const onDown = (e: PointerEvent) => {
+      if (panel && !panel.contains(e.target as Node)) settle();
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [takeover, settle]);
+
   if (!wide) return null;
   // No WebGL at all: the pump's photo spinner instead, on its own.
   if (noWebGL) return <SamnanPumpSpinner className={mainClassName} />;
 
   return (
     <>
-      <div className={mainClassName} onPointerDown={touched} onPointerMove={touched} onKeyDown={touched}>
+      <div
+        ref={mainBox}
+        className={takeover ? takeoverClassName : mainClassName}
+        style={{ transition: "bottom 500ms ease-in-out" }}
+        onPointerDown={touched}
+        onPointerMove={touched}
+        // (The viewer's opened it up by now.)
+        onDoubleClick={() => setTakeover(true)}
+        onKeyDown={(e) => {
+          touched();
+          // Escape all the way back out closes it, and it goes back too.
+          if (e.key === "Escape" && takeover) {
+            const s = viewer.current?.state();
+            if (!s?.exploded && !s?.focus) settle();
+          }
+        }}
+      >
         {/* Fades in as each new one arrives, rather than popping in. */}
         <div className="h-full w-full transition-opacity duration-500 ease-out" style={{ opacity: shown ? 1 : 0 }}>
           <Product3D
