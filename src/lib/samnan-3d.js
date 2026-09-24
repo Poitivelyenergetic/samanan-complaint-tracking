@@ -34,6 +34,11 @@ const DEFAULTS = {
   // the small products stacked beside the main one, where a click should select them.
   interactive: true,
   maxPixelRatio: 3,        // thumbnails can use less; native up to 3x otherwise
+  // Supersampling floor. The interactive view is drawn at least 2x and shrunk by the
+  // browser, which on an ordinary 1080p screen (devicePixelRatio 1) gives cleaner edges
+  // and crisper labels - drawing at the screen's own resolution is only "native", not
+  // the best that screen can show. null = by role (2 interactive, 1 otherwise).
+  minPixelRatio: null,
   // GPU budget. Both default by role: a display-only thumbnail gets no shadow pass at all
   // and draws at 30 fps; the interactive view gets a 2048 shadow map at full rate. The
   // first version gave every instance a 4096 map - about 64 MB of GPU memory EACH, a
@@ -49,7 +54,8 @@ function webglOK() {
     const gl = (window.WebGL2RenderingContext && c.getContext('webgl2')) ||
                (window.WebGLRenderingContext && c.getContext('webgl'));
     // The probe's context counts toward the browser's live-context limit until the
-    // canvas is collected, and every mount probes - let it go now.
+    // canvas is collected, and every mount probes - let it go now. Without this a page
+    // that swaps viewers every 30 s hit Chrome's 16-context cap within five swaps.
     if (gl) gl.getExtension('WEBGL_lose_context')?.loseContext();
     return !!gl;
   } catch (_) { return false; }
@@ -63,6 +69,7 @@ export function mount(el, opts = {}) {
   const o = Object.assign({}, DEFAULTS, opts);
   if (o.shadowMapSize == null) o.shadowMapSize = o.interactive ? 2048 : 0;
   if (o.maxFps == null) o.maxFps = o.interactive ? 60 : 30;
+  if (o.minPixelRatio == null) o.minPixelRatio = o.interactive ? 2 : 1;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // No WebGL (very old devices, some locked-down corporate browsers, GPU blocklists):
@@ -81,13 +88,15 @@ export function mount(el, opts = {}) {
 
   // ------------------------------------------------------------------ renderer
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  // Native pixel density up to 3x. A cap of 2 looked safe but a 4K laptop panel runs
-  // at 2.5-3x, so the canvas was drawn below native and stretched - visibly soft.
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, o.maxPixelRatio));
+  // Screen density, floored at minPixelRatio (supersampling) and capped at maxPixelRatio.
+  renderer.setPixelRatio(Math.min(Math.max(devicePixelRatio || 1, o.minPixelRatio),
+                                  Math.max(o.minPixelRatio, o.maxPixelRatio)));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  // AgX, to match the Blender renders' view transform, so the live model and the
-  // photos agree on how bright a white is and how a highlight rolls off.
-  renderer.toneMapping = THREE.AgXToneMapping;
+  // Khronos PBR Neutral, not AgX. AgX was chosen to match the Blender stills, but it is
+  // a filmic curve: it rolls whites down toward grey and mutes colour, and on a white
+  // cooler that read as a grey plastic box. Neutral was designed for product viewers in
+  // online shops - a white base colour displays as white and hues stay true.
+  renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = o.exposure;
   renderer.shadowMap.enabled = o.shadowMapSize > 0;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -153,7 +162,7 @@ export function mount(el, opts = {}) {
     // Open, the camera backs off to fit the pieces; focused on one part (which is
     // enlarged to about the product's own size) it comes back in.
     const open = radius + (radiusX - radius) * xk;
-    const reach = open + (radius - open) * (typeof fk === 'number' ? fk : 0);
+    const reach = open + (radius - open) * fk;
     const dist = reach / Math.sin(f / 2) * 1.02;
     const e = THREE.MathUtils.degToRad(o.homeElev);
     camera.position.set(0, Math.sin(e) * dist, Math.cos(e) * dist);
@@ -171,7 +180,12 @@ export function mount(el, opts = {}) {
   // A "group" is one part as a person thinks of it - a filter, not its body, caps, ribs,
   // stems and label separately. Products built for the exploded view say which nodes
   // belong together (the "part" custom property) and what the part is called ("label").
-  let groups = [], focus = null, fT = 1, fFrom = 0, fTo = 0, fStart = 0, fk = 0;
+  // Focus has levels. 0: the opened product. 1: one ASSEMBLY on its own - e.g. the whole
+  // inside panel, like the photo with the front cover off. 2: one part on its own.
+  // Each level is a "focus state" {set, level, label, C, S}: which groups show, and the
+  // centre and scale that bring them to the middle at a useful size. Changes between
+  // states cross-blend fA -> fB over ft, so every step in or out animates.
+  let groups = [], assemblies = new Map(), fA = null, fB = null, ft = 1, ftStart = 0, fk = 0;
   let modelC = new THREE.Vector3();          // the model's middle, in root space
   let rootRef = null;
   let loading = false;
@@ -228,12 +242,22 @@ export function mount(el, opts = {}) {
       const key = n.userData.part || n.name || ('part' + parts.length);
       if (!byKey.has(key)) {
         byKey.set(key, { key, label: n.userData.label || pretty(n.name || key),
+                         assembly: n.userData.assembly || null,
+                         assemblyLabel: n.userData.assembly_label || null,
                          parts: [], user: new THREE.Vector3(), userStart: null });
       }
       byKey.get(key).parts.push(p);
       n.traverse((m) => { if (m.isMesh) m.userData.group = byKey.get(key); });
     });
     groups = [...byKey.values()];
+    for (const g of groups) {
+      if (!g.assembly) continue;
+      if (!assemblies.has(g.assembly)) {
+        assemblies.set(g.assembly, { key: g.assembly, label: g.assemblyLabel || pretty(g.assembly),
+                                     groups: [] });
+      }
+      assemblies.get(g.assembly).groups.push(g);
+    }
     // How big the whole thing gets fully apart, so the camera can back off to exactly
     // that - no more - as it opens.
     radiusX = Math.max(radius, xbox.isEmpty() ? radius
@@ -285,60 +309,67 @@ export function mount(el, opts = {}) {
                           Math.max(1e-6, rootRef.matrixWorld.getMaxScaleOnAxis()));
   }
   // Every part's position is recomputed from scratch each frame: home, plus its explode
-  // offset and wherever it has been dragged, scaled by how open the product is; then,
-  // for the focused part only, blended toward "centred and enlarged".
-  let focusC = new THREE.Vector3(), focusS = 1;
+  // offset and wherever it has been dragged, scaled by how open the product is - the
+  // BASE pose. A focus state then maps the groups it shows to "centred and enlarged",
+  // and hides the rest; between two states, both are computed and blended.
+  function toFocus(base, F) {               // base pose -> where F puts it
+    return modelC.clone().add(base.clone().sub(F.C).multiplyScalar(F.S));
+  }
   function pose() {
+    const tB = ease(ft), tA = 1 - tB;
+    const _base = new THREE.Vector3();
     for (const g of groups) {
+      const inA = !!(fA && fA.set.includes(g)), inB = !!(fB && fB.set.includes(g));
+      const aA = fA ? (inA ? 1 : 0) : 1, aB = fB ? (inB ? 1 : 0) : 1;
+      const alpha = aA * tA + aB * tB;
       for (const p of g.parts) {
-        p.n.position.copy(p.home).addScaledVector(p.off, xk).addScaledVector(g.user, xk);
-        p.n.scale.copy(p.scale0);
+        _base.copy(p.home).addScaledVector(p.off, xk).addScaledVector(g.user, xk);
+        // A group leaving the picture fades where it stands, and one arriving appears
+        // where it will be - neither slides across the view while it fades.
+        const pa = inA ? toFocus(_base, fA) : inB ? toFocus(_base, fB) : _base.clone();
+        const pb = inB ? toFocus(_base, fB) : inA ? toFocus(_base, fA) : _base.clone();
+        const sa = inA ? fA.S : inB ? fB.S : 1, sb = inB ? fB.S : inA ? fA.S : 1;
+        p.n.position.copy(pa).multiplyScalar(tA).addScaledVector(pb, tB);
+        p.n.scale.copy(p.scale0).multiplyScalar(sa * tA + sb * tB);
       }
-    }
-    if (focus && fk > 0) {
-      // centre of the focused part at its exploded pose, then scale it up about that
-      // centre and slide it to the middle of the model
-      for (const p of focus.parts) {
-        const px = p.n.position.clone();
-        const target = modelC.clone().add(px.sub(focusC).multiplyScalar(focusS));
-        p.n.position.lerp(target, fk);
-        p.n.scale.copy(p.scale0).multiplyScalar(1 + (focusS - 1) * fk);
-      }
-    }
-    // fade everything that is not in focus
-    // Almost gone rather than ghosted: at 10% the faded parts, now close to the
-    // camera, filled the view with grey shapes around the one being looked at.
-    const dim = 1 - 0.975 * fk;
-    for (const g of groups) {
-      const a = focus && g !== focus ? dim : 1;
+      // Hidden means hidden - "only see that part" - and not drawn at all once gone.
       for (const p of g.parts) p.n.traverse((m) => {
         if (!m.isMesh) return;
+        m.visible = alpha > 0.01;
         for (const mt of Array.isArray(m.material) ? m.material : [m.material]) {
           const b = mt.userData.base; if (!b) continue;
-          const t = b.transparent || a < 0.999;
+          const t = b.transparent || alpha < 0.999;
           if (t !== mt.transparent) { mt.transparent = t; mt.needsUpdate = true; }
-          mt.opacity = b.opacity * a;
-          mt.depthWrite = a > 0.5 ? b.depthWrite : false;
+          mt.opacity = b.opacity * alpha;
+          mt.depthWrite = alpha > 0.5 ? b.depthWrite : false;
         }
       });
     }
   }
 
-  function setFocus(g) {
-    if (g === focus && fTo === 1) return;
-    const now = performance.now();
-    if (g) {
-      focus = g;
-      // measured at the exploded pose without any focus applied
-      const keep = fk; fk = 0; pose(); fk = keep;
-      groupCentre(g, focusC);
-      focusS = Math.min(6, Math.max(1, (radius * 0.85) / groupRadius(g)));
-      fFrom = fk; fTo = 1;
-    } else {
-      fFrom = fk; fTo = 0;
-    }
-    fStart = now; fT = 0;
-    idleUntil = now + o.resumeAfter;
+  // Measure a set of groups at the plain opened pose, with the view unrotated, so the
+  // centre and size are the parts' own rather than those of a tilted bounding box.
+  function focusState(set, level, label, parent) {
+    const keep = [fA, fB, ft, yawG.rotation.y, pitchG.rotation.x];
+    fA = fB = null; ft = 1;
+    yawG.rotation.y = 0; pitchG.rotation.x = 0;
+    pose(); scene.updateMatrixWorld(true);
+    const box = new THREE.Box3();
+    for (const g of set) for (const p of g.parts) box.expandByObject(p.n);
+    const C = rootRef.worldToLocal(box.getCenter(new THREE.Vector3()));
+    const r = box.getBoundingSphere(new THREE.Sphere()).radius;
+    [fA, fB, ft] = keep; yawG.rotation.y = keep[3]; pitchG.rotation.x = keep[4];
+    pose(); scene.updateMatrixWorld(true);
+    const S = Math.min(6, Math.max(0.2, (radius * 0.85) / Math.max(r, 1e-4)));
+    return { set, level, label, C, S, parent: parent || null };
+  }
+  const partState = (g, parent) => focusState([g], 2, g.label, parent);
+  const asmState = (a) => focusState(a.groups, 1, a.label, null);
+
+  function go(F) {
+    if (F === fB) return;
+    fA = fB; fB = F; ft = 0; ftStart = performance.now();
+    idleUntil = ftStart + o.resumeAfter;
   }
 
   // ------------------------------------------------------------------ motion
@@ -373,12 +404,11 @@ export function mount(el, opts = {}) {
       if (xT >= 1 && xTo === 0) for (const g of groups) g.user.set(0, 0, 0);
       moved = true;
     }
-    if (fT < 1) {
-      fT = Math.min(1, (t - fStart) / 650);
-      fk = fFrom + (fTo - fFrom) * ease(fT);
-      if (fT >= 1 && fTo === 0) focus = null;
+    if (ft < 1) {
+      ft = Math.min(1, (t - ftStart) / 650);
       moved = true;
     }
+    fk = (fA ? 1 : 0) * (1 - ease(ft)) + (fB ? 1 : 0) * ease(ft);
     if (moved || mode === 'move') { pose(); frame(); }
     yawG.rotation.y = yaw;
     pitchG.rotation.x = pitch;
@@ -386,9 +416,17 @@ export function mount(el, opts = {}) {
     // thumbnail turning slowly at 72 px loses nothing at 30.
     if (ready && t - lastDraw >= 1000 / o.maxFps - 2) { renderer.render(scene, camera); lastDraw = t; }
     // the name under the pointer, or of the part in focus, or the hint
-    if (focus && fk > 0.5) setTip(focus.label);
-    else if (hovered && xk > 0.95) setTip(hovered.label);
-    else if (xk > 0.95) setTip('Click a part to look at it · drag a part to move it');
+    if (fB && fk > 0.5 && hovered && fB.level === 1 && fB.set.includes(hovered)) {
+      setTip(hovered.label + ' \u00b7 double-click to see it on its own');
+    } else if (fB && fk > 0.5) {
+      setTip(fB.label + (fB.level === 1
+        ? ' \u00b7 double-click a part to see it on its own'
+        : ' \u00b7 double-click to go back'));
+    } else if (hovered && xk > 0.95) {
+      setTip(hovered.assemblyLabel ? hovered.assemblyLabel + ' \u00b7 ' + hovered.label
+                                   : hovered.label);
+    }
+    else if (xk > 0.95) setTip('Drag a part to move it · double-click a part to see it on its own');
     else setTip('');
   }
   function wake() { if (!raf && !dead) raf = requestAnimationFrame(tick); }
@@ -415,17 +453,17 @@ export function mount(el, opts = {}) {
     for (const h of hits) {
       const g = h.object.userData.group;
       if (!g) continue;
-      if (focus && fk > 0.5 && g !== focus) continue;   // faded parts are not clickable
+      if (fB && fk > 0.5 && !fB.set.includes(g)) continue;   // hidden parts are not clickable
       return g;
     }
     return null;
   }
 
   // ------------------------------------------------------------------ input
-  // One gesture, three meanings, decided by where it starts and whether it moves:
-  //   on a part, moves      -> drag that part around
-  //   on a part, no move    -> focus that part
-  //   anywhere else         -> turn the whole view (and a still click there unfocuses)
+  // Opened up, a drag that starts on a part moves that part; any other drag turns the
+  // view. Seeing one part on its own is a DOUBLE-click on it - as the user asked, so a
+  // plain click never pulls you into a part when you only meant to grab it. Double-click
+  // again to come back; double-click empty space to close the product.
   let mode = null, downX = 0, downY = 0, downG = null, hovered = null, clickTimer = 0;
   const plane = new THREE.Plane(), hitP = new THREE.Vector3(), startP = new THREE.Vector3();
   function planeHit(e, out) {
@@ -440,7 +478,9 @@ export function mount(el, opts = {}) {
     lastX = e.clientX; lastY = e.clientY; lastT = performance.now();
     vel = 0;
     downG = pick(e);
-    mode = downG && !(focus && fk > 0.5) ? 'part' : 'rotate';
+    // Parts can be dragged in the opened view and inside an assembly; looking at one
+    // part on its own, a drag turns it instead.
+    mode = downG && !(fB && fB.level === 2 && fk > 0.5) ? 'part' : 'rotate';
     dragging = mode === 'rotate';
     cv.style.cursor = 'grabbing';
     try { el.setPointerCapture(e.pointerId); } catch (_) {}
@@ -464,7 +504,9 @@ export function mount(el, opts = {}) {
     if (mode === 'move') {
       if (planeHit(e, hitP)) {
         const a = rootRef.worldToLocal(startP.clone()), b = rootRef.worldToLocal(hitP.clone());
-        downG.user.copy(downG.userStart).add(b.sub(a).divideScalar(Math.max(xk, 1e-3)));
+        // inside a focus the group is drawn enlarged, so a move of d on screen is d/S
+        const sNow = fB && fB.set.includes(downG) ? fB.S : 1;
+        downG.user.copy(downG.userStart).add(b.sub(a).divideScalar(Math.max(xk, 1e-3) * sNow));
       }
       return;
     }
@@ -490,26 +532,28 @@ export function mount(el, opts = {}) {
     const now = performance.now();
     idleUntil = now + o.resumeAfter;
     levelUntil = now + o.homeAfter;
-    if (!still || e.type === 'pointercancel') return;
-    // A still click. Wait a moment before acting on it, because the first click of a
-    // double-click lands here too, and the double-click (open/close) must win.
-    clearTimeout(clickTimer);
-    clickTimer = setTimeout(() => {
-      if (was === 'part' && g) setFocus(g);
-      // a still click on the part already in focus keeps it; anywhere else lets go
-      else if (focus && g !== focus) setFocus(null);
-    }, 240);
   }
   function onDbl(e) {
     e.preventDefault();
-    clearTimeout(clickTimer);
     if (!o.explode || !parts.length) return;
-    exploded = !exploded;
-    if (!exploded && focus) setFocus(null);
     const now = performance.now();
-    const cur = xk;
-    xFrom = cur; xTo = exploded ? 1 : 0; xStart = now; xT = 0;
     idleUntil = now + o.resumeAfter;
+    const g = e.clientX != null && xk > 0.95 ? pick(e) : null;
+    if (fB) {
+      // In an assembly: a part goes in one more level, empty space comes back out.
+      if (fB.level === 1) return go(g && fB.set.includes(g) ? partState(g, fB) : null);
+      // One part on its own: back to the assembly it came from, or to the product.
+      return go(fB.parent);
+    }
+    if (exploded && g) {
+      // A part that belongs to an assembly opens the whole assembly first - the inside
+      // panel as a whole - and its parts are chosen from there.
+      const asm = g.assembly && assemblies.get(g.assembly);
+      return go(asm ? asmState(asm) : partState(g, null));
+    }
+    exploded = !exploded;
+    if (!exploded && fB) go(null);
+    xFrom = xk; xTo = exploded ? 1 : 0; xStart = now; xT = 0;
   }
   function onKey(e) {
     const k = e.key, now = performance.now();
@@ -517,7 +561,7 @@ export function mount(el, opts = {}) {
     else if (k === 'ArrowUp' || k === 'ArrowDown') pitch = wrapPi(pitch + THREE.MathUtils.degToRad(k === 'ArrowUp' ? 15 : -15));
     else if (k === 'Enter' || k === ' ') { onDbl(e); return; }
     else if (k === 'Escape') {
-      if (focus) setFocus(null); else if (exploded) onDbl(e);
+      if (fB) go(fB.level === 2 ? fB.parent : null); else if (exploded) onDbl(e);
       e.preventDefault(); return;
     }
     else return;
@@ -534,20 +578,25 @@ export function mount(el, opts = {}) {
   return {
     el,
     state: () => ({ yaw, pitch, dragging, exploded, ready, parts: parts.length,
-                    groups: groups.length, focus: focus ? focus.label : null,
+                    groups: groups.length, focus: fB ? fB.label : null,
+                    level: fB ? fB.level : 0,
                     hovered: hovered ? hovered.label : null }),
     // For demos and tests: turn to an exact pose without a pointer.
     setPose(y, p) { yaw = y; pitch = wrapPi(p); const n = performance.now();
                     idleUntil = n + o.resumeAfter; levelUntil = n + o.homeAfter; },
     toggleExplode() { onDbl({ preventDefault() {} }); },
-    // Focus a part by its label (or null to go back), as a click on it would.
+    // Focus a part or an assembly by its label (null goes back to the opened product),
+    // as double-clicking it would.
     focusPart(label) {
-      if (!label) return setFocus(null);
+      if (!label) { go(null); return true; }
+      const a = [...assemblies.values()].find((x) => x.label === label || x.key === label);
+      if (a) { go(asmState(a)); return true; }
       const g = groups.find((x) => x.label === label || x.key === label);
-      if (g) setFocus(g);
+      if (g) go(partState(g, null));
       return !!g;
     },
     parts: () => groups.map((g) => g.label),
+    assemblies: () => [...assemblies.values()].map((a) => a.label),
     destroy() {
       dead = true; cancelAnimationFrame(raf); ro.disconnect(); if (io) io.disconnect();
       clearTimeout(clickTimer);
