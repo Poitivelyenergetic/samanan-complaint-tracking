@@ -8,9 +8,9 @@
  * tilt is as smooth as the spin.
  *
  * Double-click pulls the product apart (exploded view); double-click again puts it
- * back together. Opened, a drag still turns it; double-click a group of parts (the
- * inside panel, the motor ...) to open that group, and there a drag moves a part.
- * Double-click one part to see it on its own.
+ * back together. Opened, drag a part to move it, or anywhere else to turn the product;
+ * double-click a part to look closer - a group of parts (the inside panel ...) first,
+ * then one part on its own.
  *
  *   import { mount } from './samnan-3d.js';
  *   mount(el, { model: 'pump.glb' });
@@ -54,9 +54,9 @@ const DEFAULTS = {
   fit: null,
 };
 
-// Framing. The product fills this much of the element's limiting dimension, and the
-// camera distance is tabulated at this many tilts and checked at this many turns per tilt.
-const FILL = 0.94, T_P = 72, T_Y = 48;
+// Framing. At its widest angle the product fills this much of the element's limiting
+// dimension; the fit is checked at this many tilts, and this many turns per tilt.
+const FILL = 0.97, T_P = 72, T_Y = 48;
 // Opened up, the hint pill sits over the bottom of the view; this much height (px) is
 // kept clear for it, so it never covers the part being looked at. Two lines of hint.
 const TIP_RESERVE = 62;
@@ -192,18 +192,19 @@ export function mount(el, opts = {}) {
     camera.aspect = w / h;
     frame();
   }
-  // Camera distance. The product fills its element - the camera stands exactly as far
-  // back as the CURRENT tilt needs, whichever way the product has turned, rather than as
-  // far as the worst angle of a full flip needs. Fitting the bounding sphere was safe at
-  // every angle, but upright - where the product spends nearly all its time - it left a
-  // third of the view empty. Now the camera eases back only as the product tips over,
-  // and a turntable spin at any one tilt never changes the distance.
+  // Camera distance. One distance per state - together, opened, a group or a part on
+  // its own - that keeps the product in the picture at EVERY angle of turn and tilt, so
+  // turning it never moves the camera. (A version that stood the camera as far back as
+  // the current tilt needed made the product swell toward the viewer as they tilted it
+  // - "im turning it and its coming closer" - and was taken out.) It fits the product's
+  // own points rather than its bounding sphere, which is what the sphere was standing in
+  // for; the sphere left a margin the outline never reaches.
   //
   // For a point P and the camera looking at the middle from distance d, P stays in the
   // picture when d >= P.w + |P.right| / tan(hfov/2) and d >= P.w + |P.up| / tan(vfov/2),
   // w pointing at the camera. That is exact under perspective, so the needed distance
-  // is a max over points, over every turn, at each tilt - tabulated once per shape of
-  // the element and read off by tilt each frame.
+  // is a max over points and over every turn and tilt - worked out once per shape of
+  // the element.
   const E = THREE.MathUtils.degToRad(o.homeElev);
   function buildTable(q, th, tv) {
     const out = new Float32Array(T_P), n = q.length / 3, se = Math.sin(E), ce = Math.cos(E);
@@ -227,7 +228,7 @@ export function mount(el, opts = {}) {
     }
     return out;
   }
-  const makeFit = (q) => ({ q, key: '', table: null });
+  const makeFit = (q) => ({ q, key: '', table: null, far: 0 });
   // How much of the height the hint needs kept clear, as a fraction of it.
   const tipRes = () => (o.interactive ? Math.min(TIP_RESERVE, (el.clientHeight || 1) * 0.25) /
                                         (el.clientHeight || 1) : 0);
@@ -238,10 +239,10 @@ export function mount(el, opts = {}) {
       const tv = tv0 * (1 - res);
       F.table = o.fit === 'circle' ? buildTable(F.q, Math.min(th, tv) * FILL, 0)
                                    : buildTable(F.q, th * FILL, tv * FILL);
+      F.far = Math.max(...F.table);
       F.key = key;
     }
-    const u = ((wrapPi(pitch) + Math.PI) / TAU) * T_P, i0 = Math.floor(u), f = u - i0;
-    return F.table[((i0 % T_P) + T_P) % T_P] * (1 - f) + F.table[(i0 + 1) % T_P] * f;
+    return F.far;
   }
   let fitT = null, fitX = null;              // together, and fully opened
   function frame() {
@@ -555,10 +556,9 @@ export function mount(el, opts = {}) {
       moved = true;
     }
     fk = (fA ? 1 : 0) * (1 - ease(ft)) + (fB ? 1 : 0) * ease(ft);
-    if (moved || mode === 'move') pose();
+    if (moved || mode === 'move') { pose(); frame(); }
     yawG.rotation.y = yaw;
     pitchG.rotation.x = pitch;
-    frame();                         // the distance follows the tilt
     // Animation state advances every frame; the draw itself is capped at maxFps. A
     // thumbnail turning slowly at 72 px loses nothing at 30.
     if (ready && t - lastDraw >= 1000 / o.maxFps - 2) { renderer.render(scene, camera); lastDraw = t; }
@@ -570,11 +570,10 @@ export function mount(el, opts = {}) {
     } else if (fB && fk > 0.5) {
       setTip(fB.label + ' \u00b7 double-click to go back');
     } else if (hovered && xk > 0.95) {
-      setTip(hovered.assemblyLabel
-        ? hovered.assemblyLabel + ' \u00b7 double-click to open it'
-        : hovered.label + ' \u00b7 double-click to see it on its own');
+      setTip(hovered.assemblyLabel ? hovered.assemblyLabel + ' \u00b7 ' + hovered.label
+                                   : hovered.label);
     }
-    else if (xk > 0.95) setTip('Drag to turn it \u00b7 double-click a part to look closer');
+    else if (xk > 0.95) setTip('Drag a part to move it \u00b7 double-click a part to look closer');
     else setTip('');
   }
   function wake() { if (!raf && !dead) raf = requestAnimationFrame(tick); }
@@ -608,11 +607,12 @@ export function mount(el, opts = {}) {
   }
 
   // ------------------------------------------------------------------ input
-  // A drag turns the product - opened up too, so turning it to look inside never grabs
-  // the chassis instead. Parts move only inside a group the user has opened with a
-  // double-click (the inside panel, the motor ...): there, a drag that starts on a part
-  // moves it. Double-click a part in the group to see it on its own, double-click again
-  // to come back; double-click empty space to close.
+  // Opened up, a drag that starts on a part moves that part - in the opened view and
+  // inside a group alike - and any other drag turns the view. (For a while a drag in
+  // the opened view only turned it, parts moving only inside a group; the user asked
+  // for it back as it was.) Looking closer is a DOUBLE-click, so a plain click never
+  // pulls you into a part when you only meant to grab it. Double-click again to come
+  // back; double-click empty space to close.
   let mode = null, downX = 0, downY = 0, downG = null, hovered = null, clickTimer = 0;
   const plane = new THREE.Plane(), hitP = new THREE.Vector3(), startP = new THREE.Vector3();
   function planeHit(e, out) {
@@ -621,7 +621,9 @@ export function mount(el, opts = {}) {
     ray.setFromCamera(ndc, camera);
     return ray.ray.intersectPlane(plane, out);
   }
-  const movable = (g) => !!(fB && fB.level === 1 && fk > 0.5 && fB.set.includes(g));
+  // Movable: any part you can see, except when looking at one part on its own - there a
+  // drag turns it.
+  const movable = (g) => !!g && xk > 0.95 && !(fB && fk > 0.5 && (fB.level === 2 || !fB.set.includes(g)));
   const hoverCursor = (g) => (g ? (movable(g) ? 'move' : 'pointer') : 'grab');
   function onDown(e) {
     if (e.button != null && e.button !== 0) return;
