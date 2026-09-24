@@ -107,7 +107,7 @@
     "Open": "Open",
     "Assigned": "Assigned",
     "Processing": "Processing",
-    "Cancel": "Cancel",
+    "Cancel": "Cancelled",
     "Closed": "Closed"
   },
   "home": {
@@ -819,7 +819,7 @@
       "total": "Total",
       "assignedToMe": "Assigned to Me",
       "closed": "Closed",
-      "cancelled": "Canceled",
+      "cancelled": "Cancelled",
       "reassignedToMe": "Reassigned To Me",
       "reassignedFromMe": "Reassigned From Me"
     }
@@ -844,7 +844,7 @@
       "total": "Total",
       "assignedToMe": "Assigned to Me",
       "closed": "Closed",
-      "cancelled": "Canceled",
+      "cancelled": "Cancelled",
       "reassignedFromMe": "Reassigned From Me",
       "reassignedToMe": "Reassigned To Me"
     }
