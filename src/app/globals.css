@@ -694,6 +694,16 @@ body {
   }
 }
 
+/* The cement mixer's drum turning: its stripes slide along, round and round. */
+@keyframes crew-drum {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(22px);
+  }
+}
+
 /* Caught at it: a crouch and a jump straight up in fright. */
 @keyframes crew-startle {
   0%,
@@ -1189,6 +1199,9 @@ body {
   }
   .crew-dazed {
     animation: crew-dazed 2100ms ease-in-out both;
+  }
+  .crew-drum {
+    animation: crew-drum 700ms linear infinite;
   }
   .crew-startle {
     animation: crew-startle 650ms ease-out both;

@@ -259,7 +259,7 @@ interface DustSpeck {
   /** Footprints on a floating step bob along with it. */
   tread?: number;
   /** Mess the builders leave on the floor, instead of plain grime. */
-  mess?: "rubble" | "mud" | "tyre";
+  mess?: "rubble" | "mud" | "tyre" | "cement";
   /** Where it is (px from the left), for planning who cleans it up. */
   spot?: number;
   wetAt: number | null;
@@ -2514,7 +2514,10 @@ function Dust({ speck }: { speck: DustSpeck }) {
     speck.mess === "rubble"
       ? // Broken bits and plaster dust.
         "radial-gradient(circle at 22% 55%, #8b8478 0 9%, transparent 10%), radial-gradient(circle at 48% 40%, #6f685e 0 11%, transparent 12%), radial-gradient(circle at 74% 60%, #9a9286 0 8%, transparent 9%), radial-gradient(ellipse at 50% 60%, rgba(160,150,135,0.5), transparent 70%)"
-      : speck.mess === "tyre"
+      : speck.mess === "cement"
+        ? // A grey puddle of cement.
+          "radial-gradient(ellipse at 45% 55%, rgba(142,148,158,0.9), rgba(142,148,158,0.55) 55%, transparent 72%)"
+        : speck.mess === "tyre"
         ? // A tyre mark: a dark smear with tread lines.
           "repeating-linear-gradient(90deg, rgba(40,40,44,0.5) 0 5px, rgba(40,40,44,0.25) 5px 9px)"
         : speck.floor
@@ -2603,7 +2606,9 @@ function Confetti({ at }: { at: number }) {
 // falling) or nudged, and it's all put back the moment anyone moves the
 // mouse.
 const REPAIR_CHANCE = 1 / 8;
-const DRIVE_MS = 2600;
+// Rolling in slow and heavy, and out a little quicker.
+const DRIVE_IN_MS = 8000;
+const DRIVE_OUT_MS = 6000;
 const BOOM_MS = 1500;
 const HOOK_MS = 1300;
 const LIFT_MS = 2800;
@@ -2725,6 +2730,8 @@ interface RepairPlan {
   chunks: { from: Vec; to: Vec; at: number; ms: number }[];
   builders: FloorActor[];
   debris: DustSpeck[];
+  /** The tower crane, digger, cement mixer and forklift that came along. */
+  machines: MachinePlan[];
   /** Things done to the real element along the way... */
   effects: { at: number; run: () => void }[];
   realMoves: { keyframes: Keyframe[]; options: KeyframeAnimationOptions }[];
@@ -2958,7 +2965,7 @@ function planRepair(): RepairPlan | null {
 
   // --- the schedule ----------------------------------------------------------
   const truckInAt = landAt + 600;
-  const parkedAt = truckInAt + DRIVE_MS;
+  const parkedAt = truckInAt + DRIVE_IN_MS;
   const boomUpAt = parkedAt + 300;
   const boomUpEnd = boomUpAt + BOOM_MS;
   const entryX = dir === 1 ? -8 : 108;
@@ -2971,8 +2978,8 @@ function planRepair(): RepairPlan | null {
   const foremanSteps: Step[] = [];
   const welderSteps: Step[] = [];
   const foremanX = pct(dir === 1 ? standBox.x - 45 : standBox.x + standBox.w + 45);
-  let ft = hopTo(foremanSteps, entryX, foremanX, truckInAt + 500, vw, dir);
-  let wt = truckInAt + 1100;
+  let ft = hopTo(foremanSteps, entryX, foremanX, parkedAt - 2600, vw, dir);
+  let wt = parkedAt - 2000;
   const farSide = pct(dir === 1 ? standBox.x + standBox.w + 42 : standBox.x - 42);
   if (breakKind === "slice") {
     const behind = farSide + pct(rollDx);
@@ -3003,6 +3010,8 @@ function planRepair(): RepairPlan | null {
   ft += HOOK_MS;
 
   let fixedAt: number;
+  // When the rubble under the piece can be got at (it's been lifted clear).
+  let clearOfPiece: number;
   let hookUpAt: number;
   let hookUpFrom: number;
   let riding: [number, number] | null = null;
@@ -3034,6 +3043,7 @@ function planRepair(): RepairPlan | null {
       [downEnd, { height: `${cableFloor}px` }]
     );
     fixedAt = weldEnd;
+    clearOfPiece = breakAt + 1700;
     hookUpAt = alightAt + 300;
     hookUpFrom = cableFloor;
     ft = watch(foremanSteps, foreman, ft, fixedAt);
@@ -3104,6 +3114,7 @@ function planRepair(): RepairPlan | null {
     // A popped-out slice clicks back into the donut.
     if (breakKind === "slice") moveTo(liftEnd + 250, 0, 0, 0);
     fixedAt = liftEnd + BOLT_MS;
+    clearOfPiece = liftEnd;
     hookUpAt = fixedAt + 200;
     hookUpFrom = cableTop;
     ft = watch(foremanSteps, foreman, ft, fixedAt);
@@ -3122,7 +3133,7 @@ function planRepair(): RepairPlan | null {
   const boomDownAt = hookUpEnd + 200;
   const boomDownEnd = boomDownAt + BOOM_MS;
   const truckOutAt = boomDownEnd + 500;
-  const leftAt = truckOutAt + DRIVE_MS;
+  const leftAt = truckOutAt + DRIVE_OUT_MS;
   const exitX = dir === 1 ? 110 : -10;
   let endAt = leftAt;
   const leave = (steps: Step[], from: number, at: number) => {
@@ -3177,6 +3188,29 @@ function planRepair(): RepairPlan | null {
   // Back to the real thing once it's fixed.
   effects.push({ at: fixedAt, run: () => undo.forEach((u) => u()) });
 
+  // The other machines, in whatever floor's left over.
+  const workZone: [number, number] = [
+    standBox.x - 90 + Math.min(0, breakKind === "slice" ? rollDx : 0),
+    standBox.x + standBox.w + 90 + Math.max(0, breakKind === "slice" ? rollDx : 0),
+  ];
+  const machines = planMachines({
+    vw,
+    vh,
+    truckSpan: [truckLeft - 20, truckLeft + TRUCK_W + 20],
+    workZone,
+    rubble: debris.filter((d) => d.mess === "rubble"),
+    arriveFrom: truckInAt + 1500,
+    workFrom: clearOfPiece,
+    doneAt: fixedAt,
+    goneBy: leftAt,
+    debris,
+  });
+  const machinesDone = Math.max(
+    0,
+    ...machines.flatMap((m) => [m.frames, ...Object.values(m.parts)].map((f) => (f && f.length ? f[f.length - 1][0] : 0)))
+  );
+  endAt = Math.max(endAt, machinesDone + 200);
+
   // --- truck and crane --------------------------------------------------------
   const offIn = dir === 1 ? -(truckLeft + TRUCK_W + 40) : vw - truckLeft + 40;
   const offOut = dir === 1 ? vw - truckLeft + 40 : -(truckLeft + TRUCK_W + 40);
@@ -3199,13 +3233,16 @@ function planRepair(): RepairPlan | null {
     truck: {
       left: truckLeft,
       dir,
+      // Easing to a stop, rocking forward on its springs and settling back.
       moves: track(
         [
-          [0, { transform: `translateX(${offIn}px)` }],
-          [truckInAt, { transform: `translateX(${offIn}px)` }, drive],
-          [parkedAt, { transform: "translateX(0px)" }],
-          [truckOutAt, { transform: "translateX(0px)" }, pullAway],
-          [leftAt, { transform: `translateX(${offOut}px)` }],
+          [0, { transform: `translateX(${offIn}px) rotate(0deg)` }],
+          [truckInAt, { transform: `translateX(${offIn}px) rotate(0deg)` }, drive],
+          [parkedAt, { transform: `translateX(${dir * 6}px) rotate(${dir * 1.2}deg)` }, "ease-in-out"],
+          [parkedAt + 260, { transform: `translateX(${-dir * 2}px) rotate(${-dir * 0.5}deg)` }, "ease-in-out"],
+          [parkedAt + 520, { transform: "translateX(0px) rotate(0deg)" }],
+          [truckOutAt, { transform: "translateX(0px) rotate(0deg)" }, pullAway],
+          [leftAt, { transform: `translateX(${offOut}px) rotate(0deg)` }],
         ],
         endAt
       ),
@@ -3266,6 +3303,7 @@ function planRepair(): RepairPlan | null {
       { character: welder, entryX, steps: welderSteps, endAt: wt },
     ],
     debris,
+    machines,
     effects,
     realMoves,
     restore: () => undo.forEach((u) => u()),
@@ -3306,8 +3344,10 @@ function glassDebris(x: number, appearAt: number): DustSpeck {
 // After the builders: the cleaning crew in to clean up their mess — the
 // mop for anything on the floor, someone with a spray bottle or cloth for
 // the glass. Null if there's nothing to clean or nobody free to do it.
-function planCleanup(exclude: Name[], mess: DustSpeck[]): RoundPlan | null {
+function planCleanup(exclude: Name[], left: DustSpeck[]): RoundPlan | null {
   const vw = window.innerWidth;
+  // (Not what the digger's already scooped up.)
+  const mess = left.filter((d) => !Number.isFinite(d.clearAt));
   const available = ALL_NAMES.filter((n) => !exclude.includes(n));
   // Anything close together is one job.
   const jobs = (floor: boolean) => {
@@ -3467,6 +3507,10 @@ function TruckBody({ wheels }: { wheels: (el: SVGGElement | null) => void }) {
       {/* cab */}
       <path d="M178,70 L178,24 Q178,18 184,18 L214,18 Q222,18 226,26 L236,46 L236,70 Z" fill="#f2b632" stroke="#c7871a" strokeWidth="2" />
       <path d="M186,24 L212,24 Q217,24 219,29 L226,44 L186,44 Z" fill="#bfe3f7" />
+      {/* The driver, and an elbow out of the window. */}
+      <Driver x={200} y={26} color="#8c4fa3" size={14} />
+      <rect x={204} y={42} width={20} height={7} rx={3.5} fill="#8c4fa3" />
+      <circle cx={225} cy={45.5} r={4.5} fill="#8c4fa3" />
       <rect x="228" y="58" width="10" height="6" rx="2" fill="#fff4c2" />
       {/* beacon */}
       <rect className="crew-beacon" x="196" y="11" width="12" height="7" rx="3" fill="#ff8a1f" />
@@ -3479,6 +3523,622 @@ function TruckBody({ wheels }: { wheels: (el: SVGGElement | null) => void }) {
         </g>
       ))}
     </svg>
+  );
+}
+
+// ------------------------------------------------------------ the machines
+
+// Besides the crane truck, each repair brings two, three or all four of: a
+// tower crane that rises up at the edge of the page, swings its jib in and
+// lowers a pallet of bricks; a digger that scoops up rubble; a cement mixer
+// that pours out a load; and a forklift that drops off a pallet of spare
+// pieces and collects it again. Each has someone at the controls, and each
+// drives off (backing out the way it came) once the job's done.
+
+type MachineKind = "tower" | "digger" | "mixer" | "forklift";
+
+interface MachinePlan {
+  kind: MachineKind;
+  /** px from the left of the screen to its left edge (for the tower crane: its mast's middle). */
+  left: number;
+  /** Which way it faces. */
+  dir: 1 | -1;
+  /** The machine as a whole, and its moving parts, as keyframe tracks (see track). */
+  frames: Frame[];
+  parts: Partial<Record<string, Frame[]>>;
+  /** Tower crane only: how tall its mast is, and how far its jib reaches. */
+  mastH?: number;
+  jib?: number;
+}
+
+const DIGGER_W = 150;
+const DIGGER_H = 86;
+const MIXER_W = 210;
+const MIXER_H = 92;
+const FORKLIFT_W = 112;
+const FORKLIFT_H = 96;
+// How far a machine gets in a second: slow and heavy.
+const MACHINE_PX_PER_S = 130;
+
+const machineDriveMs = (px: number) => Math.max(900, (Math.abs(px) / MACHINE_PX_PER_S) * 1000);
+
+// Someone at the controls: a head in a hard hat, looking the way it's going.
+function Driver({ x, y, color, size = 16 }: { x: number; y: number; color: string; size?: number }) {
+  const s = size;
+  return (
+    <g>
+      <rect x={x} y={y} width={s} height={s * 1.25} rx={s * 0.3} fill={color} />
+      <path d={`M${x - 2},${y + s * 0.3} Q${x + s / 2},${y - s * 0.55} ${x + s + 2},${y + s * 0.3} Z`} fill="#f2b632" />
+      <rect x={x - 3} y={y + s * 0.26} width={s + 6} height={s * 0.12} rx={1} fill="#d99a1c" />
+      <circle cx={x + s * 0.5} cy={y + s * 0.62} r={s * 0.14} fill="#fff" />
+      <circle cx={x + s * 0.82} cy={y + s * 0.62} r={s * 0.14} fill="#fff" />
+      <circle cx={x + s * 0.56} cy={y + s * 0.64} r={s * 0.07} fill={INK} />
+      <circle cx={x + s * 0.88} cy={y + s * 0.64} r={s * 0.07} fill={INK} />
+    </g>
+  );
+}
+
+// Plans the machines for a repair, in the floor space left free by the
+// truck and the builders; `rubble` is what the digger can go for. Keyframe
+// times are ms into the round.
+function planMachines({
+  vw,
+  vh,
+  truckSpan,
+  workZone,
+  rubble,
+  arriveFrom,
+  workFrom,
+  doneAt,
+  goneBy,
+  debris,
+}: {
+  vw: number;
+  vh: number;
+  /** Where the truck parks (px), and where the builders are working. */
+  truckSpan: [number, number];
+  workZone: [number, number];
+  rubble: DustSpeck[];
+  arriveFrom: number;
+  /** When the digger can get at the rubble (the piece lifted clear of it). */
+  workFrom: number;
+  doneAt: number;
+  goneBy: number;
+  debris: DustSpeck[];
+}): MachinePlan[] {
+  const count = Number(weightedPick<"2" | "3" | "4">([
+    ["2", 1],
+    ["3", 1],
+    ["4", 1],
+  ]));
+  const kinds = (["tower", "digger", "mixer", "forklift"] as MachineKind[]).sort(() => Math.random() - 0.5);
+  const taken: [number, number][] = [truckSpan, workZone];
+  const free = (a: number, b: number) => a >= 0 && b <= vw && taken.every(([x, y]) => b <= x || a >= y);
+  // The digger only has to keep clear of the truck and the other machines —
+  // it reaches in over where the builders are standing.
+  const machineSpans: [number, number][] = [];
+  const clearForDigger = (a: number, b: number) =>
+    a >= 0 && b <= vw && [truckSpan, ...machineSpans].every(([x, y]) => b <= x || a >= y);
+  // A free spot `w` wide somewhere on the floor, trying spots at random.
+  const findSpot = (w: number, near?: (x: number) => boolean) => {
+    const tries = Array.from({ length: 40 }, () => 10 + Math.random() * (vw - w - 20));
+    const spot = tries.find((a) => free(a, a + w) && (!near || near(a)));
+    if (spot !== undefined) {
+      taken.push([spot - 10, spot + w + 10]);
+      machineSpans.push([spot - 10, spot + w + 10]);
+    }
+    return spot;
+  };
+  // In from the nearer edge.
+  const sideFor = (a: number, w: number): 1 | -1 => (a + w / 2 < vw / 2 ? 1 : -1);
+  const plans: MachinePlan[] = [];
+  let arrival = arriveFrom;
+
+  for (const kind of kinds) {
+    if (plans.length >= count) break;
+    if (kind === "tower") {
+      // Stands at the edge of the page and reaches in.
+      const edge = taken.every(([x]) => x > 70) ? 34 : taken.every(([, y]) => y < vw - 70) ? vw - 34 : null;
+      if (edge === null) continue;
+      const dir: 1 | -1 = edge < vw / 2 ? 1 : -1;
+      const jib = Math.min(vw * 0.42, 620);
+      const crateW = 64;
+      const reach = findSpot(crateW, (a) => {
+        const d = (a + crateW / 2 - edge) * dir;
+        return d > 90 && d < jib - 30;
+      });
+      if (reach === undefined) continue;
+      taken.push([edge - 30, edge + 30]);
+      const mastH = vh - FLOOR - 56;
+      const trolleyTo = (reach + crateW / 2 - edge) * dir;
+      const up = arrival;
+      const swungIn = up + 1800 + 1100;
+      const out = swungIn + 1300;
+      const down = out + 2200;
+      const liftAt = Math.max(down + 1500, doneAt);
+      const lifted = liftAt + 2000;
+      const back = lifted + 1100;
+      const swungAway = back + 900;
+      const sunk = Math.min(swungAway + 1500, goneBy);
+      // Down until the pallet's sitting on the floor.
+      const cableDown = mastH - 45;
+      plans.push({
+        kind,
+        left: edge,
+        dir,
+        mastH,
+        jib,
+        frames: [
+          [0, { transform: `translateY(${mastH + 120}px)` }],
+          [up, { transform: `translateY(${mastH + 120}px)` }, "cubic-bezier(0.2, 0.7, 0.3, 1)"],
+          [up + 1800, { transform: "translateY(0px)" }],
+          [swungAway, { transform: "translateY(0px)" }, "ease-in"],
+          [sunk, { transform: `translateY(${mastH + 120}px)` }],
+        ],
+        parts: {
+          jib: [
+            [0, { transform: "scaleX(0.04)" }],
+            [up + 1800, { transform: "scaleX(0.04)" }, "ease-in-out"],
+            [swungIn, { transform: "scaleX(1)" }],
+            [back, { transform: "scaleX(1)" }, "ease-in-out"],
+            [swungAway, { transform: "scaleX(0.04)" }],
+          ],
+          trolley: [
+            [0, { transform: "translateX(40px)" }],
+            [swungIn, { transform: "translateX(40px)" }, "ease-in-out"],
+            [out, { transform: `translateX(${trolleyTo.toFixed(1)}px)` }],
+            [lifted, { transform: `translateX(${trolleyTo.toFixed(1)}px)` }, "ease-in-out"],
+            [back, { transform: "translateX(40px)" }],
+          ],
+          cable: [
+            [0, { height: "30px" }],
+            [out, { height: "30px" }, "ease-in-out"],
+            [down, { height: `${cableDown}px` }],
+            [liftAt, { height: `${cableDown}px` }, "ease-in-out"],
+            [lifted, { height: "30px" }],
+          ],
+        },
+      });
+      arrival += 900;
+      continue;
+    }
+
+    if (kind === "digger") {
+      // Parks with its bucket reaching the rubble.
+      const target = rubble.find((d) => {
+        const x = d.spot ?? 0;
+        return clearForDigger(x - 66 - DIGGER_W, x - 66) || clearForDigger(x + 66, x + 66 + DIGGER_W);
+      });
+      if (!target) continue;
+      const x = target.spot ?? 0;
+      const fromLeft = clearForDigger(x - 66 - DIGGER_W, x - 66);
+      const dir: 1 | -1 = fromLeft ? 1 : -1;
+      const left = fromLeft ? x - 66 - DIGGER_W : x + 66;
+      taken.push([left - 10, left + DIGGER_W + 10]);
+      machineSpans.push([left - 10, left + DIGGER_W + 10]);
+      const off = dir === 1 ? -(left + DIGGER_W + 30) : vw - left + 30;
+      const inMs = machineDriveMs(off);
+      const parked = arrival + inMs;
+      const reachAt = Math.max(parked + 600, workFrom, target.appearAt + 300);
+      const scooped = reachAt + 900 + 600;
+      const raised = scooped + 900;
+      const leaveAt = Math.max(raised + 800, doneAt + 600);
+      const outMs = Math.min(machineDriveMs(off), Math.max(900, goneBy - leaveAt));
+      // Scooped up: gone from the floor, and nothing for the cleaners to do there.
+      target.clearAt = scooped;
+      const carry = { boom: "rotate(-38deg)", stick: "rotate(96deg)", bucket: "rotate(30deg)" };
+      const dig = { boom: "rotate(2deg)", stick: "rotate(44deg)", bucket: "rotate(0deg)" };
+      const curl = { boom: "rotate(4deg)", stick: "rotate(30deg)", bucket: "rotate(-85deg)" };
+      const full = { boom: "rotate(-34deg)", stick: "rotate(80deg)", bucket: "rotate(-85deg)" };
+      const part = (p: "boom" | "stick" | "bucket"): Frame[] => [
+        [0, { transform: carry[p] }],
+        [reachAt, { transform: carry[p] }, "ease-in-out"],
+        [reachAt + 900, { transform: dig[p] }, "ease-in-out"],
+        [scooped, { transform: curl[p] }, "ease-in-out"],
+        [raised, { transform: full[p] }],
+      ];
+      plans.push({
+        kind,
+        left,
+        dir,
+        frames: [
+          [0, { transform: `translateX(${off}px)` }],
+          [arrival, { transform: `translateX(${off}px)` }, "cubic-bezier(0.25, 0.6, 0.35, 1)"],
+          [parked, { transform: "translateX(0px)" }],
+          [leaveAt, { transform: "translateX(0px)" }, "ease-in"],
+          [leaveAt + outMs, { transform: `translateX(${off}px)` }],
+        ],
+        parts: {
+          boom: part("boom"),
+          stick: part("stick"),
+          bucket: part("bucket"),
+          load: [
+            [0, { opacity: 0 }],
+            [scooped - 100, { opacity: 0 }],
+            [scooped, { opacity: 1 }],
+          ],
+          treads: [
+            [0, { transform: "translateX(0px)" }],
+            [arrival, { transform: "translateX(0px)" }, "cubic-bezier(0.25, 0.6, 0.35, 1)"],
+            [parked, { transform: `translateX(${Math.abs(off) % 24}px)` }],
+            [leaveAt, { transform: `translateX(${Math.abs(off) % 24}px)` }, "ease-in"],
+            [leaveAt + outMs, { transform: "translateX(0px)" }],
+          ],
+        },
+      });
+      arrival += 1300;
+      continue;
+    }
+
+    if (kind === "mixer") {
+      const puddle = 70;
+      const left = findSpot(MIXER_W + puddle);
+      if (left === undefined) continue;
+      const dir = sideFor(left, MIXER_W + puddle);
+      // The chute's at the back, so the puddle goes behind it.
+      const body = dir === 1 ? left + puddle : left;
+      const off = dir === 1 ? -(body + MIXER_W + 30) : vw - body + 30;
+      const inMs = machineDriveMs(off);
+      const parked = arrival + inMs;
+      const pourAt = parked + 1500;
+      const poured = pourAt + 3000;
+      const leaveAt = Math.max(poured + 700, doneAt + 900);
+      const outMs = Math.min(machineDriveMs(off), Math.max(900, goneBy - leaveAt));
+      const spot = dir === 1 ? body - 34 : body + MIXER_W + 34;
+      debris.push({
+        left: `${spot.toFixed(1)}px`,
+        bottom: FLOOR - 4,
+        size: 62,
+        floor: true,
+        mess: "cement",
+        spot,
+        appearAt: poured,
+        wetAt: null,
+        clearAt: Number.POSITIVE_INFINITY,
+      });
+      plans.push({
+        kind,
+        left: body,
+        dir,
+        frames: [
+          [0, { transform: `translateX(${off}px)` }],
+          [arrival, { transform: `translateX(${off}px)` }, "cubic-bezier(0.25, 0.6, 0.35, 1)"],
+          [parked, { transform: "translateX(0px)" }],
+          [leaveAt, { transform: "translateX(0px)" }, "ease-in"],
+          [leaveAt + outMs, { transform: `translateX(${off}px)` }],
+        ],
+        parts: {
+          chute: [
+            [0, { transform: "rotate(-60deg)" }],
+            [pourAt - 500, { transform: "rotate(-60deg)" }, "ease-in-out"],
+            [pourAt, { transform: "rotate(0deg)" }],
+            [poured + 300, { transform: "rotate(0deg)" }, "ease-in-out"],
+            [poured + 800, { transform: "rotate(-60deg)" }],
+          ],
+          stream: [
+            [0, { transform: "scaleY(0)", opacity: 1 }],
+            [pourAt, { transform: "scaleY(0)", opacity: 1 }, "ease-in"],
+            [pourAt + 350, { transform: "scaleY(1)", opacity: 1 }],
+            [poured, { transform: "scaleY(1)", opacity: 1 }, "ease-out"],
+            [poured + 300, { transform: "scaleY(1)", opacity: 0 }],
+          ],
+        },
+      });
+      arrival += 1600;
+      continue;
+    }
+
+    // The forklift: brings a pallet of spare pieces, sets it down, backs off
+    // to let the others work, and takes it away again at the end.
+    // Room for it, the pallet out in front on its forks, and to back off.
+    const backRoom = 80;
+    const span = backRoom + FORKLIFT_W + 110;
+    const left = findSpot(span);
+    if (left === undefined) continue;
+    const dir = sideFor(left, span);
+    const body = dir === 1 ? left + backRoom : left + 110;
+    const off = dir === 1 ? -(body + FORKLIFT_W + 70) : vw - body + 70;
+    const inMs = machineDriveMs(off);
+    const parked = arrival + inMs;
+    const lowered = parked + 700;
+    const backed = lowered + 1100;
+    const returnAt = Math.max(backed + 1200, doneAt - 1400);
+    const atPallet = returnAt + 1100;
+    const raisedAgain = atPallet + 700;
+    const outMs = Math.min(machineDriveMs(off), Math.max(900, goneBy - raisedAgain));
+    const backOff = -dir * 70;
+    plans.push({
+      kind,
+      left: body,
+      dir,
+      frames: [
+        [0, { transform: `translateX(${off}px)` }],
+        [arrival, { transform: `translateX(${off}px)` }, "cubic-bezier(0.25, 0.6, 0.35, 1)"],
+        [parked, { transform: "translateX(0px)" }],
+        [lowered, { transform: "translateX(0px)" }, "ease-in-out"],
+        [backed, { transform: `translateX(${backOff}px)` }],
+        [returnAt, { transform: `translateX(${backOff}px)` }, "ease-in-out"],
+        [atPallet, { transform: "translateX(0px)" }],
+        [raisedAgain, { transform: "translateX(0px)" }, "ease-in"],
+        [raisedAgain + outMs, { transform: `translateX(${off}px)` }],
+      ],
+      parts: {
+        forks: [
+          [0, { transform: "translateY(-26px)" }],
+          [parked, { transform: "translateY(-26px)" }, "ease-in-out"],
+          [lowered, { transform: "translateY(0px)" }],
+          [atPallet, { transform: "translateY(0px)" }, "ease-in-out"],
+          [raisedAgain, { transform: "translateY(-26px)" }],
+        ],
+        // The pallet rides the forks, except while it's been set down.
+        pallet: [
+          [0, { transform: `translate(${off}px, -26px)` }],
+          [arrival, { transform: `translate(${off}px, -26px)` }, "cubic-bezier(0.25, 0.6, 0.35, 1)"],
+          [parked, { transform: "translate(0px, -26px)" }],
+          [parked, { transform: "translate(0px, -26px)" }, "ease-in-out"],
+          [lowered, { transform: "translate(0px, 0px)" }],
+          [atPallet, { transform: "translate(0px, 0px)" }, "ease-in-out"],
+          [raisedAgain, { transform: "translate(0px, -26px)" }, "ease-in"],
+          [raisedAgain + outMs, { transform: `translate(${off}px, -26px)` }],
+        ],
+      },
+    });
+    arrival += 1000;
+  }
+  return plans;
+}
+
+// A machine, playing its keyframes over the round (`total` ms).
+function Machine({ plan, total }: { plan: MachinePlan; total: number }) {
+  const root = useRef<HTMLDivElement>(null);
+  const pallet = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const anims: Animation[] = [];
+    const play = (el: Element | null | undefined, frames: Frame[] | undefined) => {
+      if (el && frames) anims.push(el.animate(track(frames, total), { duration: total, fill: "both" }));
+    };
+    play(root.current, plan.frames);
+    // Its moving parts are marked with data-part (the forklift's pallet
+    // sits outside it, so it can be left behind).
+    for (const [name, frames] of Object.entries(plan.parts)) {
+      play(name === "pallet" ? pallet.current : root.current?.querySelector(`[data-part="${name}"]`), frames);
+    }
+    return () => anims.forEach((a) => a.cancel());
+  }, [plan, total]);
+  const mirror = plan.dir === -1 ? "scaleX(-1)" : undefined;
+
+  if (plan.kind === "tower") {
+    const mastH = plan.mastH ?? 400;
+    const jib = plan.jib ?? 400;
+    return (
+      <div
+        ref={root}
+        className="absolute"
+        data-crew-machine="tower"
+        data-crew-dir={plan.dir}
+        style={{ left: plan.left - 13, bottom: FLOOR, width: 26, height: mastH, zIndex: 1 }}
+      >
+        <div className="absolute inset-0" style={{ transform: mirror }}>
+          {/* The lattice mast. */}
+          <svg className="absolute inset-0" width={26} height={mastH} aria-hidden="true">
+            <rect x={2} y={0} width={4} height={mastH} fill="#f2b632" />
+            <rect x={20} y={0} width={4} height={mastH} fill="#f2b632" />
+            <path
+              d={Array.from({ length: Math.ceil(mastH / 22) }, (_, i) => `M4,${i * 22} L22,${i * 22 + 11} L4,${i * 22 + 22}`).join(" ")}
+              stroke="#d99a1c"
+              strokeWidth={2.5}
+              fill="none"
+            />
+            <rect x={-8} y={mastH - 10} width={42} height={10} rx={2} fill="#6b7280" />
+          </svg>
+          {/* The top: the cab and counter-jib, and the jib swinging in. */}
+          <div className="absolute" style={{ left: 13, top: 0, width: 0, height: 0 }}>
+            <div className="absolute rounded-sm" style={{ left: -70, top: -18, width: 64, height: 10, backgroundColor: "#f2b632" }} />
+            <div className="absolute rounded-sm" style={{ left: -74, top: -8, width: 26, height: 22, backgroundColor: "#6b7280" }} />
+            <svg className="absolute overflow-visible" style={{ left: -16, top: -44 }} width={40} height={40} aria-hidden="true">
+              <rect x={0} y={8} width={34} height={28} rx={4} fill="#f2b632" stroke="#c7871a" strokeWidth={2} />
+              <rect x={14} y={12} width={16} height={14} rx={2} fill="#bfe3f7" />
+              <Driver x={17} y={13} color="#5b6fb8" size={10} />
+            </svg>
+            <div data-part="jib" className="absolute" style={{ left: 0, top: -20, width: jib, height: 14, transformOrigin: "0% 50%" }}>
+              <svg className="absolute inset-0 overflow-visible" width={jib} height={14} aria-hidden="true">
+                <rect x={0} y={0} width={jib} height={3} fill="#f2b632" />
+                <rect x={0} y={11} width={jib} height={3} fill="#f2b632" />
+                <path
+                  d={Array.from({ length: Math.ceil(jib / 16) }, (_, i) => `M${i * 16},13 L${i * 16 + 8},1 L${i * 16 + 16},13`).join(" ")}
+                  stroke="#d99a1c"
+                  strokeWidth={2}
+                  fill="none"
+                />
+              </svg>
+              {/* The trolley, and the pallet of bricks on its hook. */}
+              <div data-part="trolley" className="absolute" style={{ left: 0, top: 12, width: 0, height: 0 }}>
+                <div className="absolute rounded-sm" style={{ left: -9, top: 0, width: 18, height: 8, backgroundColor: "#4b5563" }} />
+                <div data-part="cable" className="absolute" style={{ left: -1, top: 8, width: 2, height: 30, backgroundColor: "#3a3f4a" }}>
+                  <svg className="absolute" width={70} height={46} style={{ left: -34, top: "100%" }} aria-hidden="true">
+                    <path d="M35,0 L6,18 M35,0 L64,18" stroke="#6b7280" strokeWidth={2} />
+                    {[0, 1, 2].flatMap((c) =>
+                      [0, 1].map((r) => (
+                        <rect key={`${c}${r}`} x={5 + c * 20 + (r % 2) * 4} y={18 + r * 11} width={18} height={9} rx={1.5} fill="#b5523b" stroke="#8e3d2b" strokeWidth={1} />
+                      ))
+                    )}
+                    <rect x={2} y={40} width={66} height={5} rx={1} fill="#9a6b3f" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (plan.kind === "digger") {
+    return (
+      <div
+        ref={root}
+        className="absolute"
+        data-crew-machine="digger"
+        data-crew-dir={plan.dir}
+        style={{ left: plan.left, bottom: FLOOR - 2, width: DIGGER_W, height: DIGGER_H, zIndex: 2 }}
+      >
+        <div className="absolute inset-0" style={{ transform: mirror }}>
+          <svg width={DIGGER_W} height={DIGGER_H} viewBox={`0 0 ${DIGGER_W} ${DIGGER_H}`} className="absolute inset-0 overflow-visible" aria-hidden="true">
+            <defs>
+              <clipPath id={`digger-track-${plan.left.toFixed(0)}`}>
+                <rect x={6} y={64} width={112} height={20} rx={10} />
+              </clipPath>
+            </defs>
+            <rect x={6} y={64} width={112} height={20} rx={10} fill="#2b2f36" />
+            <g clipPath={`url(#digger-track-${plan.left.toFixed(0)})`}>
+              <g data-part="treads">
+                {Array.from({ length: 8 }, (_, i) => (
+                  <rect key={i} x={-18 + i * 24} y={64} width={4} height={20} fill="#4b5563" />
+                ))}
+              </g>
+            </g>
+            {[20, 42, 64, 86, 106].map((x) => (
+              <circle key={x} cx={x} cy={74} r={6} fill="#6b7280" />
+            ))}
+            <rect x={6} y={42} width={16} height={22} rx={4} fill="#d99a1c" />
+            <rect x={14} y={38} width={96} height={28} rx={4} fill="#f2b632" stroke="#c7871a" strokeWidth={2} />
+            <path d="M58,38 L58,10 Q58,6 62,6 L90,6 Q94,6 95,10 L100,38 Z" fill="#f2b632" stroke="#c7871a" strokeWidth={2} />
+            <path d="M64,12 L88,12 L92,33 L64,33 Z" fill="#bfe3f7" />
+            <Driver x={72} y={14} color="#b0563a" size={13} />
+          </svg>
+          {/* The arm: boom, stick and bucket, each turning on the last. */}
+          <div className="absolute" style={{ left: 104, top: 44, width: 0, height: 0 }}>
+            <div data-part="boom" className="absolute" style={{ left: 0, top: -5, width: 70, height: 10, transformOrigin: "0% 50%" }}>
+              <div className="absolute inset-0 rounded" style={{ backgroundColor: "#f2b632", border: "2px solid #c7871a" }} />
+              <div data-part="stick" className="absolute" style={{ left: 66, top: 1, width: 60, height: 8, transformOrigin: "0% 50%" }}>
+                <div className="absolute inset-0 rounded" style={{ backgroundColor: "#e3a623", border: "2px solid #c7871a" }} />
+                <div data-part="bucket" className="absolute" style={{ left: 56, top: 4, width: 0, height: 0, transformOrigin: "0% 0%" }}>
+                  <svg className="absolute overflow-visible" style={{ left: -6, top: -4 }} width={28} height={24} aria-hidden="true">
+                    <path d="M2,2 L24,2 Q28,16 16,22 L6,22 Q2,14 2,2 Z" fill="#6b7280" stroke="#4b5563" strokeWidth={1.5} />
+                    <path d="M8,22 l2,4 l2,-4 M13,22 l2,4 l2,-4" stroke="#4b5563" strokeWidth={1.5} fill="none" />
+                    <g data-part="load" style={{ opacity: 0 }}>
+                      <circle cx={9} cy={2} r={4} fill="#8b8478" />
+                      <circle cx={16} cy={0} r={4.5} fill="#6f685e" />
+                      <circle cx={22} cy={3} r={3.5} fill="#9a9286" />
+                    </g>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (plan.kind === "mixer") {
+    return (
+      <div
+        ref={root}
+        className="absolute"
+        data-crew-machine="mixer"
+        data-crew-dir={plan.dir}
+        style={{ left: plan.left, bottom: FLOOR - 2, width: MIXER_W, height: MIXER_H, zIndex: 2 }}
+      >
+        <div className="absolute inset-0" style={{ transform: mirror }}>
+          <svg width={MIXER_W} height={MIXER_H} viewBox={`0 0 ${MIXER_W} ${MIXER_H}`} className="absolute inset-0 overflow-visible" aria-hidden="true">
+            <defs>
+              <clipPath id={`mixer-drum-${plan.left.toFixed(0)}`}>
+                <ellipse cx={86} cy={38} rx={62} ry={25} transform="rotate(-10 86 38)" />
+              </clipPath>
+            </defs>
+            <rect x={6} y={62} width={176} height={12} rx={3} fill="#4b5563" />
+            <ellipse cx={86} cy={38} rx={62} ry={25} transform="rotate(-10 86 38)" fill="#e8ecf2" stroke="#9aa3b5" strokeWidth={2} />
+            {/* The drum's stripes, turning round and round. */}
+            <g clipPath={`url(#mixer-drum-${plan.left.toFixed(0)})`}>
+              <g className="crew-drum">
+                {Array.from({ length: 12 }, (_, i) => (
+                  <path key={i} d={`M${-40 + i * 22},70 L${-18 + i * 22},4`} stroke="#f2b632" strokeWidth={9} />
+                ))}
+              </g>
+            </g>
+            <path d="M150,72 L150,26 Q150,20 156,20 L186,20 Q194,20 198,28 L206,46 L206,72 Z" fill="#e0564f" stroke="#b9443e" strokeWidth={2} />
+            <path d="M158,26 L184,26 Q189,26 191,31 L197,44 L158,44 Z" fill="#bfe3f7" />
+            <Driver x={170} y={28} color="#3c7d6e" size={13} />
+            {[36, 70, 176].map((cx) => (
+              <g key={cx}>
+                <circle cx={cx} cy={MIXER_H - 16} r={14} fill="#2b2f36" />
+                <circle cx={cx} cy={MIXER_H - 16} r={6} fill="#9aa3b5" />
+              </g>
+            ))}
+          </svg>
+          {/* The chute at the back, and the cement pouring out of it. */}
+          <div data-part="chute" className="absolute" style={{ left: 16, top: 52, width: 30, height: 7, transformOrigin: "100% 50%" }}>
+            <div className="absolute inset-0 rounded-sm" style={{ backgroundColor: "#9aa3b5", transform: "translateX(-24px) rotate(18deg)" }} />
+          </div>
+          <div
+            data-part="stream"
+            className="absolute rounded-full"
+            style={{ left: -12, top: 60, width: 7, height: MIXER_H - 60 + 2, backgroundColor: "#8e949e", transformOrigin: "50% 0%" }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Forklift, and the pallet of spare pieces it brings — on the forks,
+  // which stick out past its front (mirrored when it faces left).
+  const palletLeft = plan.dir === 1 ? plan.left + 99 : plan.left + FORKLIFT_W - 149;
+  return (
+    <>
+      <div
+        ref={root}
+        className="absolute"
+        data-crew-machine="forklift"
+        data-crew-dir={plan.dir}
+        style={{ left: plan.left, bottom: FLOOR - 2, width: FORKLIFT_W, height: FORKLIFT_H, zIndex: 2 }}
+      >
+        <div className="absolute inset-0" style={{ transform: mirror, transformOrigin: `${FORKLIFT_W / 2}px 50%` }}>
+          <svg width={FORKLIFT_W} height={FORKLIFT_H} viewBox={`0 0 ${FORKLIFT_W} ${FORKLIFT_H}`} className="absolute inset-0 overflow-visible" aria-hidden="true">
+            <rect x={2} y={46} width={18} height={30} rx={4} fill="#d9731a" />
+            <rect x={12} y={48} width={76} height={30} rx={5} fill="#ff8a1f" stroke="#d9731a" strokeWidth={2} />
+            <path d="M26,48 L26,12 L70,12 L76,48" fill="none" stroke="#4b5563" strokeWidth={4} strokeLinejoin="round" />
+            <rect x={36} y={38} width={14} height={10} rx={2} fill="#2b2f36" />
+            <Driver x={38} y={20} color="#7a5ea8" size={15} />
+            <rect x={92} y={8} width={7} height={80} rx={2} fill="#6b7280" />
+            {[30, 72].map((cx, i) => (
+              <g key={cx}>
+                <circle cx={cx} cy={FORKLIFT_H - 14} r={i ? 14 : 12} fill="#2b2f36" />
+                <circle cx={cx} cy={FORKLIFT_H - 14} r={5} fill="#9aa3b5" />
+              </g>
+            ))}
+          </svg>
+          <div data-part="forks" className="absolute" style={{ left: 99, top: 62, width: 50, height: 30 }}>
+            <div className="absolute rounded-sm" style={{ left: 0, top: 0, width: 5, height: 30, backgroundColor: "#4b5563" }} />
+            <div className="absolute rounded-sm" style={{ left: 0, top: 26, width: 50, height: 4, backgroundColor: "#4b5563" }} />
+          </div>
+        </div>
+      </div>
+      {/* The pallet: planks, and on them a spare bar, a spare card and a donut slice. */}
+      <div
+        ref={pallet}
+        className="absolute"
+        data-crew-machine="pallet"
+        data-crew-dir={plan.dir}
+        style={{
+          left: palletLeft,
+          bottom: FLOOR + 6,
+          width: 50,
+          height: 34,
+          zIndex: 2,
+        }}
+      >
+        <div className="absolute rounded-sm" style={{ left: 0, bottom: 0, width: 50, height: 6, backgroundColor: "#9a6b3f" }} />
+        <div className="absolute rounded-sm" style={{ left: 2, bottom: 6, width: 46, height: 8, backgroundColor: "#385bc1", borderRadius: "0 3px 3px 0" }} />
+        <div className="absolute rounded" style={{ left: 6, bottom: 14, width: 32, height: 18, backgroundColor: "#ffffff", border: "1px solid #d7dce6" }}>
+          <div className="absolute rounded-sm bg-[#d7dce6]" style={{ left: 4, top: 4, width: 14, height: 3 }} />
+          <div className="absolute rounded-sm bg-[#385bc1]" style={{ left: 4, top: 10, width: 9, height: 4 }} />
+        </div>
+        <svg className="absolute" style={{ left: 34, bottom: 14 }} width={16} height={16} aria-hidden="true">
+          <path d="M0,16 L0,2 A14,14 0 0,1 14,16 Z" fill="#f2b632" />
+        </svg>
+      </div>
+    </>
   );
 }
 
@@ -3758,6 +4418,9 @@ function RepairRound({ plan, onDone }: { plan: RepairPlan; onDone: () => void })
           </div>
         </div>
       )}
+      {plan.machines.map((m, i) => (
+        <Machine key={i} plan={m} total={plan.endAt} />
+      ))}
       {plan.builders.map((actor) => (
         <FloorWorker key={actor.character.name} actor={actor} cheerStyle="nod" moonwalk={false} />
       ))}
@@ -3802,6 +4465,8 @@ interface Caught {
   truck: { left: number; dir: 1 | -1 } | null;
   /** A repair under way: the real thing, how it's tilted, and a copy of the piece if it's off being carried about. */
   shove: { target: HTMLElement | SVGElement; copy: HTMLElement | null; tilt: string } | null;
+  /** The other machines, frozen as they were: to back out fast (the tower crane sinks away). */
+  machines: { copy: HTMLElement; kind: string; dir: 1 | -1; left: number; right: number }[];
   dust: DustSpeck[];
 }
 
@@ -3864,6 +4529,25 @@ function catchThem(layer: HTMLElement, plan: RoundPlan | RepairPlan | null, elap
     shove = { target, copy, tilt: getComputedStyle(target).transform };
   }
 
+  const machines: Caught["machines"] = [];
+  layer.querySelectorAll<HTMLElement>("[data-crew-machine]").forEach((el) => {
+    const r = el.getBoundingClientRect();
+    if (r.right < 0 || r.left > vw) return;
+    const copy = el.cloneNode(true) as HTMLElement;
+    // Every moving part frozen where it is right now.
+    const from = [el, ...el.querySelectorAll<HTMLElement | SVGElement>("*")];
+    const to = [copy, ...copy.querySelectorAll<HTMLElement | SVGElement>("*")];
+    from.forEach((f, i) => {
+      const cs = getComputedStyle(f);
+      if (cs.transform !== "none") to[i].style.transform = cs.transform;
+      if (f.dataset.part) {
+        to[i].style.opacity = cs.opacity;
+        if (f instanceof HTMLElement) to[i].style.height = cs.height;
+      }
+    });
+    machines.push({ copy, kind: el.dataset.crewMachine ?? "", dir: el.dataset.crewDir === "-1" ? -1 : 1, left: r.left, right: r.right });
+  });
+
   const stairs = plan?.kind === "clean" && plan.stairs && elapsed < plan.stairs.outAt ? plan.stairs : null;
   // The mess they were in the middle of: left where it is.
   const specks = plan?.kind === "clean" ? plan.dust : plan?.kind === "repair" ? plan.debris : [];
@@ -3871,7 +4555,7 @@ function catchThem(layer: HTMLElement, plan: RoundPlan | RepairPlan | null, elap
     .filter((d) => !d.tread && d.appearAt <= elapsed && !(d.clearAt <= elapsed))
     .map((d) => ({ ...d, appearAt: -1000, wetAt: null, clearAt: Number.POSITIVE_INFINITY }));
 
-  return { crew, stairs, gondola, truck, shove, dust };
+  return { crew, stairs, gondola, truck, shove, machines, dust };
 }
 
 // A mad dash of `distPct` % of the screen: short frantic hops, a whole
@@ -4112,6 +4796,38 @@ function RunawayTruck({ truck }: { truck: { left: number; dir: 1 | -1 } }) {
   );
 }
 
+// The machines: backed out fast the way they came in, the tower crane
+// sunk out of sight, a pallet left where it was set down (fading with the
+// rest of the mess). Gives back how to undo it all.
+function clearOff(machines: Caught["machines"], holder: HTMLElement): () => void {
+  const vw = window.innerWidth;
+  const anims = machines.map((m) => {
+    holder.appendChild(m.copy);
+    if (m.kind === "tower") {
+      return m.copy.animate([{ translate: "0 0" }, { translate: `0 ${window.innerHeight}px` }], {
+        delay: 500,
+        duration: 1400,
+        easing: "ease-in",
+        fill: "both",
+      });
+    }
+    if (m.kind === "pallet") {
+      return m.copy.animate([{ opacity: 1 }, { opacity: 0 }], { delay: PANIC_MS - 900, duration: 600, fill: "both" });
+    }
+    const off = m.dir === 1 ? -(m.right + 40) : vw - m.left + 40;
+    return m.copy.animate([{ translate: "0 0" }, { translate: `${off}px 0` }], {
+      delay: 600,
+      duration: 1600,
+      easing: "cubic-bezier(0.5, 0, 0.9, 0.6)",
+      fill: "both",
+    });
+  });
+  return () => {
+    anims.forEach((a) => a.cancel());
+    machines.forEach((m) => m.copy.remove());
+  };
+}
+
 // The broken piece heaved back where it goes: if it's off being carried
 // about, its copy flies back up into place and only then is the real thing
 // there again; if it's still in place but sagging or tilted, it's shoved
@@ -4165,6 +4881,7 @@ function CaughtScene({ caught, onDone }: { caught: Caught; onDone: () => void })
     const done = setTimeout(onDone, PANIC_MS);
     const undo: (() => void)[] = [];
     if (caught.shove && holder.current) undo.push(shoveBack(caught.shove, holder.current));
+    if (holder.current) undo.push(clearOff(caught.machines, holder.current));
     return () => {
       clearTimeout(done);
       undo.forEach((u) => u());
