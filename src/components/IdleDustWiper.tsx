@@ -3570,6 +3570,8 @@ interface RepairPlan {
   debris: DustSpeck[];
   /** The tower crane, digger, cement mixer and forklift that came along. */
   machines: MachinePlan[];
+  /** Stairs up to the second floor, if they're fixing it from up there. */
+  stairs?: Stairs | null;
   /** Things done to the real element along the way... */
   effects: { at: number; run: () => void }[];
   realMoves: { keyframes: Keyframe[]; options: KeyframeAnimationOptions }[];
@@ -3632,6 +3634,11 @@ function planRepair(): RepairPlan | null {
   const target = options[Math.floor(Math.random() * options.length)];
   // Up in the top bar: a job for the tower crane instead.
   if (breakKind === "top") return planTopRepair(target, vw, vh);
+  // A stat card: sometimes they go up to it on the second floor instead.
+  if (breakKind === "card" && Math.random() < DECK_REPAIR_CHANCE) {
+    const fromDeck = planDeckCardRepair(target, vw, vh);
+    if (fromDeck) return fromDeck;
+  }
   const asteroid = Math.random() < 0.5;
   const { el, box } = target;
   const welder = BUILDERS.welder;
@@ -4393,6 +4400,173 @@ function planTopRepair(target: Breakable, vw: number, vh: number): RepairPlan {
     effects,
     realMoves,
     restore: () => undo.forEach((u) => u()),
+  };
+}
+
+// A stat card comes loose and swings down, hanging off one corner — and
+// instead of the crane, the builders go up to it: the stairs to the second
+// floor drop in, they climb up and along to it, the welder heaves it back
+// up and welds it in place while the foreman looks on, and they come back
+// down. Null if there's no second floor to be had on this page.
+const DECK_REPAIR_CHANCE = 0.5;
+
+function planDeckCardRepair(target: Breakable, vw: number, vh: number): RepairPlan | null {
+  const deck = findDeck(vw, vh);
+  const stairs = deck && makeDeckStairs(vw, deck);
+  if (!deck || !stairs) return null;
+  const { el, box } = target;
+  const welder = BUILDERS.welder;
+  const foreman = BUILDERS.foreman;
+  const asteroid = Math.random() < 0.5;
+  const t0 = 400;
+  const breakAt = t0 + (asteroid ? 700 : 1300);
+  const effects: RepairPlan["effects"] = [];
+  const realMoves: RepairPlan["realMoves"] = [];
+  const undo: (() => void)[] = [];
+  const puffs: RepairPlan["puffs"] = [];
+  const debris: DustSpeck[] = [];
+
+  const style = (el as HTMLElement).style;
+  const shown = style.visibility;
+  effects.push({ at: breakAt, run: () => (style.visibility = "hidden") });
+  undo.push(() => (style.visibility = shown));
+
+  // Swings down off one top corner and hangs there.
+  const hingeLeft = Math.random() < 0.5;
+  const sgn = hingeLeft ? 1 : -1;
+  const origin = hingeLeft ? "0% 0%" : "100% 0%";
+  const impact = { x: hingeLeft ? box.x + box.w - 12 : box.x + 12, y: box.y + 12 };
+  if (!asteroid) {
+    realMoves.push({
+      keyframes: [0, 1, -1, 1.4, -1.2, 1.8, 0].map((a) => ({ transform: `rotate(${a * sgn}deg)`, transformOrigin: origin })),
+      options: { delay: t0, duration: breakAt - t0, easing: "ease-in-out" },
+    });
+  }
+  const hang = 78 * sgn;
+  const moves: Frame[] = [
+    [0, { transform: "rotate(0deg)" }],
+    [breakAt, { transform: "rotate(0deg)" }, "cubic-bezier(0.3, 0, 0.3, 1)"],
+    [breakAt + 380, { transform: `rotate(${hang + 14 * sgn}deg)` }, "ease-in-out"],
+    [breakAt + 680, { transform: `rotate(${hang - 8 * sgn}deg)` }, "ease-in-out"],
+    [breakAt + 920, { transform: `rotate(${hang + 4 * sgn}deg)` }, "ease-in-out"],
+    [breakAt + 1100, { transform: `rotate(${hang}deg)` }],
+  ];
+
+  // The stairs up, and the builders up them — the welder first, the
+  // foreman behind — to stand beside the card, on whichever side of it
+  // there's room.
+  stairs.inAt = breakAt + 600;
+  const u = (px: number) => (px - stairs.footPx) / (stairs.dirUp * stairs.stepW);
+  const level = landingLevel(stairs);
+  const cardX = box.x + box.w / 2;
+  const onDeck = (px: number) => clamp(px, deck.left + 30, deck.right - 30);
+  const clearOf = box.w / 2 + welder.width / 2 + 12;
+  const roomBy = (side: 1 | -1) => Math.abs(onDeck(cardX + side * clearOf) - (cardX + side * clearOf)) < 1;
+  const side: 1 | -1 = roomBy(stairs.dirUp) ? stairs.dirUp : (-stairs.dirUp as 1 | -1);
+  const welderPx = cardX + side * clearOf;
+  const welderAt = u(welderPx);
+  const foremanAt = u(onDeck(welderPx + side * 70));
+  const entryX = stairs.side === "left" ? 108 : -8;
+  const welderSteps: Step[] = [];
+  const foremanSteps: Step[] = [];
+  let wt = hopTo(welderSteps, entryX, stairPct(stairs, 0), breakAt + 900, vw);
+  wt = waitUntil(welderSteps, wt, stairsReadyAt(stairs));
+  wt = climb(welderSteps, stairs, 0, level, wt);
+  wt = alongLanding(welderSteps, stairs, level, welderAt, wt);
+  let ft = hopTo(foremanSteps, entryX, stairPct(stairs, 0), breakAt + 1900, vw);
+  ft = waitUntil(foremanSteps, ft, stairsReadyAt(stairs) + 1600);
+  ft = climb(foremanSteps, stairs, 0, level, ft);
+  ft = alongLanding(foremanSteps, stairs, level, foremanAt, ft);
+  const facing = (-side) as 1 | -1;
+  // (Turned to face it.)
+  welderSteps.push({ kind: "walk", at: wt, ms: 1, x: stairPct(stairs, welderAt), y: level * stairs.riseH, tread: level, face: facing, hopMs: 1 });
+  wt += 1;
+  foremanSteps.push({ kind: "walk", at: ft, ms: 1, x: stairPct(stairs, foremanAt), y: level * stairs.riseH, tread: level, face: facing, hopMs: 1 });
+  ft += 1;
+
+  // Heaved back up, and welded in with a shower of sparks.
+  const ready = Math.max(wt, ft);
+  wt = waitUntil(welderSteps, wt, ready);
+  welderSteps.push({ kind: "quirk", at: wt, ms: QUIRK_MS.shove, quirk: "shove" });
+  const upAt = wt + 150;
+  moves.push([upAt, { transform: `rotate(${hang}deg)` }, "ease-in-out"], [upAt + 500, { transform: "rotate(0deg)" }]);
+  wt += QUIRK_MS.shove;
+  const look = lookToward(welder, welder.width / 2 + 20, welder.height + 20);
+  welderSteps.push({ kind: "work", at: wt, ms: WELD_MS, activity: "weld", look });
+  const weldFrom = wt;
+  wt += WELD_MS;
+  const fixedAt = wt;
+  foremanSteps.push({ kind: "inspect", at: ft, ms: fixedAt - ft, look: lookToward(foreman, 60, foreman.height + 30) });
+  ft = fixedAt;
+  foremanSteps.push({ kind: "quirk", at: ft, ms: QUIRK_MS.phew, quirk: "phew" });
+  ft += QUIRK_MS.phew;
+
+  // Back along, down, and off.
+  const down = (steps: Step[], at: number, from: number) => {
+    let t = alongLanding(steps, stairs, at, level, from);
+    t = climb(steps, stairs, level, 0, t);
+    const trip = hopTrip(stairPct(stairs, 0), entryX, vw);
+    steps.push({ kind: "walk", at: t, ms: trip.ms, x: entryX, hopMs: trip.hopMs });
+    steps.push({ kind: "gone", at: t + trip.ms, ms: 0 });
+    return { off: t, gone: t + trip.ms };
+  };
+  const wDown = down(welderSteps, welderAt, wt);
+  const fDown = down(foremanSteps, foremanAt, Math.max(ft, wt + 900));
+  stairs.outAt = Math.max(wDown.off, fDown.off) + 400;
+  const endAt = Math.max(wDown.gone, fDown.gone, stepLiftAt(stairs, 1) + STAIR_LIFT_MS) + 200;
+  effects.push({ at: fixedAt, run: () => undo.forEach((f) => f()) });
+
+  let asteroidPlan: RepairPlan["asteroid"] = null;
+  if (asteroid) {
+    const from = { x: impact.x < vw / 2 ? vw + 80 : -80, y: -80 };
+    const off = `translate(${(from.x - impact.x).toFixed(1)}px, ${(from.y - impact.y).toFixed(1)}px)`;
+    asteroidPlan = {
+      from,
+      at: impact,
+      flight: track(
+        [
+          [0, { transform: off, opacity: 0 }],
+          [t0, { transform: off, opacity: 1 }, "cubic-bezier(0.4, 0, 1, 1)"],
+          [breakAt, { transform: "translate(0px, 0px)", opacity: 1 }],
+          [breakAt + 1, { transform: "translate(0px, 0px)", opacity: 0 }],
+        ],
+        endAt
+      ),
+    };
+  } else {
+    puffs.push({ x: impact.x, y: impact.y, at: t0 + 300, big: false });
+  }
+  puffs.push({ x: impact.x, y: impact.y, at: breakAt, big: true });
+  // Plaster dust down on the floor below it.
+  debris.push(floorDebris(cardX - 20, breakAt + 1500, "rubble"));
+
+  const corner = (x: number, y: number) => ({ x, y, shows: showBetween(weldFrom + 200, fixedAt, endAt) });
+  return {
+    kind: "repair",
+    target: el,
+    endAt,
+    cast: [],
+    standIn: { kind: "clone", box, origin },
+    standInMoves: track(moves, endAt),
+    standInShows: showBetween(breakAt, fixedAt, endAt),
+    truck: null,
+    boom: null,
+    rider: null,
+    asteroid: asteroidPlan,
+    crack: null,
+    sparks: [corner(box.x + 4, box.y + 4), corner(box.x + box.w - 4, box.y + 4), corner(box.x + box.w / 2, box.y + box.h - 4)],
+    puffs,
+    chunks: [],
+    builders: [
+      { character: welder, entryX, steps: welderSteps, endAt: wDown.gone },
+      { character: foreman, entryX, steps: foremanSteps, endAt: fDown.gone },
+    ],
+    debris,
+    machines: [],
+    stairs,
+    effects,
+    realMoves,
+    restore: () => undo.forEach((f) => f()),
   };
 }
 
@@ -5296,6 +5470,7 @@ function RepairRound({ plan, onDone }: { plan: RepairPlan; onDone: () => void })
   const { truck: t, standIn: s } = plan;
   return (
     <>
+      {plan.stairs && <StairFlight stairs={plan.stairs} />}
       {plan.debris.map((speck, i) => (
         <Dust key={i} speck={speck} />
       ))}
@@ -5596,7 +5771,7 @@ function catchThem(layer: HTMLElement, plan: RoundPlan | RepairPlan | null, elap
     machines.push({ copy, kind: el.dataset.crewMachine ?? "", dir: el.dataset.crewDir === "-1" ? -1 : 1, left: r.left, right: r.right });
   });
 
-  const stairs = plan?.kind === "clean" && plan.stairs && elapsed < plan.stairs.outAt ? plan.stairs : null;
+  const stairs = plan?.stairs && elapsed < plan.stairs.outAt ? plan.stairs : null;
   // The mess they were in the middle of: left where it is.
   const specks = plan?.kind === "clean" ? plan.dust : plan?.kind === "repair" ? plan.debris : [];
   const dust = specks
