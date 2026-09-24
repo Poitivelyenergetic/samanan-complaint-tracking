@@ -182,7 +182,7 @@ export default function StaffLoginPage() {
           characters — purple reaches for it first (below), then it grows
           past his grip and covers him too. */}
       <div
-        className={`login-pull-form absolute inset-y-0 end-0 z-20 flex flex-col justify-center bg-white px-6 py-12 transition-[width] duration-[1500ms] ease-in-out sm:px-10 md:px-16 lg:px-24 ${
+        className={`login-pull-form absolute inset-y-0 end-0 z-20 flex flex-col justify-center bg-white px-6 pb-4 pt-20 transition-[width] duration-[1500ms] ease-in-out sm:px-10 md:px-16 md:py-12 lg:px-24 ${
           revealing ? "is-revealing" : ""
         }`}
       >
@@ -193,7 +193,7 @@ export default function StaffLoginPage() {
         {/* Fades out on success before the pull starts — a blank panel
             gets covered, not one that still has the form on it. */}
         <div
-          className="mx-auto w-full max-w-sm transition-opacity duration-300 ease-out"
+          className="mx-auto w-full max-w-sm shrink-0 transition-opacity duration-300 ease-out"
           style={{ opacity: formCleared ? 0 : 1 }}
         >
           <div className="mb-8 flex items-center gap-3">
@@ -304,6 +304,17 @@ export default function StaffLoginPage() {
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Phones don't get the illustration panel, so a small pump sits in
+            whatever room is left under the form instead: up to 112px, less
+            on shorter screens, and gone when there's too little (see
+            .login-phone-pump) — the form itself never has to scroll. */}
+        <div
+          className="login-phone-pump mx-auto mt-2 min-h-0 w-full max-w-sm basis-28 transition-opacity duration-300 ease-out md:hidden"
+          style={{ opacity: formCleared ? 0 : 1 }}
+        >
+          <SamnanPumpSpinner className="h-full w-full cursor-grab animate-pump-enter" />
         </div>
 
         {/* Beat 4's payoff — a personalized greeting once the pull has

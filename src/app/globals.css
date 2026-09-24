@@ -216,6 +216,20 @@ body {
   }
 }
 
+/* The small pump under the login form on phones gets whatever height is
+   left over and shrinks with it. Below this it would be too small to be
+   worth dragging, so it goes — and a hidden spinner never downloads its
+   frames. */
+.login-phone-pump {
+  container-type: size;
+}
+
+@container (max-height: 71px) {
+  .login-phone-pump > * {
+    display: none;
+  }
+}
+
 /* The idle dashboard easter egg — the cleaning crew (see IdleDustWiper).
    Each character follows a timed script (hop to a patch, spray, scrub,
    check their work...) and these are the individual motions it switches
