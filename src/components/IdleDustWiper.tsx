@@ -1992,8 +1992,13 @@ function FloorWorker({ actor, cheerStyle, moonwalk }: { actor: FloorActor; cheer
   if (step?.kind === "walk") travel = `left ${step.ms}ms linear, bottom ${step.ms}ms linear`;
   else if (step?.kind === "fall") travel = `left ${step.ms}ms ease-out, bottom ${step.ms}ms ${gravity}`;
   else if (step?.kind === "dangle") travel = `left ${DANGLE_DROP_MS}ms ease-out, bottom ${DANGLE_DROP_MS}ms ${gravity}`;
+  // On the stairs (or falling off, or hanging from the rail) they're between
+  // the two rails. Back on the floor they're in front of the whole flight —
+  // walking back round underneath it to have another go, the near rail and
+  // its posts would otherwise cut right across them.
+  const onFloor = !tread && step?.kind !== "fall" && step?.kind !== "dangle";
   return (
-    <div className="absolute" style={{ left: `${x}%`, bottom: FLOOR + y, zIndex: 3, transition: travel }}>
+    <div className="absolute" style={{ left: `${x}%`, bottom: FLOOR + y, zIndex: onFloor ? 5 : 3, transition: travel }}>
       {/* Riding the bob of the step they're on. The bob runs from the start
           of the round, like the steps' own, so it only ever gets switched to
           the right step's timing and faded in or out — never restarted. */}
