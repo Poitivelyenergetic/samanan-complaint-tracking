@@ -3504,7 +3504,7 @@ function Confetti({ at }: { at: number }) {
 
 // ============================================================ maintenance
 
-// Now and then — about one idle round in eight — something on the dashboard
+// Now and then — about one idle round in three — something on the dashboard
 // breaks: a stat card falls off, the end of a bar snaps off a bar chart, a
 // chart card cracks, or a slice pops out of the donut, either hit by an
 // asteroid or just giving way. A construction crew turns up with a crane
@@ -3513,7 +3513,7 @@ function Confetti({ at }: { at: number }) {
 // while it plays out the real thing is only hidden (a stand-in does the
 // falling) or nudged, and it's all put back the moment anyone moves the
 // mouse.
-const REPAIR_CHANCE = 1 / 8;
+const REPAIR_CHANCE = 1 / 3;
 // Rolling in slow and heavy, and out a little quicker.
 const DRIVE_IN_MS = 8000;
 const DRIVE_OUT_MS = 6000;
@@ -6732,7 +6732,7 @@ function CaughtScene({ caught, onDone }: { caught: Caught; onDone: () => void })
 
 // ============================================================ the missile
 
-// Once in a while — about one visit in ten — a missile comes in and blows
+// Once in a while — about one visit in three — a missile comes in and blows
 // the whole page apart: the sidebar, the top bar, the cards and the charts
 // all go flying off the screen. The builders turn up, try to put a piece
 // back, and can't — it just falls off again — so they call in the coders:
@@ -6785,7 +6785,7 @@ const CODERS: Record<CoderName, Character> = {
   },
 };
 
-const MISSILE_CHANCE = 0.1;
+const MISSILE_CHANCE = 1 / 3;
 const CODING_MS = 60_000;
 const RUSH_MS = 5000;
 const BLOCK_BACK_MS = 900;
