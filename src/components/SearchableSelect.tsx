@@ -46,11 +46,19 @@ export default function SearchableSelect<T>({
   // أ/ب/ت for Arabic) rather than whatever order the source list happens
   // to be in (Firestore's insertion order) — every consumer of this
   // component gets this for free instead of having to sort its own list.
+  // The one with no value ("All employees", "All statuses"...) always stays
+  // first, though, rather than being sorted in among the names.
   const locale = useLocale();
   const collator = useMemo(() => new Intl.Collator(locale, { sensitivity: "base" }), [locale]);
   const sortedItems = useMemo(
-    () => [...items].sort((a, b) => collator.compare(getLabel(a), getLabel(b))),
-    [items, getLabel, collator]
+    () =>
+      [...items].sort((a, b) => {
+        const allA = getId(a) === "";
+        const allB = getId(b) === "";
+        if (allA !== allB) return allA ? -1 : 1;
+        return collator.compare(getLabel(a), getLabel(b));
+      }),
+    [items, getId, getLabel, collator]
   );
 
   // Lazily computed straight from props (not the selectedItem/selectedLabel
