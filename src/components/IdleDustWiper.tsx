@@ -94,6 +94,10 @@ type Quirk =
   // A stain that won't come off (see buildFloorScript).
   | "fume"
   | "fling"
+  // Done before the others: killing time (see wrapUp).
+  | "tap"
+  | "lookout"
+  | "sit"
   // Fallen off the second floor, and not getting up.
   | "hurt";
 type CheerStyle = "nod" | "wave" | "bow" | "jump";
@@ -191,6 +195,9 @@ const QUIRK_MS: Record<Quirk, number> = {
   shove: 600,
   fume: 1100,
   fling: 900,
+  tap: 1600,
+  lookout: 1800,
+  sit: 2800,
   hurt: 1000,
 };
 // How often a spot just won't come off, and how long scrubbing it does.
@@ -413,7 +420,16 @@ interface Stairs {
   /** Up to the second floor instead: a platform right across the page (px) in
    *  the gap under the stat cards, where they either clean the cards or just
    *  wander along it. */
-  deck: { left: number; right: number; mode: "clean" | "wander"; reachUp: number } | null;
+  deck: {
+    left: number;
+    right: number;
+    mode: "clean" | "wander";
+    reachUp: number;
+    /** Cleaning: the stat card over each stop. */
+    cards?: Element[];
+    /** A card hanging crooked (by `deg`), which whoever's at `stop` straightens before cleaning. */
+    crooked?: { stop: number; deg: number };
+  } | null;
 }
 
 function makeStairs(vw: number, vh: number): Stairs {
@@ -444,7 +460,8 @@ function makeStairs(vw: number, vh: number): Stairs {
 // its height above the floor, how far it runs (px), and the cards above it.
 function findDeck(vw: number, vh: number) {
   const onScreen = (b: Box) => b.w > 0 && b.y >= 0 && b.y + b.h <= vh && b.x >= -2 && b.x + b.w <= vw + 2;
-  const cards = [...document.querySelectorAll("[data-crew-card]")].map(boxOf).filter(onScreen);
+  const cardEls = [...document.querySelectorAll("[data-crew-card]")].filter((el) => onScreen(boxOf(el)));
+  const cards = cardEls.map(boxOf);
   const charts = [...document.querySelectorAll("[data-crew-chart]")].map(boxOf).filter(onScreen);
   if (cards.length < 2 || charts.length === 0) return null;
   const cardsBottom = Math.max(...cards.map((b) => b.y + b.h));
@@ -463,6 +480,7 @@ function findDeck(vw: number, vh: number) {
     left: Math.max(4, Math.min(...all.map((b) => b.x)) - 8),
     right: Math.min(vw - 4, Math.max(...all.map((b) => b.x + b.w)) + 8),
     cards,
+    cardEls,
     // How far up from the platform the bottom of the cards' dirt is.
     reachUp: surface - cardsBottom + 26,
   };
@@ -504,11 +522,17 @@ function makeDeckStairs(vw: number, deck: NonNullable<ReturnType<typeof findDeck
   const far = u(side === "left" ? deck.right - 40 : deck.left + 40);
   if (s.deck!.mode === "clean") {
     const reach = 58;
-    s.stops = deck.cards
-      .map((b) => u(b.x + b.w / 2 + dirUp * reach))
-      .filter((k) => k < top - 0.3 && k > far)
-      .sort((a, b) => b - a)
-      .slice(0, 3);
+    const picked = deck.cards
+      .map((b, i) => ({ k: u(b.x + b.w / 2 + dirUp * reach), el: deck.cardEls[i] }))
+      .filter(({ k }) => k < top - 0.3 && k > far)
+      .sort((a, b) => b.k - a.k)
+      .slice(0, 4);
+    s.stops = picked.map((p) => p.k);
+    s.deck!.cards = picked.map((p) => p.el);
+    // Now and then one of them's hanging crooked.
+    if (picked.length && Math.random() < 0.35) {
+      s.deck!.crooked = { stop: Math.floor(Math.random() * picked.length), deg: (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 2) };
+    }
     if (s.stops.length === 0) s.deck!.mode = "wander";
   }
   if (s.deck!.mode === "wander") {
@@ -869,7 +893,7 @@ function buildClimberScript(
   mishap: Mishap | null,
   // Up on the second floor: which of its stops they fall off at, if they
   // do; or, taking over from someone who did, just the stops left.
-  deck: { fallAt?: number; stops?: number[] } = {}
+  deck: { fallAt?: number; stops?: number[]; half?: boolean } = {}
 ) {
   const steps: Step[] = [];
   const landedAt: number[] = [];
@@ -905,6 +929,8 @@ function buildClimberScript(
   const stops = deck.stops ?? landingStops(s);
   const stopAt: number[] = [];
   let fell: { x: number; landAt: number } | null = null;
+  // When a crooked card got straightened.
+  let straightenedAt: number | null = null;
   if (s.deck) {
     // All the way up to the second floor, then along it — cleaning the
     // stat card above each stop, or just stopping to look about — and back.
@@ -925,6 +951,13 @@ function buildClimberScript(
         fell = { x: stairPx(s, u), landAt: t };
         break;
       }
+      // A card hanging crooked: shoved straight first.
+      const card = s.deck!.cards?.[landingStops(s).indexOf(u)];
+      if (s.deck!.mode === "clean" && card && s.deck!.crooked && landingStops(s)[s.deck!.crooked.stop] === u) {
+        steps.push({ kind: "quirk", at: t, ms: QUIRK_MS.shove, quirk: "shove" });
+        straightenedAt = t + 250;
+        t += QUIRK_MS.shove;
+      }
       if (s.deck!.mode === "clean") {
         // Stretching up to the bottom of the card above.
         clean(u, level * s.riseH, away, Math.max(1, s.deck!.reachUp / (character.height * 0.55 + 24)));
@@ -936,25 +969,32 @@ function buildClimberScript(
         t += QUIRK_MS[quirk];
       }
     }
-    if (fell) return { actor: { character, entryX, steps, endAt: t } as FloorActor, landedAt, stopAt, clearAt: t, fell };
+    if (fell) return { actor: { character, entryX, steps, endAt: t } as FloorActor, landedAt, stopAt, clearAt: t, fell, straightenedAt };
     t = alongLanding(steps, s, at, level, t);
   } else {
-    const [first, second] = stops;
-    t = climbUp(steps, s, character, 0, half, t, vw, mishap, landed);
-    clean(half, half * s.riseH);
-    t = climbUp(steps, s, character, half, level, t, vw, mishap, landed);
-    stopAt.push(t);
-    clean(first, level * s.riseH);
-    t = alongLanding(steps, s, first, second, t);
-    stopAt.push(t);
-    clean(second, level * s.riseH);
-    t = alongLanding(steps, s, second, first, t);
+    // The glass halfway up on the way (unless someone else is doing that),
+    // then each spot along the landing.
+    if (deck.half !== false) {
+      t = climbUp(steps, s, character, 0, half, t, vw, mishap, landed);
+      clean(half, half * s.riseH);
+      t = climbUp(steps, s, character, half, level, t, vw, mishap, landed);
+    } else {
+      t = climbUp(steps, s, character, 0, level, t, vw, mishap, landed);
+    }
+    let at = level;
+    for (const u of stops) {
+      if (u !== at) t = alongLanding(steps, s, at, u, t);
+      at = u;
+      stopAt.push(t);
+      clean(u, level * s.riseH);
+    }
+    if (at !== level) t = alongLanding(steps, s, at, level, t);
   }
   t = climb(steps, s, level, 0, t);
   // Three hops out onto the open floor, clearing the way for the mop.
   const clearX = stairPct(s, 0) - s.dirUp * ((3 * WALK_PX_PER_S * HOP_MS) / 1000 / vw) * 100;
   t = hopTo(steps, stairPct(s, 0), clearX, t, vw);
-  return { actor: { character, entryX, steps, endAt: t } as FloorActor, landedAt, stopAt, clearAt: t, fell };
+  return { actor: { character, entryX, steps, endAt: t } as FloorActor, landedAt, stopAt, clearAt: t, fell, straightenedAt };
 }
 
 // The mop's last job of the round: every step, bottom to top, then the
@@ -1022,15 +1062,33 @@ const GONDOLA_RIDER_SCALE = 0.85;
 const GONDOLA_RIDER_GAP = 20;
 const GONDOLA_PADDING = 16;
 
-function buildGondolaScript(riders: Character[], startAt: number, specks: DustSpeck[], stairs: Stairs | null): GondolaActor {
+function buildGondolaScript(
+  riders: Character[],
+  startAt: number,
+  specks: DustSpeck[],
+  stairs: Stairs | null,
+  // When the floor crew are done — they keep washing windows till about then.
+  busyUntil = 0
+): GondolaActor {
   // A window-washer's route down the glass: across the top, then down into
   // the middle on the side away from the stairs — three patches, so they
   // finish around when the floor crew do.
-  const stops = [
-    { x: 22, y: 8 },
-    { x: 76, y: 10 },
-    { x: stairs?.side === "left" ? 66 : stairs ? 34 : 50, y: 34 },
-  ];
+  const tallestRider = Math.max(...riders.map((r) => r.height));
+  // With the second floor across the page, it keeps above it: along the
+  // top only, clear of the end the stairs come up at.
+  const deckTop = stairs?.deck ? window.innerHeight - FLOOR - landingLevel(stairs) * stairs.riseH : null;
+  const aboveDeck = deckTop !== null ? ((deckTop - tallestRider - 50) / window.innerHeight) * 100 : null;
+  const stops =
+    aboveDeck !== null && stairs
+      ? [
+          { x: stairs.side === "left" ? 48 : 20, y: aboveDeck },
+          { x: stairs.side === "left" ? 78 : 52, y: aboveDeck },
+        ]
+      : [
+          { x: 22, y: 8 },
+          { x: 76, y: 10 },
+          { x: stairs?.side === "left" ? 66 : stairs ? 34 : 50, y: 34 },
+        ];
   const steps: Step[] = [];
   const entryX = stops[0].x;
   let t = startAt;
@@ -1111,7 +1169,17 @@ function buildGondolaScript(riders: Character[], startAt: number, specks: DustSp
     t += 900;
   }
 
-  for (const stop of stops) {
+  // While the floor crew are still at it, a few more windows along the same
+  // stretch rather than hanging about.
+  const perStop = 1500 + FIRST_JOB_MS + SECOND_JOB_MS + 700;
+  let more = Math.max(0, Math.floor((busyUntil - (t + stops.length * perStop)) / perStop));
+  const route = [...stops];
+  while (more-- > 0 && route.length < 12) {
+    const base = stops[route.length % stops.length];
+    route.push({ x: clamp(base.x + (Math.random() * 2 - 1) * 10, 12, 88), y: base.y + (aboveDeck !== null ? 0 : (Math.random() * 2 - 1) * 4) });
+  }
+
+  for (const stop of route) {
     // Lowered in from above the screen first, then along the ropes.
     const ms = prev ? Math.max(1300, (Math.abs(stop.x - prev.x) + Math.abs(stop.y - prev.y)) * GONDOLA_MS_PER_PCT) : 2800;
     steps.push({ kind: "walk", at: t, ms, x: stop.x, top: `${stop.y}%` });
@@ -1429,6 +1497,8 @@ interface RoundPlan {
   stairs: Stairs | null;
   /** Someone fell off the second floor: the ambulance come for them. */
   rescue?: RescuePlan | null;
+  /** A stat card hanging crooked until it's straightened (at `fixAt`). */
+  crooked?: { el: Element; deg: number; fixAt: number } | null;
   dust: DustSpeck[];
   cheerStyle: CheerStyle;
   confetti: boolean;
@@ -1475,15 +1545,17 @@ function planRound(exclude: Name[]): RoundPlan {
   // the page has one.
   const deck = vw >= STAIRS_MIN_VW && Math.random() < 0.5 ? findDeck(vw, vh) : null;
   const stairs = vw >= STAIRS_MIN_VW ? ((deck && makeDeckStairs(vw, deck)) ?? makeStairs(vw, vh)) : null;
-  // No gondola with the second floor in the way.
   const riderNames =
-    cast.length >= 3 && !stairs?.deck ? (["yellow", "black", "purple"] as Name[]).filter((n) => cast.includes(n)).slice(0, 2) : [];
+    cast.length >= 3 ? (["yellow", "black", "purple"] as Name[]).filter((n) => cast.includes(n)).slice(0, 2) : [];
   const floorNames = cast.filter((n) => !riderNames.includes(n));
 
   const dust: DustSpeck[] = [];
   const climberName = stairs ? (floorNames.find((n) => n !== "orange") ?? null) : null;
   const mopperName: Name | null = floorNames.includes("orange") ? "orange" : null;
-  const others = floorNames.filter((n) => n !== climberName && n !== mopperName);
+  // Sometimes a second one goes up too, and they share the stops up there.
+  const secondName =
+    stairs && climberName && Math.random() < 0.6 ? (floorNames.find((n) => n !== climberName && n !== "orange") ?? null) : null;
+  const others = floorNames.filter((n) => n !== climberName && n !== mopperName && n !== secondName);
 
   // The open floor, away from the stairs — everyone comes on from that side.
   const footPct = stairs ? stairPct(stairs, 0) : 0;
@@ -1499,6 +1571,10 @@ function planRound(exclude: Name[]): RoundPlan {
   const spare = ALL_NAMES.find((n) => !cast.includes(n) && !exclude.includes(n)) ?? null;
   const deckFall =
     stairs?.deck && climberName && spare && Math.random() < DECK_FALL_CHANCE ? Math.floor(Math.random() * stairs.stops.length) : null;
+  // Who does which stops up top: with two of them, the first takes the
+  // ones nearest the top of the stairs (and the glass halfway up), the
+  // second the rest. (Not when someone's about to fall off.)
+  const splitAt = stairs && secondName && deckFall === null ? Math.ceil(stairs.stops.length / 2) : null;
   const onStairs = [deckFall === null ? climberName : null, stairs ? mopperName : null].filter((n): n is Name => n !== null);
   const mishapFor =
     stairs && onStairs.length > 0 && Math.random() < MISHAP_CHANCE
@@ -1516,6 +1592,7 @@ function planRound(exclude: Name[]): RoundPlan {
   let climberStopAt: number[] = [];
   let rescue: RescuePlan | null = null;
   let takingOver: FloorActor | null = null;
+  let straightenAt: number | null = null;
 
   if (climberName && stairs) {
     const c = buildClimberScript(
@@ -1526,12 +1603,25 @@ function planRound(exclude: Name[]): RoundPlan {
       dust,
       vw,
       mishapFor === climberName ? mishap : null,
-      deckFall !== null ? { fallAt: deckFall } : {}
+      deckFall !== null ? { fallAt: deckFall } : splitAt !== null ? { stops: stairs.stops.slice(0, splitAt) } : {}
     );
     floor.push(c.actor);
     climberClearAt = c.clearAt;
     landedAt = c.landedAt;
     climberStopAt = c.stopAt;
+    straightenAt = c.straightenedAt;
+    if (splitAt !== null && secondName) {
+      // Right behind them up the stairs.
+      const two = buildClimberScript(CHARACTERS[secondName], stairs, startAt + 2600, entryX, dust, vw, null, {
+        stops: stairs.stops.slice(splitAt),
+        half: false,
+      });
+      floor.push(two.actor);
+      climberClearAt = Math.max(climberClearAt, two.clearAt);
+      climberStopAt = [...climberStopAt, ...two.stopAt];
+      straightenAt = straightenAt ?? two.straightenedAt;
+      startAt += 700;
+    }
     if (c.fell && spare && deckFall !== null) {
       // The ambulance for them, and the spare one in to finish up there.
       rescue = planRescue(c.actor, c.fell.x, c.fell.landAt, vw);
@@ -1542,6 +1632,7 @@ function planRound(exclude: Name[]): RoundPlan {
       takingOver = r.actor;
       climberClearAt = r.clearAt;
       climberStopAt = [...climberStopAt.slice(0, deckFall), ...r.stopAt];
+      straightenAt = straightenAt ?? r.straightenedAt;
       cast.push(spare);
     }
     startAt += 700;
@@ -1612,7 +1703,8 @@ function planRound(exclude: Name[]): RoundPlan {
     addStairMopping(mop, stairs, climberClearAt, treads, landingPrints, vw, mishapFor === mopperName ? mishap : null);
   }
 
-  const gondola = riderNames.length > 0 ? buildGondolaScript(riderNames.map((n) => CHARACTERS[n]), 60, dust, stairs) : null;
+  const floorDone = Math.max(0, ...floor.map((a) => a.endAt));
+  const gondola = riderNames.length > 0 ? buildGondolaScript(riderNames.map((n) => CHARACTERS[n]), 60, dust, stairs, floorDone) : null;
 
   const endAt = Math.max(wrapUp(floor, gondola, stairs, entryX, vw), (rescue as RescuePlan | null)?.endAt ?? 0);
 
@@ -1622,6 +1714,10 @@ function planRound(exclude: Name[]): RoundPlan {
     gondola,
     stairs,
     rescue,
+    crooked:
+      stairs?.deck?.crooked && stairs.deck.cards && straightenAt !== null
+        ? { el: stairs.deck.cards[stairs.deck.crooked.stop], deg: stairs.deck.crooked.deg, fixAt: straightenAt }
+        : null,
     dust,
     cheerStyle: weightedPick<CheerStyle>([
       ["nod", 45],
@@ -1649,7 +1745,35 @@ function wrapUp(floor: FloorActor[], gondola: GondolaActor | null, stairs: Stair
   const cheerAt = Math.max(...actors.map((a) => a.endAt)) + 300;
   let endAt = 0;
   actors.forEach((a, i) => {
-    if (cheerAt > a.endAt) a.steps.push({ kind: "wait", at: a.endAt, ms: cheerAt - a.endAt });
+    // Done before the others: not just standing there — a yawn, a foot
+    // tapping, a look round for them, a sit down, a wander — till the rest
+    // are finished.
+    let t = a.endAt;
+    if (!a.isGondola) {
+      let x = [...a.steps].reverse().find((s): s is WalkStep => s.kind === "walk")?.x ?? entryX;
+      let last: string | null = null;
+      while (cheerAt - t > 3200) {
+        const options: [string, number][] = [
+          ["yawn", 2],
+          ["tap", 3],
+          ["lookout", 2],
+          ["sit", 2],
+          ["wander", 3],
+        ];
+        const pick = weightedPick(options.filter(([k]) => k !== last));
+        last = pick;
+        if (pick === "wander") {
+          const to = clamp(x + (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * 6), 4, 96);
+          t = hopTo(a.steps, x, to, t, vw);
+          x = to;
+        } else {
+          const quirk = pick as Quirk;
+          a.steps.push({ kind: "quirk", at: t, ms: QUIRK_MS[quirk], quirk });
+          t += QUIRK_MS[quirk];
+        }
+      }
+    }
+    if (cheerAt > t) a.steps.push({ kind: "wait", at: t, ms: cheerAt - t });
     a.steps.push({ kind: "cheer", at: cheerAt, ms: CHEER_MS });
     const leaveAt = cheerAt + CHEER_MS + i * 450;
     const lastWalk = [...a.steps].reverse().find((s): s is WalkStep => s.kind === "walk")!;
@@ -1975,14 +2099,23 @@ function Eye({
 // Blocks get the login screen's plain dark line of a mouth; the blobs keep
 // their red cartoon smile.
 // Mouths in the same dark ink as the eyes, like the login characters':
-// mostly a plain closed line, a thin smile only when they celebrate.
+// mostly a plain closed line. Really happy (celebrating), a big open grin —
+// dark lips still, red only inside.
 function Mouth({ width, expression, block }: { width: number; expression: Expression; block: boolean }) {
   if (expression === "yeah") {
-    const w = width * 0.3;
-    const h = w * 0.34;
+    const w = width * 0.32;
+    const h = w * 0.55;
+    const mouth = `M1.5,1.5 L${w - 1.5},1.5 Q${w - 1.5},${h} ${w / 2},${h} Q1.5,${h} 1.5,1.5 Z`;
     return (
       <svg width={w} height={h} aria-hidden="true" className="overflow-visible">
-        <path d={`M1.5,1.5 Q${w / 2},${2 * h - 2} ${w - 1.5},1.5`} stroke={INK} strokeWidth={2.5} strokeLinecap="round" fill="none" />
+        <defs>
+          <clipPath id={`grin-${Math.round(w * 10)}`}>
+            <path d={mouth} />
+          </clipPath>
+        </defs>
+        <path d={mouth} fill="#c0392b" />
+        <ellipse cx={w / 2} cy={h} rx={w * 0.26} ry={h * 0.34} fill="#f28b82" clipPath={`url(#grin-${Math.round(w * 10)})`} />
+        <path d={mouth} fill="none" stroke={INK} strokeWidth={2.5} strokeLinejoin="round" />
       </svg>
     );
   }
@@ -2455,6 +2588,14 @@ function quirkPose(quirk: Quirk, facing: 1 | -1): Pose {
     // That spot's still there: stamping about, fuming.
     case "fume":
       return { ...base, expression: "angry", bodyClass: "crew-stomp", bucketDown: false };
+    // Waiting on the others: tapping a foot, shading their eyes to look
+    // out for them, or sitting down for a bit.
+    case "tap":
+      return { ...base, expression: "look", bodyClass: "crew-tap", gaze: { x: 0.3, y: 0.6 } };
+    case "lookout":
+      return { ...base, mode: "brow", expression: "look", bodyClass: "", gaze: { x: 1, y: -0.2 } };
+    case "sit":
+      return { ...base, expression: "content", bodyClass: "crew-sit", bucketDown: true };
     // Flat on their back, seeing stars.
     case "hurt":
       return { ...base, mode: "none", expression: "dizzy", bodyClass: "crew-lie", bucketDown: false };
@@ -2710,7 +2851,7 @@ function GondolaRider({
     pose = quirkPose(quirk.quirk, 1);
   } else if (step?.kind === "walk") {
     // Riding, not walking — just enjoying the view.
-    pose = { ...poseFor(undefined, cheerStyle, 1, false), expression: "walk", bodyClass: "crew-idle" };
+    pose = { ...poseFor(undefined, cheerStyle, 1, false), expression: "walk", bodyClass: "crew-idle", gaze: look };
   } else if (step?.kind === "work") {
     // Each rider does their own part of the job: the one with the bottle
     // sprays first while the other gets a head start wiping.
@@ -2724,6 +2865,8 @@ function GondolaRider({
     pose = poseFor({ ...step, look }, cheerStyle, 1, false);
   } else {
     pose = poseFor(step, cheerStyle, 1, false);
+    // Between jobs: eyes on the glass, not on whoever's watching.
+    if (step?.kind !== "cheer") pose = { ...pose, gaze: pose.gaze ?? look };
   }
   return (
     <div style={{ transform: `scale(${GONDOLA_RIDER_SCALE})`, transformOrigin: "bottom center" }}>
@@ -3190,6 +3333,30 @@ function Dust({ speck }: { speck: DustSpeck }) {
       )}
     </>
   );
+}
+
+// A stat card hanging crooked off one corner until someone up on the second
+// floor shoves it straight (`fixAt` ms into the round) — the real card,
+// turned with the `rotate` property so nothing else about it is touched.
+// Gives back how to put it right straight away.
+function hangCrooked({ el, deg, fixAt }: { el: Element; deg: number; fixAt: number }): () => void {
+  const origin = deg > 0 ? "0% 0%" : "100% 0%";
+  const anim = el.animate(
+    [
+      { rotate: `${deg}deg`, transformOrigin: origin },
+      { rotate: `${deg}deg`, transformOrigin: origin, offset: 0.999 },
+      { rotate: "0deg", transformOrigin: origin },
+    ],
+    { duration: fixAt + 1, fill: "backwards" }
+  );
+  const jolt = setTimeout(
+    () => el.animate([{ rotate: `${-deg * 0.3}deg` }, { rotate: "0deg" }], { duration: 280, easing: "ease-out" }),
+    fixAt
+  );
+  return () => {
+    anim.cancel();
+    clearTimeout(jolt);
+  };
 }
 
 // The profile picture polished till it gleams: a flash of light sweeping
@@ -5618,6 +5785,7 @@ function CleaningRound({ plan, onDone }: { plan: RoundPlan; onDone: () => void }
     const timer = setTimeout(onDone, plan.endAt + REST_BETWEEN_ROUNDS_MS);
     return () => clearTimeout(timer);
   }, [plan, onDone]);
+  useEffect(() => (plan.crooked ? hangCrooked(plan.crooked) : undefined), [plan]);
   const cheerAt = Math.max(
     ...plan.floor.map((a) => a.steps.find((s) => s.kind === "cheer")?.at ?? 0),
     plan.gondola?.steps.find((s) => s.kind === "cheer")?.at ?? 0

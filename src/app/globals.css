@@ -793,6 +793,31 @@ body {
   }
 }
 
+/* Waiting on the others: a foot tapping away. */
+@keyframes crew-tap {
+  0%,
+  50%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25%,
+  75% {
+    transform: translateY(-3px) rotate(-2deg);
+  }
+}
+
+/* Sitting down for a bit, and back up. */
+@keyframes crew-sit {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  15%,
+  85% {
+    transform: scale(1.08, 0.78);
+  }
+}
+
 /* Caught at it: a crouch and a jump straight up in fright. */
 @keyframes crew-startle {
   0%,
@@ -1322,6 +1347,12 @@ body {
   }
   .crew-siren-b {
     animation-delay: -250ms;
+  }
+  .crew-tap {
+    animation: crew-tap 400ms ease-in-out infinite;
+  }
+  .crew-sit {
+    animation: crew-sit 2800ms ease-in-out both;
   }
   .crew-startle {
     animation: crew-startle 650ms ease-out both;
