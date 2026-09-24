@@ -3,11 +3,54 @@
   "ext": "webp",
   "rows": [
     {
+      "elev": -75,
+      "dir": "e-75",
+      "count": 72,
+      "pad": 2
+    },
+    {
+      "elev": -50,
+      "dir": "e-50",
+      "count": 72,
+      "pad": 2
+    },
+    {
+      "elev": -25,
+      "dir": "e-25",
+      "count": 72,
+      "pad": 2
+    },
+    {
+      "elev": 0,
+      "dir": "e+00",
+      "count": 72,
+      "pad": 2
+    },
+    {
       "elev": 12,
       "dir": "e+12",
-      "count": 240,
+      "count": 480,
       "pad": 3,
-      "home": true
+      "home": true,
+      "startAt": 0.5
+    },
+    {
+      "elev": 25,
+      "dir": "e+25",
+      "count": 72,
+      "pad": 2
+    },
+    {
+      "elev": 50,
+      "dir": "e+50",
+      "count": 72,
+      "pad": 2
+    },
+    {
+      "elev": 75,
+      "dir": "e+75",
+      "count": 72,
+      "pad": 2
     }
   ],
   "crop": [

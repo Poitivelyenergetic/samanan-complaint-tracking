@@ -38,9 +38,11 @@ function loadSpinner(): Promise<SpinnerApi> {
   return scriptPromise;
 }
 
-// The drag-to-rotate 360° Samnan pump — 240 pre-rendered transparent frames
-// (30 fps at its 8s-per-turn idle spin) driven by a tiny canvas script, which
-// reads the frame layout from frames/manifest.json. It has to be mounted/destroyed explicitly
+// The drag-to-rotate 360° Samnan pump — 480 pre-rendered transparent frames
+// (60 fps at its 8s-per-turn idle spin, starting at 30 fps once half have
+// loaded) plus tilt views fetched only when someone drags it up or down,
+// driven by a tiny canvas script that reads the layout from
+// frames/manifest.json. It has to be mounted/destroyed explicitly
 // here (rather than relying on the script's own data-attribute auto-mount)
 // since React renders the element after the script's DOMContentLoaded pass,
 // and an un-destroyed instance would leak its requestAnimationFrame loop.
