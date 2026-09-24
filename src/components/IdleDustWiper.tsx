@@ -28,6 +28,17 @@ const FIRST_JOB_MS = 1900;
 const SECOND_JOB_MS = 2800;
 const INSPECT_MS = 1000;
 const STEP_MOP_MS = 1100;
+// Stairs are taken slowly and carefully: a slow hop up (or down) each step,
+// then a moment to steady themselves before the next.
+const CLIMB_HOP_MS = 800;
+const CLIMB_PAUSE_MS = 350;
+// Done spraying: bottle away, cloth out.
+const SWAP_MS = 450;
+// About half the time a sprayer on the floor waves a teammate over to wipe
+// the patch they've just sprayed, instead of swapping to a cloth and doing
+// it themselves — if there's a teammate on the floor to call.
+const HANDOFF_CHANCE = 0.5;
+const CALL_MS = 900;
 const CHEER_MS = 2200;
 const REST_BETWEEN_ROUNDS_MS = 4000;
 // Odds of something going a bit wrong (or just a human moment) at any one
@@ -198,13 +209,21 @@ type Step =
       tread?: number;
       /** Climbing, facing into the stairs — seen from behind. */
       away?: boolean;
+      /** Which way to face on arriving, if not the way they walked. */
+      face?: 1 | -1;
     }
   | { kind: "fall"; at: number; ms: number; x: number; y: number }
   | { kind: "dangle"; at: number; ms: number; x: number; y: number }
   | { kind: "work"; at: number; ms: number; activity: Activity; look: Vec }
   | { kind: "inspect"; at: number; ms: number; look: Vec }
   | { kind: "quirk"; at: number; ms: number; quirk: Quirk }
-  | { kind: "wait"; at: number; ms: number }
+  | {
+      kind: "wait";
+      at: number;
+      ms: number;
+      /** Steadying themselves on a step of the stairs — still facing into them if climbing. */
+      steady?: { away: boolean };
+    }
   | { kind: "cheer"; at: number; ms: number }
   | { kind: "pull"; at: number; ms: number }
   | { kind: "gone"; at: number; ms: number };
@@ -258,7 +277,7 @@ function glassPatch(c: Character, xPct: number, y: number, facing: 1 | -1, count
       clearAt: 0,
     };
   });
-  return { specks, look: lookToward(c, ahead, up) };
+  return { specks, look: lookToward(c, ahead, up), ahead, up };
 }
 
 // Muddy smears on the floor just in front of them, where the mop head goes.
@@ -389,9 +408,10 @@ const stepLiftAt = (s: Stairs, k: number) => s.outAt + 150 + (landingLevel(s) - 
 // ripple, so they all move together.
 const stepBob = (k: number) => `crew-step-bob ${STEP_BOB_MS}ms ease-in-out ${-k * STEP_BOB_LAG_MS}ms infinite`;
 
-// One hop per step, from step `from` to step `to` (either way; n + 1 is
-// the landing). Going up, they face into the stairs, away from us. Calls
-// `landed(k, at)` as they land on each one.
+// One slow hop per step, and a moment to steady themselves, from step
+// `from` to step `to` (either way; n + 1 is the landing). Going up, they
+// face into the stairs, away from us. Calls `landed(k, at)` as they land on
+// each one.
 function climb(steps: Step[], s: Stairs, from: number, to: number, t: number, landed?: (k: number, at: number) => void) {
   const dir = Math.sign(to - from);
   if (dir === 0) return t;
@@ -399,15 +419,17 @@ function climb(steps: Step[], s: Stairs, from: number, to: number, t: number, la
     steps.push({
       kind: "walk",
       at: t,
-      ms: HOP_MS,
+      ms: CLIMB_HOP_MS,
       x: stairPct(s, k),
       y: k * s.riseH,
-      hopMs: HOP_MS,
+      hopMs: CLIMB_HOP_MS,
       tread: k || undefined,
       away: dir > 0,
     });
-    t += HOP_MS;
+    t += CLIMB_HOP_MS;
     landed?.(k, t);
+    steps.push({ kind: "wait", at: t, ms: CLIMB_PAUSE_MS, steady: { away: dir > 0 } });
+    t += CLIMB_PAUSE_MS;
   }
   return t;
 }
@@ -486,10 +508,46 @@ interface FloorActor {
   endAt: number;
 }
 
-function hopTo(steps: Step[], from: number, to: number, t: number, vw: number) {
+function hopTo(steps: Step[], from: number, to: number, t: number, vw: number, face?: 1 | -1) {
   const trip = hopTrip(from, to, vw);
-  steps.push({ kind: "walk", at: t, ms: trip.ms, x: to, hopMs: trip.hopMs });
+  steps.push({ kind: "walk", at: t, ms: trip.ms, x: to, hopMs: trip.hopMs, face });
   return t + trip.ms;
+}
+
+// A patch of glass one of the floor crew has sprayed and called a
+// teammate over to wipe.
+interface Handoff {
+  patch: DustSpeck[];
+  /** Where the sprayer stood (% of screen width) and which way they faced. */
+  x: number;
+  facing: 1 | -1;
+  /** How far ahead of and above the sprayer's feet the patch is, in px. */
+  ahead: number;
+  up: number;
+  /** When the spraying's done. */
+  readyAt: number;
+}
+
+// Going over to wipe patches a teammate has sprayed and called them over
+// to — standing where the patch is in front of them, as it was for whoever
+// sprayed it. Does the ones sprayed by `by`, or with no `by`, all of them,
+// waiting for each as needed. Says where that leaves them, and when.
+function wipeForTeammates(steps: Step[], c: Character, x: number, t: number, jobs: Handoff[], vw: number, by?: number) {
+  while (jobs.length && (by === undefined || jobs[0].readyAt <= by)) {
+    const h = jobs.shift()!;
+    t = waitUntil(steps, t, h.readyAt);
+    const ahead = c.width / 2 + 26;
+    const stand = h.x + (h.facing * (h.ahead - ahead) * 100) / vw;
+    t = hopTo(steps, x, stand, t, vw, h.facing);
+    x = stand;
+    const look = lookToward(c, ahead, h.up);
+    steps.push({ kind: "work", at: t, ms: SECOND_JOB_MS, activity: "wipe", look });
+    h.patch.forEach((s, i) => (s.clearAt = t + (i + 0.7) * (SECOND_JOB_MS / (h.patch.length + 0.4))));
+    t += SECOND_JOB_MS;
+    steps.push({ kind: "inspect", at: t, ms: INSPECT_MS, look });
+    t += INSPECT_MS;
+  }
+  return { x, t };
 }
 
 function waitUntil(steps: Step[], t: number, until: number) {
@@ -500,13 +558,19 @@ function waitUntil(steps: Step[], t: number, until: number) {
 
 // A floor worker doing the rounds of their own stretch of floor: at each
 // stop, a patch of glass (or floor, for the mop) on the side they're facing.
+// Sprayers spray, then put the bottle away and wipe it with a cloth — or,
+// given someone to hand off to (`handoffs`, and `canHandOff` saying whether
+// that someone will be free soon enough), sometimes wave them over to wipe
+// it instead and move on. The one they wave over gets `helpWith`: the
+// patches they've been called to, which they go and wipe between their own.
 function buildFloorScript(
   character: Character,
   startAt: number,
   entryX: number,
   stops: number[],
   specks: DustSpeck[],
-  vw: number
+  vw: number,
+  team: { handoffs?: Handoff[]; canHandOff?: (readyAt: number) => boolean; helpWith?: Handoff[] } = {}
 ): FloorActor {
   const steps: Step[] = [];
   let t = startAt;
@@ -520,7 +584,14 @@ function buildFloorScript(
   const sprays = character.stage1 === "spray";
   const mopper = character.stage2 === "mopFloor";
 
+  // Between their own stops, anything they've been called over to by now.
+  const helpOut = (by?: number) => {
+    if (!team.helpWith) return;
+    ({ x, t } = wipeForTeammates(steps, character, x, t, team.helpWith, vw, by));
+  };
+
   stops.forEach((stop, stopIndex) => {
+    helpOut(t);
     const facing: 1 | -1 = stop >= x ? 1 : -1;
     t = hopTo(steps, x, stop, t, vw);
     x = stop;
@@ -537,7 +608,8 @@ function buildFloorScript(
     }
 
     const count = 3;
-    const { specks: patch, look } = mopper ? floorPatch(character, stop, facing, count) : glassPatch(character, stop, 0, facing, count);
+    const glass = mopper ? null : glassPatch(character, stop, 0, facing, count);
+    const { specks: patch, look } = glass ?? floorPatch(character, stop, facing, count);
     // The mop goes in the bucket first — eyes on the bucket, not the floor.
     const firstLook = character.stage1 === "dunk" ? lookToward(character, character.width / 2 + 24, 10) : look;
 
@@ -549,6 +621,19 @@ function buildFloorScript(
     steps.push({ kind: "work", at: t, ms: FIRST_JOB_MS, activity: character.stage1, look: firstLook });
     if (sprays) patch.forEach((s, i) => (s.wetAt = t + 250 + i * 450));
     t += FIRST_JOB_MS;
+
+    if (sprays && glass && team.handoffs && (team.canHandOff?.(t) ?? true) && Math.random() < HANDOFF_CHANCE) {
+      // Waving a teammate over to wipe it, and on to the next one.
+      steps.push({ kind: "quirk", at: t, ms: CALL_MS, quirk: "wave" });
+      team.handoffs.push({ patch, x: stop, facing, ahead: glass.ahead, up: glass.up, readyAt: t });
+      t += CALL_MS;
+      specks.push(...patch);
+      return;
+    }
+    if (sprays) {
+      steps.push({ kind: "wait", at: t, ms: SWAP_MS });
+      t += SWAP_MS;
+    }
 
     const q2 = maybeQuirk([
       ["sneeze", 30],
@@ -569,6 +654,9 @@ function buildFloorScript(
     steps.push({ kind: "inspect", at: t, ms: INSPECT_MS, look });
     t += INSPECT_MS;
   });
+
+  // Anyone still waiting on them once their own stretch is done.
+  helpOut();
 
   return { character, entryX, steps, endAt: t };
 }
@@ -594,8 +682,12 @@ function buildClimberScript(
   const clean = (u: number, y: number) => {
     const { specks: patch, look } = glassPatch(character, stairPct(s, u), y, s.dirUp, 3);
     steps.push({ kind: "work", at: t, ms: FIRST_JOB_MS, activity: character.stage1, look });
-    if (character.stage1 === "spray") patch.forEach((p, i) => (p.wetAt = t + 250 + i * 450));
     t += FIRST_JOB_MS;
+    if (character.stage1 === "spray") {
+      patch.forEach((p, i) => (p.wetAt = t - FIRST_JOB_MS + 250 + i * 450));
+      steps.push({ kind: "wait", at: t, ms: SWAP_MS, steady: { away: false } });
+      t += SWAP_MS;
+    }
     steps.push({ kind: "work", at: t, ms: SECOND_JOB_MS, activity: character.stage2, look });
     patch.forEach((p, i) => (p.clearAt = t + (i + 0.7) * (SECOND_JOB_MS / 3.4)));
     t += SECOND_JOB_MS;
@@ -873,12 +965,38 @@ function planRound(exclude: Name[]): RoundPlan {
   // toward them.
   const laneNames: Name[] = [...others, ...(mopperName ? [mopperName] : [])];
   if (from === "right") laneNames.reverse();
-  laneNames.forEach((name, i) => {
-    const isMop = name === mopperName;
-    const stops = laneStops(lo, hi, laneNames.length, i, isMop && stairs ? 2 : 3, from);
-    floor.push(buildFloorScript(CHARACTERS[name], startAt, entryX, stops, dust, vw));
-    startAt += 700;
-  });
+  // Who the sprayers on the floor wave over to wipe for them now and then:
+  // another of the glass crew on the floor — the one without a spray
+  // bottle, if there is one — or failing that, whoever did the stairs, once
+  // they're back down, as long as that's only a few seconds off. Everyone
+  // else is scripted first, so the helper knows what they've been called
+  // over for.
+  const lanes = laneNames.map((name, i) => ({
+    name,
+    startAt: startAt + i * 700,
+    stops: laneStops(lo, hi, laneNames.length, i, name === mopperName && stairs ? 2 : 3, from),
+  }));
+  startAt += laneNames.length * 700;
+  const glassCrew = laneNames.filter((n) => n !== mopperName);
+  const laneHelper =
+    glassCrew.length >= 2 ? (glassCrew.find((n) => CHARACTERS[n].stage1 !== "spray") ?? glassCrew[0]) : null;
+  const climber = climberName ? floor.find((a) => a.character.name === climberName) : undefined;
+  const handoffs: Handoff[] = [];
+  const team =
+    laneHelper || climber
+      ? { handoffs, canHandOff: laneHelper ? undefined : (readyAt: number) => climberClearAt <= readyAt + 6000 }
+      : {};
+  for (const lane of lanes.filter((l) => l.name !== laneHelper)) {
+    floor.push(buildFloorScript(CHARACTERS[lane.name], lane.startAt, entryX, lane.stops, dust, vw, lane.name === mopperName ? {} : team));
+  }
+  const helpWith = [...handoffs].sort((a, b) => a.readyAt - b.readyAt);
+  const helperLane = lanes.find((l) => l.name === laneHelper);
+  if (helperLane) {
+    floor.push(buildFloorScript(CHARACTERS[helperLane.name], helperLane.startAt, entryX, helperLane.stops, dust, vw, { helpWith }));
+  } else if (climber && helpWith.length > 0) {
+    const lastWalk = [...climber.steps].reverse().find((st): st is WalkStep => st.kind === "walk")!;
+    climber.endAt = wipeForTeammates(climber.steps, climber.character, lastWalk.x, climber.endAt, helpWith, vw).t;
+  }
 
   // Footprints on every step, and on the landing where they stopped, for
   // the mop to deal with — left by whoever climbed, or just there if
@@ -999,6 +1117,7 @@ function positionAt(steps: Step[], index: number, entry: { x: number; top?: stri
     const s = steps[i];
     if (s.kind === "walk") {
       if (s.x !== x) facing = s.x > x ? 1 : -1;
+      if (s.face) facing = s.face;
       x = s.x;
       y = s.y ?? 0;
       top = s.top ?? top;
@@ -1258,23 +1377,20 @@ function Eye({
 function Mouth({ width, expression, block }: { width: number; expression: Expression; block: boolean }) {
   const ink = block ? INK : "#d1453b";
   if (expression === "yeah") {
-    if (block) {
-      const w = width * 0.36;
-      return <div style={{ width: w, height: w * 0.45, backgroundColor: INK, borderRadius: `2px 2px ${w}px ${w}px` }} />;
-    }
+    // Celebrating: a big grin as one even curved line, rounded at the ends.
     const w = width * 0.4;
-    const h = width * 0.22;
+    const h = w * 0.4;
+    const line = block ? 3 : 4;
     return (
-      <div
-        className="relative overflow-hidden"
-        style={{ width: w, height: h, backgroundColor: "#8e1f1a", borderRadius: `4px 4px ${w}px ${w}px` }}
-      >
-        <div className="absolute inset-x-0 top-0 bg-white" style={{ height: h * 0.24 }} />
-        <div
-          className="absolute rounded-full"
-          style={{ left: w * 0.2, right: w * 0.2, bottom: -h * 0.2, height: h * 0.6, backgroundColor: "#ff7a7a" }}
+      <svg width={w} height={h} aria-hidden="true" className="overflow-visible">
+        <path
+          d={`M${line / 2},${line / 2} Q${w / 2},${2 * h - 1.5 * line} ${w - line / 2},${line / 2}`}
+          stroke={ink}
+          strokeWidth={line}
+          strokeLinecap="round"
+          fill="none"
         />
-      </div>
+      </svg>
     );
   }
   if (expression === "yawn") {
@@ -1353,13 +1469,6 @@ function Face({ character, expression, gaze }: { character: Character; expressio
         ))}
       </div>
       <div className="relative" style={{ marginTop: block ? eyeSize * 0.7 : width * 0.07 }}>
-        {!block && (expression === "yeah" || expression === "content") && (
-          <>
-            {/* Rosy cheeks when they're pleased. */}
-            <div className="absolute rounded-full bg-[#ff8fa3]/50" style={{ width: 10, height: 6, top: 0, right: width * 0.26 }} />
-            <div className="absolute rounded-full bg-[#ff8fa3]/50" style={{ width: 10, height: 6, top: 0, left: width * 0.26 }} />
-          </>
-        )}
         <Mouth width={width} expression={expression} block={block} />
       </div>
     </div>
@@ -1448,7 +1557,11 @@ function Gear({ character, mode, bucketDown }: { character: Character; mode: Mod
       </div>
     );
   } else {
-    const tool = mode === "raise" ? stage2 : stage1;
+    // Spraying with the bottle, wiping and polishing with a cloth, mopping
+    // with the mop; cheering with their last tool held up; otherwise
+    // (carrying, waving, scratching their head...) their usual kit.
+    const jobs: Mode[] = ["spray", "wipe", "polish", "dunk", "mopFloor", "mopStep"];
+    const tool = mode === "raise" ? stage2 : jobs.includes(mode) ? mode : stage1;
     const isSpray = tool === "spray";
     const isMop = tool === "dunk" || tool === "mopFloor";
     let wrapperClass = "";
@@ -1731,6 +1844,11 @@ function poseFor(step: Step | undefined, cheerStyle: CheerStyle, facing: 1 | -1,
     case "dangle":
       // Swinging from their hands on the rail, then kicking to get back up.
       return { ...base, mode: "hang", expression: "squeeze", bodyClass: "crew-dangle", bucketDown: false, bodyOrigin: "50% -6px" };
+    case "wait":
+      // Steadying themselves on a step — bucket still in hand, and still
+      // facing into the stairs if they're on the way up.
+      if (step.steady) return { ...base, bucketDown: false, back: step.steady.away };
+      return base;
     case "pull":
       return { ...base, mode: "none", expression: "focus", bodyClass: "crew-pull" };
     case "cheer":
