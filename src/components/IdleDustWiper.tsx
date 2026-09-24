@@ -34,6 +34,13 @@ const REST_BETWEEN_ROUNDS_MS = 4000;
 // dirty patch — "sometimes", not every time. Capped per worker per round.
 const QUIRK_CHANCE_PER_PATCH = 0.22;
 const MAX_QUIRKS_PER_WORKER = 2;
+// About one round in three, whoever's on the stairs misses their footing
+// on the way up (see addMishap).
+const MISHAP_CHANCE = 1 / 3;
+const FALL_DROP_MS = 520;
+const DANGLE_MS = 1900;
+const DANGLE_DROP_MS = 240;
+const SCRAMBLE_MS = 520;
 // The floor line everyone stands on, in px up from the bottom of the screen.
 const FLOOR = 8;
 
@@ -54,7 +61,18 @@ function hopTrip(fromPct: number, toPct: number, vw: number, run = false) {
 
 type Name = "purple" | "black" | "orange" | "yellow";
 type Activity = "spray" | "wipe" | "polish" | "dunk" | "mopFloor" | "mopStep";
-type Quirk = "confused" | "sneeze" | "yawn" | "wave" | "dance" | "slip" | "backfire";
+type Quirk =
+  | "confused"
+  | "sneeze"
+  | "yawn"
+  | "wave"
+  | "dance"
+  | "slip"
+  | "backfire"
+  // Only ever part of a fall on the stairs, never picked at random.
+  | "teeter"
+  | "dazed"
+  | "phew";
 type CheerStyle = "nod" | "wave" | "bow" | "jump";
 
 interface Vec {
@@ -136,6 +154,9 @@ const QUIRK_MS: Record<Quirk, number> = {
   dance: 2000,
   slip: 2600,
   backfire: 1800,
+  teeter: 900,
+  dazed: 2100,
+  phew: 1000,
 };
 
 // Face layout, shared by Face itself and by the scripts working out where
@@ -160,9 +181,24 @@ function lookToward(c: Character, ahead: number, up: number): Vec {
 // whole round — hop to a dirty patch, spray it, scrub it until it's gone,
 // check it, move on — rather than everyone looping one motion. `x` is in %
 // of the screen width, `y` is how far above the floor they're standing (up
-// the stairs), in px.
+// the stairs), in px. `tread` is the step of the stairs they're heading
+// for, if any. Falling off (or dropping to hang from the rail) moves them
+// too, without turning them round.
 type Step =
-  | { kind: "walk"; at: number; ms: number; x: number; y?: number; top?: string; hopMs?: number }
+  | {
+      kind: "walk";
+      at: number;
+      ms: number;
+      x: number;
+      y?: number;
+      top?: string;
+      hopMs?: number;
+      tread?: number;
+      /** Climbing, facing into the stairs — seen from behind. */
+      away?: boolean;
+    }
+  | { kind: "fall"; at: number; ms: number; x: number; y: number }
+  | { kind: "dangle"; at: number; ms: number; x: number; y: number }
   | { kind: "work"; at: number; ms: number; activity: Activity; look: Vec }
   | { kind: "inspect"; at: number; ms: number; look: Vec }
   | { kind: "quirk"; at: number; ms: number; quirk: Quirk }
@@ -181,6 +217,8 @@ interface DustSpeck {
   floor: boolean;
   /** When it shows up — footprints appear as someone treads on a step. */
   appearAt: number;
+  /** Footprints on a floating step bob along with it. */
+  tread?: number;
   wetAt: number | null;
   clearAt: number;
 }
@@ -238,20 +276,48 @@ function floorPatch(c: Character, xPct: number, facing: 1 | -1, count: number) {
 
 // ------------------------------------------------------------ stairs
 
-// A flight of steps that rises out of the floor at the start of a round so
-// the floor crew can get up to the glass higher up the screen — and gets
-// mopped too, footprints and all. Its high end is against one side of the
-// screen; the foot faces the open floor.
-const STAIR_STEPS = 6;
-const STAIR_STAGGER_MS = 90;
-const STAIR_RISE_MS = 560;
-const STAIR_SINK_STAGGER_MS = 60;
-const STAIR_SINK_MS = 420;
-// Below this the flight doesn't fit alongside room to work on the floor.
-const STAIRS_MIN_VW = 700;
+// A flight of thin floating steps up to a landing, railed up both sides,
+// that drops in from above at the start of a round so the floor crew can
+// get up to the glass higher up the screen — and gets mopped too,
+// footprints and all. The landing is against one side of the screen; the
+// foot of the flight faces the open floor.
+const STAIR_STEPS = 5;
+// The landing at the top, which they walk along to clean a wider stretch
+// of glass up there, in step widths.
+const LANDING_STEPS = 2.2;
+// Each step drops in from above the screen in turn, bottom to top, then the
+// landing, each pulling up short at its height; the rails come down onto
+// the posts as the landing arrives. At the end it all lifts back up and
+// away, rails first.
+const STAIR_DROP_STAGGER_MS = 110;
+const STAIR_DROP_MS = 700;
+const RAIL_DROP_MS = 650;
+const STAIR_LIFT_STAGGER_MS = 70;
+const STAIR_LIFT_MS = 650;
+// Hovering: every step bobs gently, each a little behind the one below, so
+// a slow ripple runs up the flight. Whoever's standing on one rides it.
+const STEP_BOB_MS = 2800;
+const STEP_BOB_LAG_MS = 280;
+const STEP_BOB_PX = 5;
+const SLAB_THICKNESS = 10;
+const SLAB_GAP = 12;
+// The steps are drawn in 3D, at an angle: each one's top runs back into
+// the screen toward the foot of the flight, so you see its top, its front
+// and the end facing down the stairs. How far back the top goes as drawn,
+// in px across and up. Everyone stands in the middle of it.
+const DEPTH_X = 18;
+const DEPTH_Y = 16;
+// Handrail height above the steps, and how far in from a step's lower edge
+// its posts stand.
+const RAIL_H = 58;
+const RAIL_THICKNESS = 7;
+const POST_INSET = 10;
+// Below this the flight and landing don't fit alongside room to work on
+// the floor.
+const STAIRS_MIN_VW = 900;
 
 interface Stairs {
-  /** Which edge of the screen the top step is against. */
+  /** Which edge of the screen the landing is against. */
   side: "left" | "right";
   /** +1 if going up the stairs means moving right. */
   dirUp: 1 | -1;
@@ -259,6 +325,7 @@ interface Stairs {
   footPx: number;
   stepW: number;
   riseH: number;
+  /** Steps, not counting the landing. */
   n: number;
   vw: number;
   inAt: number;
@@ -268,10 +335,10 @@ interface Stairs {
 function makeStairs(vw: number, vh: number): Stairs {
   const side = Math.random() < 0.5 ? "left" : "right";
   const n = STAIR_STEPS;
-  const stepW = clamp(vw * 0.06, 84, 104);
+  const stepW = clamp(vw * 0.06, 80, 100);
   const riseH = clamp(vh * 0.068, 42, 58);
   const edge = vw * 0.05;
-  const run = n * stepW + stepW / 2;
+  const run = (n + 0.5 + LANDING_STEPS) * stepW;
   return {
     side,
     dirUp: side === "left" ? -1 : 1,
@@ -285,22 +352,127 @@ function makeStairs(vw: number, vh: number): Stairs {
   };
 }
 
-// Centre of step k (0 = the floor in front of the first step), in px / %.
+// Centre of step k (0 = the floor in front of the first step; in between
+// for the gaps, and on along the landing past the last step), in px / %.
 const stairPx = (s: Stairs, k: number) => s.footPx + s.dirUp * k * s.stepW;
 const stairPct = (s: Stairs, k: number) => (stairPx(s, k) / s.vw) * 100;
-const stepRisenAt = (s: Stairs, k: number) => s.inAt + (k - 1) * STAIR_STAGGER_MS + STAIR_RISE_MS;
-const stairsReadyAt = (s: Stairs) => stepRisenAt(s, s.n);
+// The landing is one step up from the last step — its level is also the bob
+// anyone standing on it rides. Where it ends, and the two spots along it
+// where they stop to work.
+const landingLevel = (s: Stairs) => s.n + 1;
+const landingEnd = (s: Stairs) => s.n + 0.5 + LANDING_STEPS;
+const landingStops = (s: Stairs) => [s.n + 1, s.n + LANDING_STEPS - 0.1];
 
-// One hop per step, from step `from` to step `to` (either way). Calls
+// A handrail's centre line at step position u: `side` -1 for the near one,
+// along the front edge of the steps, +1 for the far one along the back. It
+// rises with the flight, then runs level along the landing. x from the
+// left, y up from the bottom of the screen, in px.
+function railPoint(s: Stairs, u: number, side: 1 | -1) {
+  return {
+    x: stairPx(s, u) - (side * s.dirUp * DEPTH_X) / 2,
+    y: FLOOR + Math.min(u, landingLevel(s)) * s.riseH + (side * DEPTH_Y) / 2 + RAIL_H,
+  };
+}
+
+// Level k's drop (k = 1..n for the steps, n + 1 for the landing), the
+// rails', and when it's all in place to climb.
+const stepLandedAt = (s: Stairs, k: number) => s.inAt + (k - 1) * STAIR_DROP_STAGGER_MS + STAIR_DROP_MS;
+const railsInAt = (s: Stairs) => stepLandedAt(s, landingLevel(s)) - STAIR_DROP_MS * 0.4;
+const stairsReadyAt = (s: Stairs) => railsInAt(s) + RAIL_DROP_MS;
+const stepLiftAt = (s: Stairs, k: number) => s.outAt + 150 + (landingLevel(s) - k) * STAIR_LIFT_STAGGER_MS;
+
+// A step's gentle bob. Everything that rides one — the step, its posts,
+// footprints on it, whoever's standing on it — runs this same animation
+// from the moment the round begins, set to that step's point in the
+// ripple, so they all move together.
+const stepBob = (k: number) => `crew-step-bob ${STEP_BOB_MS}ms ease-in-out ${-k * STEP_BOB_LAG_MS}ms infinite`;
+
+// One hop per step, from step `from` to step `to` (either way; n + 1 is
+// the landing). Going up, they face into the stairs, away from us. Calls
 // `landed(k, at)` as they land on each one.
 function climb(steps: Step[], s: Stairs, from: number, to: number, t: number, landed?: (k: number, at: number) => void) {
   const dir = Math.sign(to - from);
+  if (dir === 0) return t;
   for (let k = from + dir; dir > 0 ? k <= to : k >= to; k += dir) {
-    steps.push({ kind: "walk", at: t, ms: HOP_MS, x: stairPct(s, k), y: k * s.riseH, hopMs: HOP_MS });
+    steps.push({
+      kind: "walk",
+      at: t,
+      ms: HOP_MS,
+      x: stairPct(s, k),
+      y: k * s.riseH,
+      hopMs: HOP_MS,
+      tread: k || undefined,
+      away: dir > 0,
+    });
     t += HOP_MS;
     landed?.(k, t);
   }
   return t;
+}
+
+// Along the landing, from one spot to another (as step positions).
+function alongLanding(steps: Step[], s: Stairs, from: number, to: number, t: number) {
+  const level = landingLevel(s);
+  const hops = Math.max(1, Math.round((Math.abs(to - from) * s.stepW) / ((WALK_PX_PER_S * HOP_MS) / 1000)));
+  steps.push({ kind: "walk", at: t, ms: hops * HOP_MS, x: stairPct(s, to), y: level * s.riseH, hopMs: HOP_MS, tread: level });
+  return t + hops * HOP_MS;
+}
+
+interface Mishap {
+  /** Which step they lose their footing on, on the way up. */
+  tread: number;
+  /** All the way to the floor, or saved by the rail. */
+  fall: boolean;
+}
+
+// Missing their footing on step k: a wobble with arms going, then off the
+// back of the step into the gap below it. Either they tumble all the way to
+// the floor — flat on their back, seeing stars, then back round to the foot
+// of the stairs and up again — or they grab the near rail on the way past
+// and hang off it, kicking, until they scramble back up. Either way they
+// finish back on step k.
+function addMishap(steps: Step[], s: Stairs, c: Character, k: number, fall: boolean, t: number, vw: number) {
+  steps.push({ kind: "quirk", at: t, ms: QUIRK_MS.teeter, quirk: "teeter" });
+  t += QUIRK_MS.teeter;
+  const gap = stairPct(s, k - 0.5);
+  if (fall) {
+    steps.push({ kind: "fall", at: t, ms: FALL_DROP_MS, x: gap, y: 0 });
+    t += FALL_DROP_MS;
+    steps.push({ kind: "quirk", at: t, ms: QUIRK_MS.dazed, quirk: "dazed" });
+    t += QUIRK_MS.dazed;
+    t = hopTo(steps, gap, stairPct(s, 0), t, vw);
+    return climb(steps, s, 0, k, t);
+  }
+  // Hanging by their hands (just above their head) from the rail.
+  const grip = railPoint(s, k - 0.5, -1);
+  const hangY = Math.max(0, grip.y - 6 - c.height - FLOOR);
+  steps.push({ kind: "dangle", at: t, ms: DANGLE_MS, x: (grip.x / s.vw) * 100, y: hangY });
+  t += DANGLE_MS;
+  steps.push({ kind: "walk", at: t, ms: SCRAMBLE_MS, x: stairPct(s, k), y: k * s.riseH, hopMs: SCRAMBLE_MS, tread: k });
+  t += SCRAMBLE_MS;
+  steps.push({ kind: "quirk", at: t, ms: QUIRK_MS.phew, quirk: "phew" });
+  return t + QUIRK_MS.phew;
+}
+
+// Up from step `from` to step `to`, missing their footing on the way if
+// that's what happens to them this round.
+function climbUp(
+  steps: Step[],
+  s: Stairs,
+  c: Character,
+  from: number,
+  to: number,
+  t: number,
+  vw: number,
+  mishap: Mishap | null,
+  landed?: (k: number, at: number) => void
+) {
+  if (mishap && mishap.tread > from && mishap.tread <= to) {
+    t = climb(steps, s, from, mishap.tread, t, landed);
+    t = addMishap(steps, s, c, mishap.tread, mishap.fall, t, vw);
+    from = mishap.tread;
+  }
+  return climb(steps, s, from, to, t, landed);
 }
 
 // ------------------------------------------------------------ floor actors
@@ -399,27 +571,26 @@ function buildFloorScript(
   return { character, entryX, steps, endAt: t };
 }
 
-// Up the stairs to clean the glass halfway up and at the top, then back
-// down and off to one side so the foot of the stairs is clear. No quirks up
-// there — nobody slips off a step.
+// Up the stairs to clean the glass halfway up, on up to the landing to do
+// two stretches along it, then back down and off to one side so the foot
+// of the stairs is clear. No ordinary quirks up there — just the odd missed
+// footing on the way up.
 function buildClimberScript(
   character: Character,
   s: Stairs,
   startAt: number,
   entryX: number,
   specks: DustSpeck[],
-  vw: number
+  vw: number,
+  mishap: Mishap | null
 ) {
   const steps: Step[] = [];
   const landedAt: number[] = [];
+  const landed = (step: number, at: number) => (landedAt[step] ??= at);
   let t = hopTo(steps, entryX, stairPct(s, 0), startAt, vw);
   t = waitUntil(steps, t, stairsReadyAt(s));
-  const facing = s.dirUp;
-  let k = 0;
-  for (const stop of [Math.ceil(s.n / 2), s.n]) {
-    t = climb(steps, s, k, stop, t, (step, at) => (landedAt[step] ??= at));
-    k = stop;
-    const { specks: patch, look } = glassPatch(character, stairPct(s, k), k * s.riseH, facing, 3);
+  const clean = (u: number, y: number) => {
+    const { specks: patch, look } = glassPatch(character, stairPct(s, u), y, s.dirUp, 3);
     steps.push({ kind: "work", at: t, ms: FIRST_JOB_MS, activity: character.stage1, look });
     if (character.stage1 === "spray") patch.forEach((p, i) => (p.wetAt = t + 250 + i * 450));
     t += FIRST_JOB_MS;
@@ -429,22 +600,36 @@ function buildClimberScript(
     specks.push(...patch);
     steps.push({ kind: "inspect", at: t, ms: INSPECT_MS, look });
     t += INSPECT_MS;
-  }
-  t = climb(steps, s, k, 0, t);
+  };
+  const half = Math.ceil(s.n / 2);
+  const level = landingLevel(s);
+  const [first, second] = landingStops(s);
+  t = climbUp(steps, s, character, 0, half, t, vw, mishap, landed);
+  clean(half, half * s.riseH);
+  t = climbUp(steps, s, character, half, level, t, vw, mishap, landed);
+  clean(first, level * s.riseH);
+  t = alongLanding(steps, s, first, second, t);
+  const secondAt = t;
+  clean(second, level * s.riseH);
+  t = alongLanding(steps, s, second, first, t);
+  t = climb(steps, s, level, 0, t);
   // Three hops out onto the open floor, clearing the way for the mop.
   const clearX = stairPct(s, 0) - s.dirUp * ((3 * WALK_PX_PER_S * HOP_MS) / 1000 / vw) * 100;
   t = hopTo(steps, stairPct(s, 0), clearX, t, vw);
-  return { actor: { character, entryX, steps, endAt: t } as FloorActor, landedAt, clearAt: t };
+  return { actor: { character, entryX, steps, endAt: t } as FloorActor, landedAt, secondAt, clearAt: t };
 }
 
-// The mop's last job of the round: every step, bottom to top, then back
-// down. Each step's footprints go as the mop passes over them.
+// The mop's last job of the round: every step, bottom to top, then the two
+// spots along the landing, then back down. Footprints go as the mop passes
+// over them.
 function addStairMopping(
   actor: FloorActor,
   s: Stairs,
   freeAt: number,
   treads: (DustSpeck | null)[],
-  vw: number
+  landingPrints: DustSpeck[],
+  vw: number,
+  mishap: Mishap | null
 ) {
   const { steps, character } = actor;
   const lastWalk = [...steps].reverse().find((st): st is WalkStep => st.kind === "walk");
@@ -453,14 +638,24 @@ function addStairMopping(
   t += FIRST_JOB_MS;
   t = waitUntil(steps, t, Math.max(freeAt, stairsReadyAt(s)));
   const down = lookToward(character, 4, 0);
-  for (let k = 1; k <= s.n; k++) {
-    t = climb(steps, s, k - 1, k, t);
+  const mopHere = (speck: DustSpeck | null | undefined) => {
     steps.push({ kind: "work", at: t, ms: STEP_MOP_MS, activity: "mopStep", look: down });
-    const speck = treads[k];
     if (speck) speck.clearAt = t + STEP_MOP_MS * 0.6;
     t += STEP_MOP_MS;
+  };
+  for (let k = 1; k <= s.n; k++) {
+    t = climb(steps, s, k - 1, k, t);
+    if (mishap?.tread === k) t = addMishap(steps, s, character, k, mishap.fall, t, vw);
+    mopHere(treads[k]);
   }
-  t = climb(steps, s, s.n, 0, t);
+  const level = landingLevel(s);
+  const [first, second] = landingStops(s);
+  t = climb(steps, s, s.n, level, t);
+  mopHere(landingPrints[0]);
+  t = alongLanding(steps, s, first, second, t);
+  mopHere(landingPrints[1]);
+  t = alongLanding(steps, s, second, first, t);
+  t = climb(steps, s, level, 0, t);
   // One hop out onto the floor, next to whoever climbed before them.
   t = hopTo(steps, stairPct(s, 0), stairPct(s, 0) - s.dirUp * ((WALK_PX_PER_S * HOP_MS) / 1000 / vw) * 100, t, vw);
   actor.endAt = t;
@@ -636,16 +831,39 @@ function planRound(exclude: Name[]): RoundPlan {
   const from: "left" | "right" = stairs?.side === "left" ? "right" : "left";
   const entryX = from === "left" ? -12 : 112;
 
+  // Whether anyone on the stairs misses their footing this round, who, on
+  // which step (never the bottom two — there'd be nowhere to fall), and
+  // whether the rail saves them.
+  const onStairs = [climberName, stairs ? mopperName : null].filter((n): n is Name => n !== null);
+  const mishapFor =
+    stairs && onStairs.length > 0 && Math.random() < MISHAP_CHANCE
+      ? onStairs[Math.floor(Math.random() * onStairs.length)]
+      : null;
+  const mishap: Mishap | null =
+    stairs && mishapFor
+      ? { tread: 3 + Math.floor(Math.random() * (stairs.n - 2)), fall: Math.random() < 0.5 }
+      : null;
+
   const floor: FloorActor[] = [];
   let startAt = 60;
   let climberClearAt = 0;
   let landedAt: number[] = [];
+  let climberSecondAt: number | undefined;
 
   if (climberName && stairs) {
-    const c = buildClimberScript(CHARACTERS[climberName], stairs, startAt, entryX, dust, vw);
+    const c = buildClimberScript(
+      CHARACTERS[climberName],
+      stairs,
+      startAt,
+      entryX,
+      dust,
+      vw,
+      mishapFor === climberName ? mishap : null
+    );
     floor.push(c.actor);
     climberClearAt = c.clearAt;
     landedAt = c.landedAt;
+    climberSecondAt = c.secondAt;
     startAt += 700;
   }
 
@@ -660,32 +878,39 @@ function planRound(exclude: Name[]): RoundPlan {
     startAt += 700;
   });
 
-  // Footprints on every step for the mop to deal with — left by whoever
-  // climbed, or just there if nobody did.
+  // Footprints on every step, and on the landing where they stopped, for
+  // the mop to deal with — left by whoever climbed, or just there if
+  // nobody did.
   if (stairs && mopperName) {
-    const treads: (DustSpeck | null)[] = [null];
-    for (let k = 1; k <= stairs.n; k++) {
+    const footprint = (u: number, level: number, appearAt: number): DustSpeck => {
       const speck: DustSpeck = {
-        left: `calc(${stairPct(stairs, k)}% + ${Math.round((Math.random() * 2 - 1) * 10)}px)`,
-        bottom: FLOOR + k * stairs.riseH - 6,
+        left: `calc(${stairPct(stairs, u)}% + ${Math.round((Math.random() * 2 - 1) * 10)}px)`,
+        bottom: FLOOR + level * stairs.riseH - 6,
         size: 34 + Math.random() * 12,
         floor: true,
-        appearAt: landedAt[k] ?? stepRisenAt(stairs, k) + 200,
+        appearAt,
+        tread: level,
         wetAt: null,
         clearAt: 0,
       };
-      treads.push(speck);
       dust.push(speck);
-    }
+      return speck;
+    };
+    const treads: (DustSpeck | null)[] = [null];
+    for (let k = 1; k <= stairs.n; k++) treads.push(footprint(k, k, landedAt[k] ?? stepLandedAt(stairs, k) + 200));
+    const level = landingLevel(stairs);
+    const landingPrints = landingStops(stairs).map((u, i) =>
+      footprint(u, level, (i === 0 ? landedAt[level] : climberSecondAt) ?? stepLandedAt(stairs, level) + 200)
+    );
     const mop = floor.find((a) => a.character.name === mopperName)!;
-    addStairMopping(mop, stairs, climberClearAt, treads, vw);
+    addStairMopping(mop, stairs, climberClearAt, treads, landingPrints, vw, mishapFor === mopperName ? mishap : null);
   }
 
   const gondola = riderNames.length > 0 ? buildGondolaScript(riderNames.map((n) => CHARACTERS[n]), 60, dust, stairs) : null;
 
   // Everyone waits for the slowest to finish, celebrates together, then
   // they head off one by one — off the open-floor side, away from the
-  // stairs, which sink back into the floor behind them.
+  // stairs, which lift away behind them.
   const actors: { steps: Step[]; endAt: number; isGondola: boolean }[] = [
     ...floor.map((a) => ({ steps: a.steps, endAt: a.endAt, isGondola: false })),
     ...(gondola ? [{ steps: gondola.steps, endAt: gondola.endAt, isGondola: true }] : []),
@@ -710,7 +935,7 @@ function planRound(exclude: Name[]): RoundPlan {
   });
   if (stairs) {
     stairs.outAt = cheerAt + CHEER_MS;
-    endAt = Math.max(endAt, stairs.outAt + (stairs.n - 1) * STAIR_SINK_STAGGER_MS + STAIR_SINK_MS);
+    endAt = Math.max(endAt, stepLiftAt(stairs, 1) + STAIR_LIFT_MS);
   }
 
   return {
@@ -757,13 +982,17 @@ function useActiveWindow(at: number | null, ms: number) {
   return active;
 }
 
-// Where the actor is (or is heading) as of the current step, and which way
-// they're facing — the way they last moved.
+// Where the actor is (or is heading) as of the current step, which way
+// they're facing — the way they last walked — and which step of the
+// stairs, if any, they're standing on (`tread`, and the last one they
+// stood on, `lastTread`).
 function positionAt(steps: Step[], index: number, entry: { x: number; top?: string }) {
   let x = entry.x;
   let y = 0;
   let top = entry.top;
   let facing: 1 | -1 = entry.x > 50 ? -1 : 1;
+  let tread: number | undefined;
+  let lastTread = 0;
   for (let i = 0; i <= index && i < steps.length; i++) {
     const s = steps[i];
     if (s.kind === "walk") {
@@ -771,9 +1000,15 @@ function positionAt(steps: Step[], index: number, entry: { x: number; top?: stri
       x = s.x;
       y = s.y ?? 0;
       top = s.top ?? top;
+      tread = s.tread;
+      lastTread = s.tread ?? lastTread;
+    } else if (s.kind === "fall" || s.kind === "dangle") {
+      x = s.x;
+      y = s.y;
+      tread = undefined;
     }
   }
-  return { x, y, top, facing };
+  return { x, y, top, facing, tread, lastTread };
 }
 
 // ============================================================ gear
@@ -815,13 +1050,19 @@ function Mop() {
   );
 }
 
-function Bucket() {
+// The bucket can be drawn in two halves, so the mop can go down into it:
+// the handle behind the mop, and the bucket and water in front of it.
+function Bucket({ part = "whole" }: { part?: "whole" | "back" | "front" }) {
   return (
     <svg width="48" height="54" viewBox="0 -10 48 54" aria-hidden="true">
-      <path d="M12,6 C12,-10 36,-10 36,6" fill="none" stroke="#9aa3b5" strokeWidth="3" />
-      <path d="M6,8 L42,8 L36,42 L12,42 Z" fill="#e0564f" />
-      <path d="M9,17 L39,17" stroke="#ffffff" strokeWidth="2" opacity="0.35" />
-      <ellipse cx="24" cy="9" rx="17" ry="3.5" fill="#7cc7f0" />
+      {part !== "front" && <path d="M12,6 C12,-10 36,-10 36,6" fill="none" stroke="#9aa3b5" strokeWidth="3" />}
+      {part !== "back" && (
+        <>
+          <path d="M6,8 L42,8 L36,42 L12,42 Z" fill="#e0564f" />
+          <path d="M9,17 L39,17" stroke="#ffffff" strokeWidth="2" opacity="0.35" />
+          <ellipse cx="24" cy="9" rx="17" ry="3.5" fill="#7cc7f0" />
+        </>
+      )}
     </svg>
   );
 }
@@ -904,7 +1145,17 @@ function Drips() {
 
 // ============================================================ face
 
-type Expression = "walk" | "focus" | "look" | "content" | "yeah" | "confused" | "squeeze" | "yawn" | "dizzy";
+type Expression =
+  | "walk"
+  | "focus"
+  | "look"
+  | "content"
+  | "yeah"
+  | "confused"
+  | "squeeze"
+  | "yawn"
+  | "dizzy"
+  | "shock";
 
 const INK = "#2D2D2D";
 
@@ -965,7 +1216,8 @@ function Eye({
       </div>
     );
   }
-  const pupil = size * pupilRatio;
+  // Wide-eyed alarm: pinprick pupils.
+  const pupil = size * pupilRatio * (expression === "shock" ? 0.55 : 1);
   // Working and checking their work: eyes on the actual patch they're
   // cleaning (see lookToward). Confused: rolled up, thinking. Hopping
   // along: ahead, with the odd glance round at whoever's watching.
@@ -1031,8 +1283,9 @@ function Mouth({ width, expression, block }: { width: number; expression: Expres
       />
     );
   }
-  if (expression === "squeeze") {
-    return <div className="rounded-full" style={{ width: 10, height: 10, border: `3px solid ${ink}` }} />;
+  if (expression === "squeeze" || expression === "shock") {
+    const o = expression === "shock" ? 13 : 10;
+    return <div className="rounded-full" style={{ width: o, height: o, border: `3px solid ${ink}` }} />;
   }
   if (expression === "confused" || expression === "dizzy") {
     return (
@@ -1113,11 +1366,34 @@ function Face({ character, expression, gaze }: { character: Character; expressio
 
 // ============================================================ gear by mode
 
-type Mode = Activity | "carry" | "raise" | "scratch" | "hi" | "brow" | "backfire" | "none";
+type Mode = Activity | "carry" | "raise" | "scratch" | "hi" | "brow" | "backfire" | "flail" | "hang" | "none";
 
 function Gear({ character, mode, bucketDown }: { character: Character; mode: Mode; bucketDown: boolean }) {
   const { width, height, color, stage1, stage2 } = character;
   if (mode === "none") return null;
+  // Losing their balance: both hands out and windmilling. Hanging off the
+  // rail: both hands up on it, just above their head.
+  if (mode === "flail" || mode === "hang") {
+    const hands =
+      mode === "flail"
+        ? [
+            { x: -10, y: height * 0.3, delay: "0ms" },
+            { x: width + 10, y: height * 0.3, delay: "-150ms" },
+          ]
+        : [
+            { x: width * 0.3, y: -6, delay: "0ms" },
+            { x: width * 0.7, y: -6, delay: "0ms" },
+          ];
+    return (
+      <>
+        {hands.map((h, i) => (
+          <div key={i} className={`absolute ${mode === "flail" ? "crew-flail" : ""}`} style={{ left: 0, top: 0, animationDelay: h.delay }}>
+            <Hand color={color} x={h.x} y={h.y} />
+          </div>
+        ))}
+      </>
+    );
+  }
   const handX = width - 8;
   const handY = height * 0.45;
   const hasBucket = stage1 === "dunk" || stage2 === "dunk";
@@ -1215,17 +1491,15 @@ function Gear({ character, mode, bucketDown }: { character: Character; mode: Mod
     );
   }
 
+  // Dunking: the mop goes in between the bucket's handle and its front, so
+  // it disappears into the water instead of being drawn over the bucket.
+  const dunking = hasBucket && bucketDown && mode === "dunk";
   return (
     <>
       {hasBucket &&
         (bucketDown ? (
           <div className="absolute" style={{ left: width + 6, bottom: -2 }}>
-            <Bucket />
-            {mode === "dunk" && (
-              <div className="absolute" style={{ left: 0, top: 0 }}>
-                <Drips />
-              </div>
-            )}
+            <Bucket part={dunking ? "back" : "whole"} />
           </div>
         ) : (
           <div className="absolute" style={{ left: -34, top: height * 0.4 }}>
@@ -1236,6 +1510,14 @@ function Gear({ character, mode, bucketDown }: { character: Character; mode: Mod
           </div>
         ))}
       {held}
+      {dunking && (
+        <div className="absolute" style={{ left: width + 6, bottom: -2 }}>
+          <Bucket part="front" />
+          <div className="absolute" style={{ left: 0, top: 0 }}>
+            <Drips />
+          </div>
+        </div>
+      )}
       {/* The free hand: scratching their head, waving hello, or wiping
           their brow after a job well done. */}
       {mode === "scratch" && (
@@ -1325,7 +1607,7 @@ function QuirkOverlay({ character, quirk, facing }: { character: Character; quir
       </>
     );
   }
-  if (quirk === "slip") {
+  if (quirk === "slip" || quirk === "dazed") {
     return (
       <div className="absolute" style={{ left: width / 2 - 22, top: -26, width: 44, height: 20 }}>
         <div className="crew-orbit relative h-full w-full">
@@ -1360,6 +1642,10 @@ interface Pose {
   lean: number;
   bucketDown: boolean;
   quirk: Quirk | null;
+  /** What the body pivots round; their feet unless they're hanging by their hands. */
+  bodyOrigin?: string;
+  /** Climbing into the stairs: seen from behind. */
+  back?: boolean;
 }
 
 const BASE_POSE: Pose = {
@@ -1393,6 +1679,13 @@ function quirkPose(quirk: Quirk, facing: 1 | -1): Pose {
       return { ...base, expression: "dizzy", bodyClass: "crew-slip" };
     case "backfire":
       return { ...base, mode: "backfire", expression: "squeeze", bodyClass: "crew-sneeze" };
+    // On the stairs, so nothing gets put down on a step.
+    case "teeter":
+      return { ...base, mode: "flail", expression: "shock", bodyClass: "crew-teeter", bucketDown: false };
+    case "dazed":
+      return { ...base, expression: "dizzy", bodyClass: "crew-dazed", bucketDown: false };
+    case "phew":
+      return { ...base, mode: "brow", expression: "content", bodyClass: "crew-nod", bucketDown: false };
   }
 }
 
@@ -1412,6 +1705,7 @@ function poseFor(step: Step | undefined, cheerStyle: CheerStyle, facing: 1 | -1,
         facing: moonwalk ? ((-facing) as 1 | -1) : facing,
         lean: moonwalk ? 4 : -5,
         bucketDown: false,
+        back: step.away,
       };
     case "work":
       // Eyes on the patch, leaning in toward it a little.
@@ -1429,6 +1723,12 @@ function poseFor(step: Step | undefined, cheerStyle: CheerStyle, facing: 1 | -1,
       return { ...base, expression: "look", bodyClass: "crew-nod", gaze: step.look, lean: -step.look.x * 2 };
     case "quirk":
       return quirkPose(step.quirk, facing);
+    case "fall":
+      // Tumbling off backwards, over and over, landing flat on their back.
+      return { ...base, expression: "shock", bodyClass: "crew-tumble", bucketDown: false };
+    case "dangle":
+      // Swinging from their hands on the rail, then kicking to get back up.
+      return { ...base, mode: "hang", expression: "squeeze", bodyClass: "crew-dangle", bucketDown: false, bodyOrigin: "50% -6px" };
     case "pull":
       return { ...base, mode: "none", expression: "focus", bodyClass: "crew-pull" };
     case "cheer":
@@ -1450,6 +1750,26 @@ function Body({ character }: { character: Character }) {
       ? `radial-gradient(circle at 32% 22%, rgba(255,255,255,0.34), rgba(255,255,255,0) 42%), radial-gradient(circle at 72% 96%, rgba(0,0,0,0.16), rgba(0,0,0,0) 55%), ${color}`
       : color;
   return <div className="absolute inset-0" style={{ background, borderRadius: radius }} />;
+}
+
+// Climbing away from us, face to the stairs: no face to see, just the odd
+// glance back over their shoulder — one eye peeking round the edge of
+// them.
+function Peek({ character }: { character: Character }) {
+  const size = eyeSizeFor(character);
+  return (
+    <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: character.radius }}>
+      <div
+        className="crew-peek absolute flex items-center justify-center rounded-full bg-white"
+        style={{ right: -size * 0.45, top: eyesTopFor(character), width: size, height: size }}
+      >
+        <div
+          className="rounded-full"
+          style={{ width: size * 0.46, height: size * 0.46, backgroundColor: INK, transform: `translate(${-size * 0.14}px, ${size * 0.06}px)` }}
+        />
+      </div>
+    </div>
+  );
 }
 
 function Figure({ character, pose }: { character: Character; pose: Pose }) {
@@ -1475,10 +1795,28 @@ function Figure({ character, pose }: { character: Character; pose: Pose }) {
                 className="absolute inset-0"
                 style={{ transform: `skewX(${pose.lean.toFixed(1)}deg)`, transformOrigin: "bottom center", transition: "transform 280ms ease-out" }}
               >
-                <div className={`absolute inset-0 ${pose.bodyClass}`} style={{ transformOrigin: "bottom center" }}>
+                {/* Their size, for tumbling round their middle and
+                    landing flat (see crew-tumble). */}
+                <div
+                  className={`absolute inset-0 ${pose.bodyClass}`}
+                  style={
+                    {
+                      transformOrigin: pose.bodyOrigin ?? "bottom center",
+                      "--w": `${width}px`,
+                      "--h": `${height}px`,
+                    } as React.CSSProperties
+                  }
+                >
+                  {/* From behind, whatever they're carrying is on the far
+                      side of them — only what pokes out past them shows. */}
+                  {pose.back && <Gear character={character} mode={pose.mode} bucketDown={pose.bucketDown} />}
                   <Body character={character} />
-                  <Face character={character} expression={pose.expression} gaze={pose.gaze} />
-                  <Gear character={character} mode={pose.mode} bucketDown={pose.bucketDown} />
+                  {pose.back ? (
+                    <Peek character={character} />
+                  ) : (
+                    <Face character={character} expression={pose.expression} gaze={pose.gaze} />
+                  )}
+                  {!pose.back && <Gear character={character} mode={pose.mode} bucketDown={pose.bucketDown} />}
                   {pose.quirk && <QuirkOverlay character={character} quirk={pose.quirk} facing={pose.facing} />}
                 </div>
               </div>
@@ -1496,13 +1834,30 @@ function FloorWorker({ actor, cheerStyle, moonwalk }: { actor: FloorActor; cheer
   const index = useStepIndex(actor.steps);
   const step = actor.steps[index];
   if (step?.kind === "gone") return null;
-  const { x, y, facing } = positionAt(actor.steps, index, { x: actor.entryX });
+  const { x, y, facing, tread, lastTread } = positionAt(actor.steps, index, { x: actor.entryX });
   const isLeaving = step?.kind === "walk" && index === actor.steps.length - 2;
-  // Linear, so the ground covered keeps pace with the hops.
-  const travel = step?.kind === "walk" ? `left ${step.ms}ms linear, bottom ${step.ms}ms linear` : "none";
+  // Walking: linear, so the ground covered keeps pace with the hops.
+  // Falling (or dropping onto the rail): gathering speed as they go down.
+  const gravity = "cubic-bezier(0.55, 0, 0.9, 0.5)";
+  let travel = "none";
+  if (step?.kind === "walk") travel = `left ${step.ms}ms linear, bottom ${step.ms}ms linear`;
+  else if (step?.kind === "fall") travel = `left ${step.ms}ms ease-out, bottom ${step.ms}ms ${gravity}`;
+  else if (step?.kind === "dangle") travel = `left ${DANGLE_DROP_MS}ms ease-out, bottom ${DANGLE_DROP_MS}ms ${gravity}`;
   return (
     <div className="absolute" style={{ left: `${x}%`, bottom: FLOOR + y, zIndex: 3, transition: travel }}>
-      <div style={{ marginLeft: -actor.character.width / 2 }}>
+      {/* Riding the bob of the step they're on. The bob runs from the start
+          of the round, like the steps' own, so it only ever gets switched to
+          the right step's timing and faded in or out — never restarted. */}
+      <div
+        style={
+          {
+            marginLeft: -actor.character.width / 2,
+            animation: stepBob(lastTread),
+            "--bob-amp": tread ? `${STEP_BOB_PX}px` : "0px",
+            transition: "--bob-amp 250ms ease-out",
+          } as React.CSSProperties
+        }
+      >
         <Figure character={actor.character} pose={poseFor(step, cheerStyle, facing, moonwalk && isLeaving)} />
       </div>
     </div>
@@ -1608,36 +1963,165 @@ function Gondola({ actor, cheerStyle }: { actor: GondolaActor; cheerStyle: Cheer
   );
 }
 
-// The flight of steps: each one rises out of the floor in turn, bottom to
-// top, overshooting a touch and settling — then they sink back down, top
-// first, once everyone's heading off.
-function StairFlight({ stairs }: { stairs: Stairs }) {
-  const { n, stepW, riseH, dirUp, inAt, outAt } = stairs;
+const STEP_TOP = "#7f9cf0";
+const STEP_FRONT = "#385bc1";
+const STEP_END = "#2c4aa6";
+const NEAR_METAL = "#8791a5";
+const FAR_METAL = "#b3bbca";
+
+// Dropping in from above at `inAt`, lifting away again at `outAt`.
+const dropInLiftOut = (inAt: number, dropMs: number, outAt: number) =>
+  `crew-stair-drop ${dropMs}ms linear ${inAt}ms both, crew-stair-lift ${STAIR_LIFT_MS}ms linear ${outAt}ms forwards`;
+
+// A thin slab in 3D, seen at an angle: its front, its top running back into
+// the screen, and the end facing down the stairs. Drawn for a flight going
+// up to the right, and mirrored for one going up to the left.
+function Slab({ width, dirUp }: { width: number; dirUp: 1 | -1 }) {
+  const t = SLAB_THICKNESS;
+  return (
+    <svg
+      width={width + DEPTH_X}
+      height={t + DEPTH_Y}
+      className="absolute inset-0 overflow-visible"
+      style={{
+        transform: dirUp === -1 ? "scaleX(-1)" : undefined,
+        filter: "drop-shadow(0 6px 8px rgba(30, 50, 110, 0.22))",
+      }}
+      aria-hidden="true"
+    >
+      <polygon points={`${DEPTH_X},${DEPTH_Y} ${DEPTH_X + width},${DEPTH_Y} ${width},0 0,0`} fill={STEP_TOP} />
+      <polygon points={`${DEPTH_X},${DEPTH_Y} 0,0 0,${t} ${DEPTH_X},${DEPTH_Y + t}`} fill={STEP_END} />
+      <rect x={DEPTH_X} y={DEPTH_Y} width={width} height={t} fill={STEP_FRONT} />
+    </svg>
+  );
+}
+
+// The floating stairs: a thin 3D slab for each step and a longer one for
+// the landing, hovering in a line up the screen with a gap between each,
+// and a handrail up both sides on posts standing on the steps — the far one
+// behind the crew, the near one in front of them, carrying on along the
+// front of the landing. The steps drop in bottom to top and settle, then
+// the landing, then the rails come down onto the posts. At the end the
+// rails lift off first, then the landing and the steps, top first.
+function StairFlight({ stairs: s }: { stairs: Stairs }) {
+  const { n, stepW, riseH, dirUp } = s;
+  const level = landingLevel(s);
+  const inset = POST_INSET / stepW;
+  const start = SLAB_GAP / 2 / stepW;
+  const lastPost = landingEnd(s) - inset;
+  // Each slab: which level it's at, where its middle is along the flight,
+  // how long it is, and the posts on it (as step positions) holding up the
+  // near rail and the far one.
+  const slabs = [
+    ...Array.from({ length: n }, (_, i) => {
+      const k = i + 1;
+      const post = k - 0.5 + inset;
+      return { k, mid: k, length: stepW - SLAB_GAP, near: [post], far: [post] };
+    }),
+    {
+      k: level,
+      mid: (n + 0.5 + start + landingEnd(s)) / 2,
+      length: (landingEnd(s) - n - 0.5 - start) * stepW,
+      near: [level, (level + lastPost) / 2, lastPost],
+      far: [level],
+    },
+  ];
+  const railFrom = 0.5 + inset - 8 / stepW;
+  const railTo = lastPost + 8 / stepW;
   return (
     <>
-      {Array.from({ length: n }, (_, i) => {
-        const k = i + 1;
-        const left = stairPx(stairs, k) - stepW / 2;
+      {slabs.map(({ k, mid, length, near, far }) => {
+        const left = stairPx(s, mid) - (length + DEPTH_X) / 2;
+        const bottom = FLOOR + k * riseH - DEPTH_Y / 2 - SLAB_THICKNESS;
+        const layer = (z: number): React.CSSProperties => ({
+          left,
+          bottom,
+          width: length + DEPTH_X,
+          height: SLAB_THICKNESS + DEPTH_Y,
+          zIndex: z,
+          animation: `${dropInLiftOut(s.inAt + (k - 1) * STAIR_DROP_STAGGER_MS, STAIR_DROP_MS, stepLiftAt(s, k))}, ${stepBob(k)}`,
+        });
+        // A post from the top of the slab — its front edge or its back
+        // edge — up to just short of the rail's centre line, so it stays
+        // tucked behind the rail however the step bobs.
+        const post = (u: number, side: 1 | -1) => {
+          const rail = railPoint(s, u, side);
+          const foot = FLOOR + k * riseH + (side * DEPTH_Y) / 2;
+          return (
+            <div
+              key={`${side}${u}`}
+              className="absolute rounded-full"
+              style={{
+                left: rail.x - left - 1.5,
+                bottom: foot - bottom,
+                width: 3,
+                height: rail.y - foot - 2,
+                backgroundColor: side === 1 ? FAR_METAL : NEAR_METAL,
+              }}
+            />
+          );
+        };
         return (
-          <div
-            key={k}
-            className="absolute"
-            style={{
-              left,
-              width: stepW + 1,
-              bottom: 0,
-              height: FLOOR + k * riseH,
-              zIndex: 1,
-              borderRadius: "5px 5px 0 0",
-              background: "linear-gradient(180deg, #f4f6fb 0, #f4f6fb 5px, #d5dbe6 5px, #c2cad8 100%)",
-              // The riser's edge on the side facing the step below.
-              boxShadow: `inset ${dirUp === 1 ? 2 : -2}px 0 0 rgba(255,255,255,0.55), ${dirUp === 1 ? -1 : 1}px 0 0 rgba(90,100,120,0.18), 0 8px 18px rgba(30,40,60,0.12)`,
-              animation: `crew-stair-rise ${STAIR_RISE_MS}ms cubic-bezier(0.22, 1.25, 0.4, 1) ${inAt + i * STAIR_STAGGER_MS}ms both, crew-stair-sink ${STAIR_SINK_MS}ms cubic-bezier(0.5, 0, 0.9, 0.5) ${outAt + (n - k) * STAIR_SINK_STAGGER_MS}ms forwards`,
-            }}
-          />
+          <div key={k}>
+            {/* Its shadow on the floor far below — fainter the higher it hovers. */}
+            <div
+              className="absolute rounded-full"
+              style={{
+                left: stairPx(s, mid) - length * 0.4,
+                bottom: FLOOR - 4,
+                width: length * 0.8,
+                height: 8,
+                zIndex: 0,
+                background: `rgba(30, 50, 110, ${Math.max(0.05, 0.16 - k * 0.015).toFixed(3)})`,
+                filter: "blur(3px)",
+                animation: `crew-fade-in 400ms ease-out ${stepLandedAt(s, k) - 300}ms both, crew-fade-out 300ms ease-in ${stepLiftAt(s, k)}ms forwards`,
+              }}
+            />
+            <div className="absolute" style={layer(1)}>
+              {far.map((u) => post(u, 1))}
+              <Slab width={length} dirUp={dirUp} />
+            </div>
+            <div className="absolute" style={layer(4)}>
+              {near.map((u) => post(u, -1))}
+            </div>
+          </div>
         );
       })}
+      <RailBar s={s} from={railPoint(s, railFrom, 1)} to={railPoint(s, level, 1)} far />
+      <RailBar s={s} from={railPoint(s, railFrom, -1)} to={railPoint(s, level, -1)} />
+      <RailBar s={s} from={railPoint(s, level, -1)} to={railPoint(s, railTo, -1)} />
     </>
+  );
+}
+
+// A straight length of handrail between two points on its centre line (x
+// from the left, y up from the bottom, in px) — the far one behind the
+// crew, or the near one in front of them.
+function RailBar({ s, from, to, far = false }: { s: Stairs; from: Vec; to: Vec; far?: boolean }) {
+  const [left, right] = from.x < to.x ? [from, to] : [to, from];
+  const length = Math.hypot(right.x - left.x, right.y - left.y);
+  const angle = (-Math.atan2(right.y - left.y, right.x - left.x) * 180) / Math.PI;
+  return (
+    <div
+      className="absolute"
+      style={{
+        left: left.x,
+        bottom: left.y - RAIL_THICKNESS / 2,
+        zIndex: far ? 1 : 4,
+        animation: dropInLiftOut(railsInAt(s), RAIL_DROP_MS, s.outAt),
+      }}
+    >
+      <div
+        style={{
+          width: length,
+          height: RAIL_THICKNESS,
+          borderRadius: RAIL_THICKNESS,
+          background: `linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0) 60%), ${far ? FAR_METAL : NEAR_METAL}`,
+          transformOrigin: "0 50%",
+          transform: `rotate(${angle.toFixed(2)}deg)`,
+        }}
+      />
+    </div>
   );
 }
 
@@ -1792,6 +2276,7 @@ function Dust({ speck }: { speck: DustSpeck }) {
   const animations = [`crew-dust-appear 700ms ease-out ${speck.appearAt}ms both`];
   if (speck.wetAt !== null) animations.push(`crew-dust-wet 500ms ease-out ${speck.wetAt}ms forwards`);
   animations.push(`crew-dust-clear 500ms ease-in ${speck.clearAt}ms forwards`);
+  const bob = speck.tread ? `, ${stepBob(speck.tread)}` : "";
   const place = { left: speck.left, top: speck.top, bottom: speck.bottom };
   const grime = speck.floor
     ? // A muddy smear on the floor.
@@ -1808,7 +2293,7 @@ function Dust({ speck }: { speck: DustSpeck }) {
           height: speck.size * (speck.floor ? 0.4 : 0.8),
           marginLeft: -speck.size / 2,
           background: grime,
-          animation: animations.join(", "),
+          animation: animations.join(", ") + bob,
         }}
       />
       <span
@@ -1821,7 +2306,7 @@ function Dust({ speck }: { speck: DustSpeck }) {
           lineHeight: 1,
           color: "#f2b632",
           textShadow: "0 0 6px rgba(242,182,50,0.6)",
-          animation: `crew-sparkle-pop 800ms ease-out ${speck.clearAt + 200}ms both`,
+          animation: `crew-sparkle-pop 800ms ease-out ${speck.clearAt + 200}ms both${bob}`,
         }}
       >
         ✦

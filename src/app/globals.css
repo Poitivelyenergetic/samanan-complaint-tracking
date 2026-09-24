@@ -467,23 +467,213 @@ body {
   }
 }
 
-/* The stairs: each step rises up out of the floor (its timing curve
-   overshoots, so it settles), and sinks back down at the end. */
-@keyframes crew-stair-rise {
-  from {
-    transform: translateY(calc(100% + 12px));
+/* The floating stairs: each step (and then each rail) drops in from above
+   the screen, pulls up just past its spot and settles back into a hover.
+   At the end they dip, then lift away up out of sight. */
+@keyframes crew-stair-drop {
+  0% {
+    transform: translateY(-110vh);
+    animation-timing-function: cubic-bezier(0.55, 0, 0.85, 0.45);
   }
-  to {
+  62% {
+    transform: translateY(8px);
+    animation-timing-function: ease-in-out;
+  }
+  82% {
+    transform: translateY(-3px);
+    animation-timing-function: ease-in-out;
+  }
+  100% {
     transform: translateY(0);
   }
 }
 
-@keyframes crew-stair-sink {
-  from {
+@keyframes crew-stair-lift {
+  0% {
     transform: translateY(0);
+    animation-timing-function: ease-in-out;
+  }
+  22% {
+    transform: translateY(7px);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.5);
+  }
+  100% {
+    transform: translateY(-110vh);
+  }
+}
+
+/* Hovering: a step's gentle bob. Uses `translate`, not `transform`, so it
+   layers on top of the drop and lift. Whoever stands on a step runs the
+   same bob, faded in and out with --bob-amp as they step on and off — which
+   has to be a registered property to transition. */
+@property --bob-amp {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 5px;
+}
+
+@keyframes crew-step-bob {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 calc(var(--bob-amp) * -1);
+  }
+}
+
+@keyframes crew-fade-in {
+  from {
+    opacity: 0;
   }
   to {
-    transform: translateY(calc(100% + 12px));
+    opacity: 1;
+  }
+}
+
+@keyframes crew-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Missing their footing on a step: rocking back, catching it, rocking
+   further back... and going. Ends leaning where crew-tumble picks up. */
+@keyframes crew-teeter {
+  0% {
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(-9deg);
+  }
+  40% {
+    transform: rotate(4deg);
+  }
+  65% {
+    transform: rotate(-15deg);
+  }
+  80% {
+    transform: rotate(-8deg);
+  }
+  100% {
+    transform: rotate(-20deg);
+  }
+}
+
+/* Climbing away from us: an eye slides out round the edge of them for a
+   glance back, then away again. Starts early, since a climb is short. */
+@keyframes crew-peek {
+  0%,
+  18% {
+    transform: translateX(110%);
+  }
+  30%,
+  62% {
+    transform: translateX(0);
+  }
+  74%,
+  100% {
+    transform: translateX(110%);
+  }
+}
+
+/* Arms windmilling. */
+@keyframes crew-flail {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-16px);
+  }
+}
+
+/* Falling off backwards, turning over and over round their middle, and
+   landing flat on their back. The body pivots on its feet, so each quarter
+   turn is paired with the shift that keeps it spinning about its centre —
+   --w and --h are the character's size — and the last one lays it down on
+   the floor rather than floating at mid-height. */
+@keyframes crew-tumble {
+  0% {
+    transform: translate(0, 0) rotate(-20deg);
+  }
+  20% {
+    transform: translate(calc(var(--h) * 0.5), calc(var(--h) * -0.5)) rotate(-90deg);
+  }
+  40% {
+    transform: translate(0, calc(var(--h) * -1)) rotate(-180deg);
+  }
+  60% {
+    transform: translate(calc(var(--h) * -0.5), calc(var(--h) * -0.5)) rotate(-270deg);
+  }
+  80% {
+    transform: translate(0, 0) rotate(-360deg);
+  }
+  100% {
+    transform: translate(calc(var(--h) * 0.5), calc(var(--w) * -0.5)) rotate(-450deg);
+  }
+}
+
+/* Flat on their back where crew-tumble left them: a bounce, a dazed
+   moment, then sitting up and back on their feet. */
+@keyframes crew-dazed {
+  0% {
+    transform: translate(calc(var(--h) * 0.5), calc(var(--w) * -0.5)) rotate(-90deg);
+  }
+  7% {
+    transform: translate(calc(var(--h) * 0.5), calc(var(--w) * -0.5 - 10px)) rotate(-84deg);
+  }
+  14%,
+  62% {
+    transform: translate(calc(var(--h) * 0.5), calc(var(--w) * -0.5)) rotate(-90deg);
+  }
+  82% {
+    transform: translate(calc(var(--h) * 0.2), calc(var(--w) * -0.2)) rotate(-35deg);
+  }
+  92% {
+    transform: translate(0, 0) rotate(5deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+}
+
+/* Hanging from the rail by their hands: the jolt of catching it swings
+   them, it dies away, then they kick and wriggle to get back up. */
+@keyframes crew-dangle {
+  0% {
+    transform: rotate(-16deg);
+  }
+  12% {
+    transform: rotate(10deg);
+  }
+  24% {
+    transform: rotate(-6deg);
+  }
+  36% {
+    transform: rotate(3deg);
+  }
+  48% {
+    transform: rotate(0deg);
+  }
+  56% {
+    transform: rotate(-5deg) scale(1, 0.96);
+  }
+  64% {
+    transform: rotate(5deg) scale(1, 1);
+  }
+  72% {
+    transform: rotate(-5deg) scale(1, 0.96);
+  }
+  80% {
+    transform: rotate(5deg) scale(1, 1);
+  }
+  90%,
+  100% {
+    transform: rotate(0deg);
   }
 }
 
@@ -881,6 +1071,24 @@ body {
   }
   .crew-slip {
     animation: crew-slip 2600ms ease-in-out both;
+  }
+  .crew-teeter {
+    animation: crew-teeter 900ms ease-in-out both;
+  }
+  .crew-flail {
+    animation: crew-flail 300ms ease-in-out infinite;
+  }
+  .crew-peek {
+    animation: crew-peek 2400ms ease-in-out infinite;
+  }
+  .crew-tumble {
+    animation: crew-tumble 520ms linear both;
+  }
+  .crew-dazed {
+    animation: crew-dazed 2100ms ease-in-out both;
+  }
+  .crew-dangle {
+    animation: crew-dangle 1900ms ease-in-out both;
   }
   .crew-scratch {
     animation: crew-scratch 350ms ease-in-out infinite;
