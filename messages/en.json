@@ -57,7 +57,8 @@
     "ticketInquiry": "IT Ticket Inquiry",
     "ticketTypes": "IT Ticket Types",
     "ticketSources": "IT Ticket Sources",
-    "profile": "Profile"
+    "profile": "Profile",
+    "products": "Products"
   },
   "login": {
     "title": "Staff Login",
@@ -109,6 +110,16 @@
     "Processing": "Processing",
     "Cancel": "Cancelled",
     "Closed": "Closed"
+  },
+  "products": {
+    "title": "Products",
+    "subtitle": "Drag to spin it, double-click to take it apart, and tap one in the corner to bring it up.",
+    "names": {
+      "pump": "Star-high pump",
+      "coway18": "Coway-18",
+      "coway6330": "Coway-6330",
+      "filter7": "7-stage water filter"
+    }
   },
   "home": {
     "welcome": "Welcome back, {name}",

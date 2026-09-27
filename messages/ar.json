@@ -57,7 +57,8 @@
     "ticketInquiry": "استعلام عن تذكرة IT",
     "ticketTypes": "أنواع التذاكر IT",
     "ticketSources": "مصادر التذاكر IT",
-    "profile": "الملف الشخصي"
+    "profile": "الملف الشخصي",
+    "products": "المنتجات"
   },
   "login": {
     "title": "تسجيل دخول الموظفين",
@@ -109,6 +110,16 @@
     "Processing": "قيد المعالجة",
     "Cancel": "ملغاة",
     "Closed": "مغلقة"
+  },
+  "products": {
+    "title": "المنتجات",
+    "subtitle": "اسحب لتدوير المنتج، وانقر مرتين لتفكيكه، واضغط على أي منتج في الزاوية لعرضه.",
+    "names": {
+      "pump": "مضخة Star-high",
+      "coway18": "Coway-18",
+      "coway6330": "Coway-6330",
+      "filter7": "فلتر مياه 7 مراحل"
+    }
   },
   "home": {
     "welcome": "مرحباً بعودتك، {name}",

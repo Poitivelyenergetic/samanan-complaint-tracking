@@ -28,6 +28,20 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+// A new mark each time someone actually signs in on this browser (a reload,
+// still signed in, keeps it), gone again when they sign out — so anything
+// kept "until the next login" can tell one login from the next (e.g. the
+// sidebar's open groups).
+export const LOGIN_MARK = "samnan.loginMark";
+
+export function loginMark(): string {
+  try {
+    return localStorage.getItem(LOGIN_MARK) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -38,7 +52,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profileUid, setProfileUid] = useState<string | null>(null);
 
   useEffect(() => {
+    // The first call is the page loading (and finding whoever's still
+    // signed in); any sign-in after that is a new login.
+    let first = true;
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      try {
+        if (!firebaseUser) localStorage.removeItem(LOGIN_MARK);
+        else if (!first || !localStorage.getItem(LOGIN_MARK)) localStorage.setItem(LOGIN_MARK, String(Date.now()));
+      } catch {}
+      first = false;
       setUser(firebaseUser);
       setAuthLoading(false);
     });

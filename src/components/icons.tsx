@@ -327,6 +327,15 @@ export function IconLogout(props: IconProps) {
   );
 }
 
+export function IconCube(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M10 2.5 16.5 6v8L10 17.5 3.5 14V6L10 2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M3.5 6 10 9.5 16.5 6M10 9.5v8" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </Base>
+  );
+}
+
 export function IconLayoutGrid(props: IconProps) {
   return (
     <Base {...props}>

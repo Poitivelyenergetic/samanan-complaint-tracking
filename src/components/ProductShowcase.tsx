@@ -17,7 +17,7 @@ const PRODUCTS = [
   { key: "filter7", name: "7-stage water filter", file: "filter7.glb", v: "6f61a9dc" },
 ] as const;
 
-type ProductKey = (typeof PRODUCTS)[number]["key"];
+export type ProductKey = (typeof PRODUCTS)[number]["key"];
 const productFor = (key: ProductKey) => PRODUCTS.find((p) => p.key === key)!;
 const modelUrl = (key: ProductKey) => {
   const p = productFor(key);
@@ -141,24 +141,33 @@ export function PumpOnly({ className }: { className: string }) {
   return <Product3D product="pump" className={className} onFallback={() => setNoWebGL(true)} />;
 }
 
-// The login page's products: one big, which you can play with, and the
-// other three small in a stack in the corner — tap one to make it the big
-// one. Every 30 s the next one comes up by itself. Double-click the big one
-// and it opens up and takes over the whole panel (`takeoverClassName`; the
-// page gets told, to get the characters out of the way) until you click
-// anywhere outside the panel.
+// Samnan's products: one big, which you can play with, and the other three
+// small in a stack in the corner — tap one to make it the big one. Every
+// 30 s the next one comes up by itself. Double-click the big one and it
+// opens up and takes over the whole panel (`takeoverClassName`; the page
+// gets told, e.g. for the login page to get its characters out of the way)
+// until you click anywhere outside the panel. On the login page it's only
+// on wide screens (`wideOnly`); with `nameFor`, the big one's name goes
+// under it (in `nameClassName`).
 export default function ProductShowcase({
   mainClassName,
   takeoverClassName,
   stackClassName,
   onTakeover,
+  wideOnly = true,
+  nameFor,
+  nameClassName = "",
 }: {
   mainClassName: string;
   takeoverClassName: string;
   stackClassName: string;
   onTakeover?: (on: boolean) => void;
+  wideOnly?: boolean;
+  nameFor?: (key: ProductKey) => string;
+  nameClassName?: string;
 }) {
   const wide = useWide();
+  const on = wide || !wideOnly;
   // The big one first, then the stack, top to bottom.
   const [order, setOrder] = useState<ProductKey[]>(() => PRODUCTS.map((p) => p.key));
   const [shown, setShown] = useState(false);
@@ -176,7 +185,7 @@ export default function ProductShowcase({
   }, [takeover, onTakeover]);
 
   useEffect(() => {
-    if (!wide) return;
+    if (!on) return;
     stamp(lastTouch);
     const timer = setInterval(() => {
       // Never out from under someone: not while they're turning it, have it
@@ -195,7 +204,7 @@ export default function ProductShowcase({
       setOrder((o) => [...o.slice(1), o[0]]);
     }, 1000);
     return () => clearInterval(timer);
-  }, [wide]);
+  }, [on]);
 
   // Tapping one in the stack swaps it with the big one.
   const choose = (key: ProductKey) => {
@@ -232,7 +241,7 @@ export default function ProductShowcase({
     return () => document.removeEventListener("pointerdown", onDown);
   }, [takeover, settle]);
 
-  if (!wide) return null;
+  if (!on) return null;
   // No WebGL at all: the pump's photo spinner instead, on its own.
   if (noWebGL) return <SamnanPumpSpinner className={mainClassName} />;
 
@@ -267,6 +276,12 @@ export default function ProductShowcase({
           />
         </div>
       </div>
+      {/* (Out of the way while it's taken over — the viewer puts its tips there.) */}
+      {nameFor && (
+        <div className={`transition-opacity duration-500 ease-out ${nameClassName}`} style={{ opacity: shown && !takeover ? 1 : 0 }}>
+          {nameFor(main)}
+        </div>
+      )}
       <div className={stackClassName}>
         {order.slice(1).map((key) => (
           <button

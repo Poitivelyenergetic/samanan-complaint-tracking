@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
-import { useAuth } from "@/lib/auth-context";
+import { loginMark, useAuth } from "@/lib/auth-context";
 import { subscribeToPendingSignupRequests } from "@/lib/signupRequests";
 import { hasPermission, localizedName, type PermissionResource } from "@/lib/types";
 import {
@@ -15,6 +15,7 @@ import {
   IconChevronDown,
   IconChevronsRight,
   IconClipboardList,
+  IconCube,
   IconFolder,
   IconGear,
   IconHome,
@@ -57,6 +58,50 @@ const SETTINGS_RESOURCE_ITEMS: {
   { href: "/employees", key: "employees", resource: "employees", icon: <IconUsers />, iconColor: "#0ea5e9" },
   { href: "/roles", key: "roles", resource: "roles", icon: <IconShieldCheck />, iconColor: "#8b5cf6" },
 ];
+
+// Which groups are open. Every login starts with just Complaints open and
+// the rest closed; after that, whatever's opened or closed is remembered (in
+// this browser, and shared between the desktop rail and the phone drawer)
+// until the next login.
+type GroupKey = "complaints" | "tickets" | "services" | "settings";
+type GroupsOpen = Record<GroupKey, boolean>;
+const GROUPS_STORAGE = "samnan.sidebarGroups";
+const FRESH_GROUPS: GroupsOpen = { complaints: true, tickets: false, services: false, settings: false };
+const groupListeners = new Set<() => void>();
+let groupsCache: { login: string; open: GroupsOpen } | null = null;
+
+function readGroups(login: string): GroupsOpen {
+  if (groupsCache?.login === login) return groupsCache.open;
+  let open = FRESH_GROUPS;
+  try {
+    const saved = JSON.parse(localStorage.getItem(GROUPS_STORAGE) ?? "null");
+    if (saved?.login === login && saved.open) open = { ...FRESH_GROUPS, ...saved.open };
+  } catch {}
+  groupsCache = { login, open };
+  return open;
+}
+
+function toggleGroup(login: string, key: GroupKey) {
+  const open = { ...readGroups(login), [key]: !readGroups(login)[key] };
+  groupsCache = { login, open };
+  try {
+    localStorage.setItem(GROUPS_STORAGE, JSON.stringify({ login, open }));
+  } catch {}
+  groupListeners.forEach((changed) => changed());
+}
+
+// `login` tells one login from the next: the account, and this browser's
+// mark for when it signed in (see LOGIN_MARK).
+function useGroupsOpen(login: string) {
+  return useSyncExternalStore(
+    (changed) => {
+      groupListeners.add(changed);
+      return () => groupListeners.delete(changed);
+    },
+    () => readGroups(login),
+    () => FRESH_GROUPS
+  );
+}
 
 function SidebarLink({
   href,
@@ -204,12 +249,10 @@ function SidebarContents({
   const tCommon = useTranslations("common");
   const pathname = usePathname();
   const locale = useLocale();
-  const { profile, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
 
-  const [servicesOpen, setServicesOpen] = useState(true);
-  const [settingsOpen, setSettingsOpen] = useState(true);
-  const [complaintsOpen, setComplaintsOpen] = useState(true);
-  const [ticketsOpen, setTicketsOpen] = useState(true);
+  const login = `${user?.uid ?? ""}|${loginMark()}`;
+  const groupsOpen = useGroupsOpen(login);
 
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + "/");
@@ -305,6 +348,9 @@ function SidebarContents({
       : []),
   ];
 
+  // Everyone's: the 3D models of Samnan's products (see ProductShowcase).
+  const productsItem: NavItem = { href: "/products", label: t("products"), icon: <IconCube />, iconColor: "#14b8a6" };
+
   const collapsed = collapsible && !open;
 
   return (
@@ -346,7 +392,7 @@ function SidebarContents({
       <nav className="flex-1 space-y-1 overflow-x-hidden overflow-y-auto px-2">
         {collapsed ? (
           <div className="flex flex-col items-center space-y-1 pt-2">
-            {[...complaintsItems, ...ticketItems, ...serviceItems, ...settingsItems].map((item) => (
+            {[...complaintsItems, ...ticketItems, ...serviceItems, ...settingsItems, productsItem].map((item) => (
               <SidebarIconLink
                 key={item.href}
                 href={item.href}
@@ -365,8 +411,8 @@ function SidebarContents({
               label={t("complaintsGroup")}
               icon={<IconClipboardList />}
               items={complaintsItems}
-              open={complaintsOpen}
-              onToggle={() => setComplaintsOpen((v) => !v)}
+              open={groupsOpen.complaints}
+              onToggle={() => toggleGroup(login, "complaints")}
               isActive={isActive}
               onNavigate={onNavigate}
             />
@@ -374,8 +420,8 @@ function SidebarContents({
               label={t("ticketsGroup")}
               icon={<IconTicket />}
               items={ticketItems}
-              open={ticketsOpen}
-              onToggle={() => setTicketsOpen((v) => !v)}
+              open={groupsOpen.tickets}
+              onToggle={() => toggleGroup(login, "tickets")}
               isActive={isActive}
               onNavigate={onNavigate}
             />
@@ -383,8 +429,8 @@ function SidebarContents({
               label={t("services")}
               icon={<IconLayoutGrid />}
               items={serviceItems}
-              open={servicesOpen}
-              onToggle={() => setServicesOpen((v) => !v)}
+              open={groupsOpen.services}
+              onToggle={() => toggleGroup(login, "services")}
               isActive={isActive}
               onNavigate={onNavigate}
             />
@@ -392,11 +438,25 @@ function SidebarContents({
               label={t("settings")}
               icon={<IconGear />}
               items={settingsItems}
-              open={settingsOpen}
-              onToggle={() => setSettingsOpen((v) => !v)}
+              open={groupsOpen.settings}
+              onToggle={() => toggleGroup(login, "settings")}
               isActive={isActive}
               onNavigate={onNavigate}
             />
+            {/* Not a group — a row of its own, level with the groups, that
+                goes straight to the page. */}
+            <div className="pt-2">
+              <Link
+                href={productsItem.href}
+                onClick={onNavigate}
+                className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-bold transition-colors ${
+                  isActive(productsItem.href) ? "bg-brand text-brand-foreground" : "text-brand hover:bg-white/5"
+                }`}
+              >
+                <span className="flex shrink-0">{productsItem.icon}</span>
+                {productsItem.label}
+              </Link>
+            </div>
           </>
         )}
       </nav>
