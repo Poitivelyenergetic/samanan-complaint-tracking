@@ -10,6 +10,10 @@ import * as Sentry from "@sentry/nextjs";
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   enabled: process.env.NODE_ENV === "production",
+  // Scripts a browser extension injects into the page (they show up as
+  // app:///executors/…) aren't ours — one of them was failing over and over
+  // ("reading 'M_ID'") on a single person's browser.
+  denyUrls: [/^app:\/\/\/executors\//],
 });
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
