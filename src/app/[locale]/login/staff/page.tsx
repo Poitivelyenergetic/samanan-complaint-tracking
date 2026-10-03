@@ -4,8 +4,8 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { browserLocalPersistence, browserSessionPersistence, setPersistence } from "firebase/auth";
-import { useAuth } from "@/lib/auth-context";
+import { browserLocalPersistence, setPersistence } from "firebase/auth";
+import { rememberSignIn, useAuth } from "@/lib/auth-context";
 import { auth } from "@/lib/firebase";
 import { Link, useRouter } from "@/i18n/navigation";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -150,7 +150,10 @@ export default function StaffLoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+      // Signed in in every tab either way — "Remember me" only decides
+      // whether that lasts past closing the browser (see rememberSignIn).
+      await setPersistence(auth, browserLocalPersistence);
+      rememberSignIn(rememberMe);
       await signIn(username, password);
       // Beat 1: the form's own content fades out, leaving a blank white
       // panel rather than shrinking a panel that still has text on it.

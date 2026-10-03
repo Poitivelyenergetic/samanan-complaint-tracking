@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { reassignComplaint, subscribeToComplaint } from "@/lib/complaints";
@@ -24,6 +25,10 @@ export default function ReassignComplaintPage({
   const locale = useLocale();
   const router = useRouter();
   const { profile, user, loading } = useAuth();
+  // Came from the view-only complaint page (see its viewOnly) — go back to that.
+  const viewOnly = useSearchParams().get("view") === "1";
+  const complaintHref = `/complaints/${id}${viewOnly ? "?view=1" : ""}`;
+  const back = () => (viewOnly ? router.replace(complaintHref) : router.back());
 
   const [complaint, setComplaint] = useState<Complaint | null | undefined>(undefined);
   const [staff, setStaff] = useState<StaffUser[]>([]);
@@ -43,6 +48,8 @@ export default function ReassignComplaintPage({
   // matches the same restriction in firestore.rules' isReassignWrite() check.
   const isAssignee = !!complaint && !!user && complaint.assignedTo === user.uid;
   const canReassign = hasReassignPermission && (canViewAllComplaints || isAssignee);
+  // Nobody has it yet: assigning it, not reassigning.
+  const assigning = !!complaint && !complaint.assignedTo;
 
   useEffect(
     () => subscribeToComplaint(id, setComplaint, () => setComplaint(null)),
@@ -56,14 +63,14 @@ export default function ReassignComplaintPage({
 
   useEffect(() => {
     if (!loading && profile && complaint !== undefined && !canReassign) {
-      router.replace(`/complaints/${id}`);
+      router.replace(complaintHref);
     }
-  }, [loading, profile, complaint, canReassign, router, id]);
+  }, [loading, profile, complaint, canReassign, router, complaintHref]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!reason.trim()) {
-      setError(t("reasonRequired"));
+      setError(assigning ? t("assignReasonRequired") : t("reasonRequired"));
       return;
     }
     setError(null);
@@ -78,7 +85,9 @@ export default function ReassignComplaintPage({
         reason.trim(),
         attachments.urls
       );
-      router.push(`/complaints/${id}`);
+      // From the view-only tab: replace, so its Back still goes to the list.
+      if (viewOnly) router.replace(complaintHref);
+      else router.push(complaintHref);
     } catch {
       setError(tCommon("somethingWentWrong"));
       setSubmitting(false);
@@ -102,20 +111,16 @@ export default function ReassignComplaintPage({
 
   return (
     <div className="mx-auto max-w-2xl">
-      <button
-        type="button"
-        onClick={() => router.back()}
-        className="text-sm text-brand hover:underline"
-      >
+      <button type="button" onClick={back} className="text-sm text-brand hover:underline">
         &larr; {tCommon("back")}
       </button>
-      <h1 className="mt-1 text-xl font-bold text-foreground">{t("title")}</h1>
-      <p className="mt-0.5 text-sm text-foreground/60">{t("subtitle")}</p>
+      <h1 className="mt-1 text-xl font-bold text-foreground">{assigning ? t("assignTitle") : t("title")}</h1>
+      <p className="mt-0.5 text-sm text-foreground/60">{assigning ? t("assignSubtitle") : t("subtitle")}</p>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-5 rounded-lg border border-border bg-surface p-6">
         <div>
           <label htmlFor="assignTo" className="block text-sm font-medium text-foreground">
-            {t("assignToLabel")}
+            {assigning ? t("assignAssignTo") : t("assignToLabel")}
           </label>
           <div className="mt-1 max-w-xs">
             <SearchableSelect
@@ -132,7 +137,7 @@ export default function ReassignComplaintPage({
 
         <div>
           <label htmlFor="reason" className="block text-sm font-medium text-foreground">
-            {t("reasonLabel")}
+            {assigning ? t("assignReasonLabel") : t("reasonLabel")}
           </label>
           <textarea
             id="reason"
@@ -140,7 +145,7 @@ export default function ReassignComplaintPage({
             rows={4}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder={t("reasonPlaceholder")}
+            placeholder={assigning ? t("assignReasonPlaceholder") : t("reasonPlaceholder")}
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
           />
         </div>
@@ -178,13 +183,9 @@ export default function ReassignComplaintPage({
             disabled={submitting}
             className="rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
           >
-            {submitting ? t("submitting") : t("submit")}
+            {submitting ? (assigning ? t("assignSubmitting") : t("submitting")) : assigning ? t("assignSubmit") : t("submit")}
           </button>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="text-sm text-foreground/60 hover:text-foreground"
-          >
+          <button type="button" onClick={back} className="text-sm text-foreground/60 hover:text-foreground">
             {tCommon("cancel")}
           </button>
         </div>

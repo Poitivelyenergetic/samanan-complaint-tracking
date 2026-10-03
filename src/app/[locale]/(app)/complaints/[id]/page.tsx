@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations, useFormatter } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { deleteComplaint, subscribeToComplaint, updateComplaint } from "@/lib/complaints";
@@ -35,6 +36,11 @@ export default function ComplaintDetailPage({
   const locale = useLocale();
   const router = useRouter();
   const { user, profile } = useAuth();
+  // Opened from New Complaint's list of earlier complaints on the same
+  // order number (see OrderDuplicatesDialog): just to look at — nothing
+  // editable, no status change or delete — except reassigning it (or
+  // assigning it, if nobody has it yet).
+  const viewOnly = useSearchParams().get("view") === "1";
 
   const [complaint, setComplaint] = useState<Complaint | null | undefined>(undefined);
   const [staff, setStaff] = useState<StaffUser[]>([]);
@@ -59,7 +65,7 @@ export default function ComplaintDetailPage({
   // reassign only ever applies to a complaint currently assigned to you —
   // matches the same restriction in firestore.rules' isReassignWrite() check.
   const canReassign = hasPermission(profile, "complaints", "reassign") && (canViewAllComplaints || isAssignee);
-  const canEditStatus = canEdit || isAssignee;
+  const canEditStatus = !viewOnly && (canEdit || isAssignee);
 
   useEffect(
     () =>
@@ -142,15 +148,17 @@ export default function ComplaintDetailPage({
         <div>
           <button
             type="button"
-            onClick={() => router.back()}
+            // Opened in a tab of its own (see viewOnly) there's nothing to go
+            // back to — the complaints list instead.
+            onClick={() => (viewOnly ? router.push("/dashboard") : router.back())}
             className="text-sm text-brand hover:underline"
           >
             &larr; {tCommon("back")}
           </button>
-          <h1 className="mt-1 text-xl font-bold text-foreground">{t("editTitle")}</h1>
+          <h1 className="mt-1 text-xl font-bold text-foreground">{viewOnly ? t("title") : t("editTitle")}</h1>
           <p className="mt-0.5 font-mono text-xs text-foreground/50">{complaint.id}</p>
         </div>
-        {canDelete && (
+        {canDelete && !viewOnly && (
           <button
             type="button"
             onClick={handleDelete}
@@ -181,10 +189,10 @@ export default function ComplaintDetailPage({
           </div>
           {canReassign && (
             <Link
-              href={`/complaints/${id}/reassign`}
+              href={`/complaints/${id}/reassign${viewOnly ? "?view=1" : ""}`}
               className="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-brand-foreground hover:opacity-90"
             >
-              {t("reassign")}
+              {complaint.assignedTo ? t("reassign") : t("assign")}
             </Link>
           )}
         </div>
@@ -217,7 +225,7 @@ export default function ComplaintDetailPage({
           submitLabel={t("submit")}
           submittingLabel={tCommon("saving")}
           onSubmit={handleSubmit}
-          readOnly={!canEditDetails}
+          readOnly={viewOnly || !canEditDetails}
           canEditStatus={canEditStatus}
           hideAssignedTo
           onCancel={() => router.push("/dashboard")}

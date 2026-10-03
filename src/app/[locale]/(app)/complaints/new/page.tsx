@@ -74,6 +74,10 @@ export default function NewComplaintPage() {
           submitLabel={t("submit")}
           submittingLabel={tCommon("saving")}
           onSubmit={handleSubmit}
+          requireOrderNumber
+          // Only someone who can see every complaint can be shown (and open)
+          // the ones already filed against this order number.
+          checkOrderDuplicates={hasPermission(profile, "complaints", "viewAll")}
         />
       </div>
     </div>

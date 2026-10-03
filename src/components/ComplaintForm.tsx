@@ -6,6 +6,7 @@ import {
   COMPLAINT_STATUSES,
   localizedName,
   type Administration,
+  type Complaint,
   type ComplaintChannel,
   type ComplaintInput,
   type ComplaintSource,
@@ -16,9 +17,11 @@ import {
   type StaffUser,
 } from "@/lib/types";
 import { phoneDigitsOnly, toLatinDigits } from "@/lib/phone";
+import { findComplaintsByOrderNumber } from "@/lib/complaints";
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 import SearchableSelect from "./SearchableSelect";
 import AttachmentUploader from "./AttachmentUploader";
+import OrderDuplicatesDialog from "./OrderDuplicatesDialog";
 
 export interface ComplaintFormValues {
   description: string;
@@ -77,6 +80,14 @@ interface ComplaintFormProps {
   // have any edit persisted unless they explicitly click Save. Omitted on
   // New Complaint, where there's nothing to cancel out of yet.
   onCancel?: () => void;
+  // New Complaint only: the customer's order number can't be left empty
+  // (older complaints without one can still be edited and saved).
+  requireOrderNumber?: boolean;
+  // New Complaint, for someone who can see every complaint: once the order
+  // number's filled in (and again on Save, if it never was checked), any
+  // complaints already filed against it are listed in a popup, each
+  // openable. Needs complaints.viewAll — see findComplaintsByOrderNumber().
+  checkOrderDuplicates?: boolean;
 }
 
 const DEFAULT_VALUES: ComplaintFormValues = {
@@ -115,12 +126,15 @@ export default function ComplaintForm({
   canEditStatus = true,
   hideAssignedTo = false,
   onCancel,
+  requireOrderNumber = false,
+  checkOrderDuplicates = false,
 }: ComplaintFormProps) {
   const t = useTranslations("complaint.fields");
   const tStatus = useTranslations("status");
   const tCommon = useTranslations("common");
   const tDetail = useTranslations("complaint.detail");
   const tEmployeeFields = useTranslations("employees.fields");
+  const tDuplicates = useTranslations("complaint.duplicates");
   const locale = useLocale();
 
   const [values, setValues] = useState<ComplaintFormValues>({ ...DEFAULT_VALUES, ...initialValues });
@@ -132,6 +146,45 @@ export default function ComplaintForm({
   // Tracks real edits so clicking Cancel with nothing changed just leaves
   // immediately instead of asking the user to confirm discarding nothing.
   const isDirtyRef = useRef(false);
+
+  // Earlier complaints on the same order number (see checkOrderDuplicates):
+  // the popup listing them, the last lookup (shared by the field losing
+  // focus and a Save clicked straight after, so they don't both query), and
+  // the order number the popup was last shown for — once per number.
+  const [duplicates, setDuplicates] = useState<{ order: string; complaints: Complaint[] } | null>(null);
+  const [orderCheckFailed, setOrderCheckFailed] = useState(false);
+  const orderLookup = useRef<{ order: string; found: Promise<Complaint[]> } | null>(null);
+  const warnedOrder = useRef<string | null>(null);
+
+  function lookUpOrder(order: string): Promise<Complaint[]> {
+    if (orderLookup.current?.order !== order) {
+      const found = findComplaintsByOrderNumber(order);
+      orderLookup.current = { order, found };
+      // A failed lookup isn't kept — the next blur or Save tries again.
+      found.catch(() => {
+        if (orderLookup.current?.found === found) orderLookup.current = null;
+      });
+    }
+    return orderLookup.current.found;
+  }
+
+  function warnAbout(order: string, found: Complaint[]) {
+    warnedOrder.current = order;
+    setDuplicates({ order, complaints: found });
+  }
+
+  async function handleOrderNumberBlur() {
+    const order = values.customerOrderNumber.trim();
+    if (!checkOrderDuplicates || !order || warnedOrder.current === order) return;
+    try {
+      const found = await lookUpOrder(order);
+      // (Not if the number's been changed again while this was looked up.)
+      if (orderLookup.current?.order !== order) return;
+      if (found.length && warnedOrder.current !== order) warnAbout(order, found);
+    } catch {
+      setOrderCheckFailed(true);
+    }
+  }
 
   const attachments = useAttachmentUpload({
     storagePathPrefix: "complaints",
@@ -291,11 +344,28 @@ export default function ComplaintForm({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (requireOrderNumber && !values.customerOrderNumber.trim()) {
+      setError(t("orderNumberRequired"));
+      return;
+    }
     if (statusChanged && !statusNote.trim()) {
       setError(tDetail("statusNoteRequired"));
       return;
     }
     setSubmitting(true);
+    // Not warned about this order number's earlier complaints yet (Save
+    // clicked without ever leaving the field): show them first and stop
+    // here — Save again after closing the popup goes ahead. A lookup that
+    // fails never blocks saving.
+    const order = values.customerOrderNumber.trim();
+    if (checkOrderDuplicates && order && warnedOrder.current !== order) {
+      const found = await lookUpOrder(order).catch(() => []);
+      if (found.length && orderLookup.current?.order === order) {
+        if (warnedOrder.current !== order) warnAbout(order, found);
+        setSubmitting(false);
+        return;
+      }
+    }
     try {
       await onSubmit(
         buildPayload(),
@@ -441,11 +511,18 @@ export default function ComplaintForm({
           </label>
           <input
             id="customerOrderNumber"
+            dir="ltr"
+            required={requireOrderNumber}
             disabled={readOnly}
             value={values.customerOrderNumber}
-            onChange={(e) => update("customerOrderNumber", e.target.value)}
+            onChange={(e) => {
+              setOrderCheckFailed(false);
+              update("customerOrderNumber", toLatinDigits(e.target.value));
+            }}
+            onBlur={handleOrderNumberBlur}
             className={`${textInputClass} max-w-xs`}
           />
+          {orderCheckFailed && <p className="mt-1 text-xs text-foreground/60">{tDuplicates("checkFailed")}</p>}
         </div>
 
         <div>
@@ -632,6 +709,16 @@ export default function ComplaintForm({
             </button>
           )}
         </div>
+      )}
+
+      {duplicates && (
+        <OrderDuplicatesDialog
+          orderNumber={duplicates.order}
+          complaints={duplicates.complaints}
+          staff={staff}
+          complaintTypes={complaintTypes}
+          onClose={() => setDuplicates(null)}
+        />
       )}
 
       {showDiscardConfirm && (

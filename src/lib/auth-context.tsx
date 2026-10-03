@@ -8,7 +8,9 @@ import {
   type ReactNode,
 } from "react";
 import {
+  browserLocalPersistence,
   onAuthStateChanged,
+  setPersistence,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   type User,
@@ -42,6 +44,50 @@ export function loginMark(): string {
   }
 }
 
+// Signed in with "Remember me" left unticked: still signed in in every tab
+// (Firebase keeps the session in localStorage either way — its per-tab
+// sessionStorage option made every new tab ask for the password again),
+// but only until the browser is closed. A cookie with no expiry is shared by
+// every tab and dies with the browser; signed in "for this session only"
+// and no cookie any more means the browser was closed since.
+const SESSION_ONLY = "samnan.sessionOnly";
+const SESSION_COOKIE = "samnan_session";
+
+/** Call just before signing in: whether to stay signed in after the browser closes. */
+export function rememberSignIn(remember: boolean) {
+  try {
+    if (remember) {
+      localStorage.removeItem(SESSION_ONLY);
+    } else {
+      localStorage.setItem(SESSION_ONLY, "1");
+      document.cookie = `${SESSION_COOKIE}=1; path=/; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
+    }
+  } catch {}
+}
+
+function sessionEnded(): boolean {
+  try {
+    return localStorage.getItem(SESSION_ONLY) === "1" && !document.cookie.split("; ").includes(`${SESSION_COOKIE}=1`);
+  } catch {
+    return false;
+  }
+}
+
+function hasTabOnlySession(): boolean {
+  try {
+    return Object.keys(sessionStorage).some((key) => key.startsWith("firebase:authUser:"));
+  } catch {
+    return false;
+  }
+}
+
+function forgetSessionOnly() {
+  try {
+    localStorage.removeItem(SESSION_ONLY);
+    document.cookie = `${SESSION_COOKIE}=; path=/; max-age=0`;
+  } catch {}
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -56,6 +102,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // signed in); any sign-in after that is a new login.
     let first = true;
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      // Signed in for that browser session only, and it's over: sign out
+      // (this comes straight back round with no user).
+      if (firebaseUser && sessionEnded()) {
+        firebaseSignOut(auth);
+        return;
+      }
+      if (!firebaseUser) forgetSessionOnly();
+      // Still signed in the old way — "Remember me" unticked used to keep
+      // the session in this one tab's sessionStorage: move it over, so it
+      // reaches every tab, still only until the browser closes.
+      else if (hasTabOnlySession()) {
+        setPersistence(auth, browserLocalPersistence)
+          .then(() => rememberSignIn(false))
+          .catch(() => {});
+      }
       try {
         if (!firebaseUser) localStorage.removeItem(LOGIN_MARK);
         else if (!first || !localStorage.getItem(LOGIN_MARK)) localStorage.setItem(LOGIN_MARK, String(Date.now()));

@@ -246,7 +246,8 @@
       "chooseFile": "اختر ملفات",
       "replaceAttachment": "استبدال الملف",
       "addMoreFiles": "إضافة المزيد من الملفات",
-      "removeAttachment": "إزالة"
+      "removeAttachment": "إزالة",
+      "orderNumberRequired": "أدخل رقم طلب العميل."
     },
     "new": {
       "title": "شكوى جديدة",
@@ -288,7 +289,8 @@
       "discardBody": "لديك تغييرات غير محفوظة. إذا غادرت الآن، ستفقد هذه التغييرات.",
       "continueEditing": "متابعة التعديل",
       "discardChanges": "تجاهل التغييرات",
-      "attachmentUploadFailed": "تعذر رفع هذا الملف. حاول مرة أخرى."
+      "attachmentUploadFailed": "تعذر رفع هذا الملف. حاول مرة أخرى.",
+      "assign": "إسناد"
     },
     "reassign": {
       "title": "إعادة إسناد الشكوى",
@@ -304,7 +306,22 @@
       "chooseFile": "اختر ملفات",
       "replaceAttachment": "استبدال الملف",
       "addMoreFiles": "إضافة المزيد من الملفات",
-      "removeAttachment": "إزالة"
+      "removeAttachment": "إزالة",
+      "assignTitle": "إسناد الشكوى",
+      "assignSubtitle": "اختر الجهة التي ستُسند إليها هذه الشكوى وأضف ملاحظة.",
+      "assignAssignTo": "إسناد إلى",
+      "assignReasonLabel": "ملاحظة",
+      "assignReasonPlaceholder": "هل هناك ما يجب أن يعرفه عن هذه الشكوى؟",
+      "assignReasonRequired": "يرجى إضافة ملاحظة للموظف المُسندة إليه.",
+      "assignSubmit": "إسناد",
+      "assignSubmitting": "جارٍ الإسناد..."
+    },
+    "duplicates": {
+      "title": "{count, plural, one {هذا الطلب عليه شكوى سابقة} two {هذا الطلب عليه شكويان سابقتان} few {هذا الطلب عليه # شكاوى سابقة} other {هذا الطلب عليه # شكوى سابقة}}",
+      "body": "سبق تقديم شكوى على الطلب <num>{order}</num>. افتح أيًّا منها للاطلاع عليها — تُفتح في تبويب جديد، فلن يضيع ما كتبته هنا.",
+      "open": "فتح",
+      "close": "إغلاق",
+      "checkFailed": "تعذّر التحقق من وجود شكاوى سابقة على رقم الطلب هذا."
     }
   },
   "staffSignup": {

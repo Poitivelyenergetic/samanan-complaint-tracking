@@ -5,6 +5,7 @@ import {
   doc,
   DocumentData,
   getDoc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -104,6 +105,22 @@ export function subscribeToComplaint(
 export async function getComplaint(id: string): Promise<Complaint | null> {
   const snap = await getDoc(doc(db, COLLECTION, id));
   return snap.exists() ? fromDoc(snap.id, snap.data()) : null;
+}
+
+// Every complaint already filed against this customer order number, newest
+// first — for warning someone about to log another one. Only callable with
+// complaints.viewAll: Firestore denies a query that could return complaints
+// the caller can't read (see canReadComplaint() in firestore.rules).
+// The form now always stores Latin digits, but older complaints kept
+// whatever was typed — so the same number spelled with Arabic-Indic (٠-٩) or
+// Eastern Arabic-Indic (۰-۹) digits is matched too.
+export async function findComplaintsByOrderNumber(orderNumber: string): Promise<Complaint[]> {
+  const value = orderNumber.trim();
+  if (!value) return [];
+  const spell = (zero: number) => value.replace(/[0-9]/g, (d) => String.fromCharCode(zero + Number(d)));
+  const spellings = [...new Set([value, spell(0x0660), spell(0x06f0)])];
+  const snap = await getDocs(query(collection(db, COLLECTION), where("customerOrderNumber", "in", spellings)));
+  return snap.docs.map((d) => fromDoc(d.id, d.data())).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
 export async function createComplaint(input: ComplaintInput): Promise<string> {

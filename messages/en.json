@@ -246,7 +246,8 @@
       "chooseFile": "Choose Files",
       "replaceAttachment": "Replace file",
       "addMoreFiles": "Add more files",
-      "removeAttachment": "Remove"
+      "removeAttachment": "Remove",
+      "orderNumberRequired": "Enter the customer's order number."
     },
     "new": {
       "title": "New Complaint",
@@ -288,7 +289,8 @@
       "discardBody": "You have unsaved changes. If you leave now, they will be lost.",
       "continueEditing": "Continue Editing",
       "discardChanges": "Discard Changes",
-      "attachmentUploadFailed": "Could not upload that file. Please try again."
+      "attachmentUploadFailed": "Could not upload that file. Please try again.",
+      "assign": "Assign"
     },
     "reassign": {
       "title": "Reassign Complaint",
@@ -304,7 +306,22 @@
       "chooseFile": "Choose Files",
       "replaceAttachment": "Replace file",
       "addMoreFiles": "Add more files",
-      "removeAttachment": "Remove"
+      "removeAttachment": "Remove",
+      "assignTitle": "Assign Complaint",
+      "assignSubtitle": "Choose who this should go to and add a note.",
+      "assignAssignTo": "Assign To",
+      "assignReasonLabel": "Note",
+      "assignReasonPlaceholder": "Anything they should know about this complaint?",
+      "assignReasonRequired": "Please add a note for whoever it's assigned to.",
+      "assignSubmit": "Assign",
+      "assignSubmitting": "Assigning..."
+    },
+    "duplicates": {
+      "title": "{count, plural, one {This order already has a complaint} other {This order already has # complaints}}",
+      "body": "Order <num>{order}</num> has been complained about before. Open one to check it — it opens in a new tab, so nothing you've typed here is lost.",
+      "open": "Open",
+      "close": "Close",
+      "checkFailed": "Couldn't check this order number for earlier complaints."
     }
   },
   "staffSignup": {
