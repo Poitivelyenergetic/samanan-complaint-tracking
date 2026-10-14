@@ -204,14 +204,14 @@ export default function DashboardPage() {
   const typeFilterOptions = useMemo(
     () => [
       { id: "", label: `${t("typeFilter")}: ${tCommon("all")}` },
-      ...complaintTypes.map((type) => ({ id: type.id, label: localizedName(type, locale) })),
+      ...complaintTypes.filter((type) => type.active).map((type) => ({ id: type.id, label: localizedName(type, locale) })),
     ],
     [complaintTypes, locale, t, tCommon]
   );
   const sourceFilterOptions = useMemo(
     () => [
       { id: "", label: `${t("sourceFilter")}: ${tCommon("all")}` },
-      ...complaintSources.map((source) => ({ id: source.id, label: localizedName(source, locale) })),
+      ...complaintSources.filter((source) => source.active).map((source) => ({ id: source.id, label: localizedName(source, locale) })),
     ],
     [complaintSources, locale, t, tCommon]
   );

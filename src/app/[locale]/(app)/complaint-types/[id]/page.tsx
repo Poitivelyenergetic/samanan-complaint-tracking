@@ -75,7 +75,7 @@ export default function EditComplaintTypePage({ params }: { params: Promise<{ id
       <div className="mt-6 rounded-lg border border-border bg-surface p-6">
         <ComplaintTypeForm
           key={type.id}
-          initialValues={{ nameAr: type.nameAr, nameEn: type.nameEn }}
+          initialValues={{ nameAr: type.nameAr, nameEn: type.nameEn, active: type.active }}
           submitLabel={t("submit")}
           submittingLabel={tCommon("saving")}
           onSubmit={handleSubmit}

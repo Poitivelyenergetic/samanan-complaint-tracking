@@ -14,7 +14,7 @@ import type { TicketType, TicketTypeInput } from "./types";
 const COLLECTION = "ticketTypes";
 
 function fromDoc(id: string, data: DocumentData): TicketType {
-  return { id, nameAr: data.nameAr ?? "", nameEn: data.nameEn ?? "" };
+  return { id, nameAr: data.nameAr ?? "", nameEn: data.nameEn ?? "", active: data.active !== false };
 }
 
 export function subscribeToTicketTypes(

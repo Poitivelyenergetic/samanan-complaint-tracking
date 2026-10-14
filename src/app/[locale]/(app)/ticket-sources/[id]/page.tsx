@@ -75,7 +75,7 @@ export default function EditTicketSourcePage({ params }: { params: Promise<{ id:
       <div className="mt-6 rounded-lg border border-border bg-surface p-6">
         <TicketSourceForm
           key={source.id}
-          initialValues={{ nameAr: source.nameAr, nameEn: source.nameEn }}
+          initialValues={{ nameAr: source.nameAr, nameEn: source.nameEn, active: source.active }}
           submitLabel={t("submit")}
           submittingLabel={tCommon("saving")}
           onSubmit={handleSubmit}

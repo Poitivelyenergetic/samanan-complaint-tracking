@@ -14,7 +14,7 @@ import type { ComplaintType, ComplaintTypeInput } from "./types";
 const COLLECTION = "complaintTypes";
 
 function fromDoc(id: string, data: DocumentData): ComplaintType {
-  return { id, nameAr: data.nameAr ?? "", nameEn: data.nameEn ?? "" };
+  return { id, nameAr: data.nameAr ?? "", nameEn: data.nameEn ?? "", active: data.active !== false };
 }
 
 export function subscribeToComplaintTypes(

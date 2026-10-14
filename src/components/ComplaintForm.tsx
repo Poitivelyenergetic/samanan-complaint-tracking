@@ -429,7 +429,7 @@ export default function ComplaintForm({
               <SearchableSelect
                 id="complaintTypeId"
                 disabled={readOnly}
-                items={complaintTypes}
+                items={complaintTypes.filter((x) => x.active || x.id === values.complaintTypeId)}
                 value={values.complaintTypeId}
                 onChange={(id) => update("complaintTypeId", id)}
                 getId={(type) => type.id}
@@ -447,7 +447,7 @@ export default function ComplaintForm({
               <SearchableSelect
                 id="complaintSourceId"
                 disabled={readOnly}
-                items={complaintSources}
+                items={complaintSources.filter((x) => x.active || x.id === values.complaintSourceId)}
                 value={values.complaintSourceId}
                 onChange={(id) => update("complaintSourceId", id)}
                 getId={(source) => source.id}

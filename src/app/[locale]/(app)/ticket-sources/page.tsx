@@ -48,19 +48,20 @@ export default function TicketSourcesPage() {
           <thead>
             <tr className="border-b border-border bg-black/[0.02] text-start text-xs font-semibold uppercase tracking-wide text-foreground/50">
               <th className="px-4 py-3 text-start">{t("table.name")}</th>
+              <th className="px-4 py-3 text-start">{tCommon("status")}</th>
               {showActions && <th className="px-4 py-3 text-start">{tCommon("actions")}</th>}
             </tr>
           </thead>
           <tbody>
             {sources === null ? (
               <tr>
-                <td colSpan={showActions ? 2 : 1} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={showActions ? 3 : 2} className="px-4 py-8 text-center text-foreground/50">
                   {tCommon("loading")}
                 </td>
               </tr>
             ) : sources.length === 0 ? (
               <tr>
-                <td colSpan={showActions ? 2 : 1} className="px-4 py-8 text-center text-foreground/50">
+                <td colSpan={showActions ? 3 : 2} className="px-4 py-8 text-center text-foreground/50">
                   {t("noResults")}
                 </td>
               </tr>
@@ -75,6 +76,15 @@ export default function TicketSourcesPage() {
                     ) : (
                       <span className="font-medium text-foreground">{localizedName(source, locale)}</span>
                     )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                        source.active ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600"
+                      }`}
+                    >
+                      {source.active ? tCommon("active") : tCommon("inactive")}
+                    </span>
                   </td>
                   {showActions && (
                     <td className="px-4 py-3">

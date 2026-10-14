@@ -98,14 +98,14 @@ export default function TicketsPage() {
   const typeFilterOptions = useMemo(
     () => [
       { id: "", label: `${t("typeFilter")}: ${tCommon("all")}` },
-      ...ticketTypes.map((type) => ({ id: type.id, label: localizedName(type, locale) })),
+      ...ticketTypes.filter((type) => type.active).map((type) => ({ id: type.id, label: localizedName(type, locale) })),
     ],
     [ticketTypes, locale, t, tCommon]
   );
   const sourceFilterOptions = useMemo(
     () => [
       { id: "", label: `${t("sourceFilter")}: ${tCommon("all")}` },
-      ...ticketSources.map((source) => ({ id: source.id, label: localizedName(source, locale) })),
+      ...ticketSources.filter((source) => source.active).map((source) => ({ id: source.id, label: localizedName(source, locale) })),
     ],
     [ticketSources, locale, t, tCommon]
   );

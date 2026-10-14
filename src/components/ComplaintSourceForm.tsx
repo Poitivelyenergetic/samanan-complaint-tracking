@@ -22,6 +22,7 @@ export default function ComplaintSourceForm({
 
   const [nameAr, setNameAr] = useState(initialValues?.nameAr ?? "");
   const [nameEn, setNameEn] = useState(initialValues?.nameEn ?? "");
+  const [active, setActive] = useState(initialValues?.active ?? true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +31,7 @@ export default function ComplaintSourceForm({
     setError(null);
     setSubmitting(true);
     try {
-      await onSubmit({ nameAr: nameAr.trim(), nameEn: nameEn.trim() });
+      await onSubmit({ nameAr: nameAr.trim(), nameEn: nameEn.trim(), active });
     } catch {
       setError(tCommon("somethingWentWrong"));
     } finally {
@@ -67,6 +68,17 @@ export default function ComplaintSourceForm({
           className="mt-1 w-full max-w-sm rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
         />
       </div>
+
+      <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+        <input
+          type="checkbox"
+          checked={active}
+          onChange={(e) => setActive(e.target.checked)}
+          className="h-4 w-4 rounded border-border accent-[var(--brand)]"
+        />
+        {tCommon("active")}
+      </label>
+      <p className="-mt-3 text-xs text-foreground/50">{tCommon("activeHint")}</p>
 
       {error && (
         <p role="alert" className="text-sm text-red-600">

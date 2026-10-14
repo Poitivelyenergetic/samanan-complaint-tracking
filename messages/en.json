@@ -22,7 +22,11 @@
     "required": "Required",
     "somethingWentWrong": "Something went wrong. Please try again.",
     "confirmDelete": "Are you sure you want to delete this complaint?",
-    "hasAttachment": "Has attachment"
+    "hasAttachment": "Has attachment",
+    "active": "Active",
+    "inactive": "Inactive",
+    "activeHint": "Untick to hide it everywhere — it won't be offered in any list or filter. Complaints and tickets that already use it keep showing it.",
+    "status": "Status"
   },
   "nav": {
     "home": "Home",

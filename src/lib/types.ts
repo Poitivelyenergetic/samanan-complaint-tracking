@@ -366,22 +366,28 @@ export interface ComplaintType {
   id: string;
   nameAr: string;
   nameEn: string;
+  /** Off: kept for the records that already use it, but not offered anywhere. */
+  active: boolean;
 }
 
 export interface ComplaintTypeInput {
   nameAr: string;
   nameEn: string;
+  active: boolean;
 }
 
 export interface ComplaintSource {
   id: string;
   nameAr: string;
   nameEn: string;
+  /** Off: kept for the records that already use it, but not offered anywhere. */
+  active: boolean;
 }
 
 export interface ComplaintSourceInput {
   nameAr: string;
   nameEn: string;
+  active: boolean;
 }
 
 // "staff" = logged via the internal New Complaint form by a staff member.
@@ -474,22 +480,28 @@ export interface TicketType {
   id: string;
   nameAr: string;
   nameEn: string;
+  /** Off: kept for the records that already use it, but not offered anywhere. */
+  active: boolean;
 }
 
 export interface TicketTypeInput {
   nameAr: string;
   nameEn: string;
+  active: boolean;
 }
 
 export interface TicketSource {
   id: string;
   nameAr: string;
   nameEn: string;
+  /** Off: kept for the records that already use it, but not offered anywhere. */
+  active: boolean;
 }
 
 export interface TicketSourceInput {
   nameAr: string;
   nameEn: string;
+  active: boolean;
 }
 
 export type TicketHistoryEntryType = "created" | "status" | "reassigned" | "note";

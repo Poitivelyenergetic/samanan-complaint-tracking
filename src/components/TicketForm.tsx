@@ -235,7 +235,7 @@ export default function TicketForm({
               <SearchableSelect
                 id="ticketTypeId"
                 disabled={readOnly}
-                items={ticketTypes}
+                items={ticketTypes.filter((x) => x.active || x.id === values.ticketTypeId)}
                 value={values.ticketTypeId}
                 onChange={(id) => update("ticketTypeId", id)}
                 getId={(type) => type.id}
@@ -253,7 +253,7 @@ export default function TicketForm({
               <SearchableSelect
                 id="ticketSourceId"
                 disabled={readOnly}
-                items={ticketSources}
+                items={ticketSources.filter((x) => x.active || x.id === values.ticketSourceId)}
                 value={values.ticketSourceId}
                 onChange={(id) => update("ticketSourceId", id)}
                 getId={(source) => source.id}
