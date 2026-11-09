@@ -77,7 +77,7 @@ export default function NewComplaintPage() {
           requireOrderNumber
           // Only someone who can see every complaint can be shown (and open)
           // the ones already filed against this order number.
-          checkOrderDuplicates={hasPermission(profile, "complaints", "viewAll")}
+          checkOrderDuplicates
         />
       </div>
     </div>

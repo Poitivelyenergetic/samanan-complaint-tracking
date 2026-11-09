@@ -14,10 +14,11 @@ import {
   type ComplaintType,
   type Company,
   type Department,
+  type OrderDuplicate,
   type StaffUser,
 } from "@/lib/types";
 import { phoneDigitsOnly, toLatinDigits } from "@/lib/phone";
-import { findComplaintsByOrderNumber } from "@/lib/complaints";
+import { findOrderDuplicates } from "@/lib/complaints";
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 import SearchableSelect from "./SearchableSelect";
 import AttachmentUploader from "./AttachmentUploader";
@@ -83,10 +84,10 @@ interface ComplaintFormProps {
   // New Complaint only: the customer's order number can't be left empty
   // (older complaints without one can still be edited and saved).
   requireOrderNumber?: boolean;
-  // New Complaint, for someone who can see every complaint: once the order
-  // number's filled in (and again on Save, if it never was checked), any
-  // complaints already filed against it are listed in a popup, each
-  // openable. Needs complaints.viewAll — see findComplaintsByOrderNumber().
+  // New Complaint: once the order number's filled in (and again on Save, if
+  // it never was checked), any complaints already filed against it are
+  // listed in a popup — openable where the person's role lets them read it
+  // (see findOrderDuplicates()).
   checkOrderDuplicates?: boolean;
 }
 
@@ -151,14 +152,14 @@ export default function ComplaintForm({
   // the popup listing them, the last lookup (shared by the field losing
   // focus and a Save clicked straight after, so they don't both query), and
   // the order number the popup was last shown for — once per number.
-  const [duplicates, setDuplicates] = useState<{ order: string; complaints: Complaint[] } | null>(null);
+  const [duplicates, setDuplicates] = useState<{ order: string; complaints: OrderDuplicate[] } | null>(null);
   const [orderCheckFailed, setOrderCheckFailed] = useState(false);
-  const orderLookup = useRef<{ order: string; found: Promise<Complaint[]> } | null>(null);
+  const orderLookup = useRef<{ order: string; found: Promise<OrderDuplicate[]> } | null>(null);
   const warnedOrder = useRef<string | null>(null);
 
-  function lookUpOrder(order: string): Promise<Complaint[]> {
+  function lookUpOrder(order: string): Promise<OrderDuplicate[]> {
     if (orderLookup.current?.order !== order) {
-      const found = findComplaintsByOrderNumber(order);
+      const found = findOrderDuplicates(order);
       orderLookup.current = { order, found };
       // A failed lookup isn't kept — the next blur or Save tries again.
       found.catch(() => {
@@ -168,7 +169,7 @@ export default function ComplaintForm({
     return orderLookup.current.found;
   }
 
-  function warnAbout(order: string, found: Complaint[]) {
+  function warnAbout(order: string, found: OrderDuplicate[]) {
     warnedOrder.current = order;
     setDuplicates({ order, complaints: found });
   }
@@ -715,7 +716,6 @@ export default function ComplaintForm({
         <OrderDuplicatesDialog
           orderNumber={duplicates.order}
           complaints={duplicates.complaints}
-          staff={staff}
           complaintTypes={complaintTypes}
           onClose={() => setDuplicates(null)}
         />

@@ -4,23 +4,21 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { localizedName, type Complaint, type ComplaintType, type StaffUser } from "@/lib/types";
+import { localizedName, type ComplaintType, type OrderDuplicate } from "@/lib/types";
 import StatusBadge from "./StatusBadge";
 
 // Shown on New Complaint when the order number typed in already has
-// complaints against it: each one listed, any of them openable (view-only,
-// in a new tab, so the half-filled new complaint isn't lost), or just close
-// it and carry on.
+// complaints against it: each one listed, and openable if the person's role
+// can read it (view-only, in a new tab, so the half-filled new complaint
+// isn't lost) — or just close it and carry on.
 export default function OrderDuplicatesDialog({
   orderNumber,
   complaints,
-  staff,
   complaintTypes,
   onClose,
 }: {
   orderNumber: string;
-  complaints: Complaint[];
-  staff: StaffUser[];
+  complaints: OrderDuplicate[];
   complaintTypes: ComplaintType[];
   onClose: () => void;
 }) {
@@ -37,7 +35,6 @@ export default function OrderDuplicatesDialog({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const staffById = new Map(staff.map((s) => [s.id, s]));
   const typesById = new Map(complaintTypes.map((ct) => [ct.id, ct]));
 
   // Straight onto <body>: inside the page, an ancestor with a transform would
@@ -78,19 +75,21 @@ export default function OrderDuplicatesDialog({
                     <StatusBadge status={c.status} />
                   </div>
                   <p className="mt-1 text-xs text-foreground/60">
-                    {c.assignedTo ? localizedName(staffById.get(c.assignedTo), locale) || c.assignedTo : tCommon("unassigned")}
+                    {c.assignee ? localizedName(c.assignee, locale) : tCommon("unassigned")}
                     {" · "}
                     {format.dateTime(new Date(c.createdAt), { dateStyle: "medium" })}
                   </p>
                 </div>
-                <Link
-                  href={`/complaints/${c.id}?view=1`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-brand-foreground hover:opacity-90"
-                >
-                  {t("open")}
-                </Link>
+                {c.canOpen && (
+                  <Link
+                    href={`/complaints/${c.id}?view=1`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-brand-foreground hover:opacity-90"
+                  >
+                    {t("open")}
+                  </Link>
+                )}
               </li>
             );
           })}

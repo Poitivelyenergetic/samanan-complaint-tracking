@@ -429,6 +429,18 @@ export interface ComplaintHistoryEntry {
   byUid: string | null;
 }
 
+// An earlier complaint on the same customer order number, as New Complaint's
+// duplicate warning sees it — just enough to recognise it, since whoever's
+// filing may not be allowed to read it (canOpen says if they are).
+export interface OrderDuplicate {
+  id: string;
+  status: ComplaintStatus;
+  complaintTypeId: string;
+  assignee: { nameAr: string; nameEn: string } | null;
+  createdAt: string;
+  canOpen: boolean;
+}
+
 export interface Complaint {
   id: string; // Firestore document ID (issue_id) — also used as the public tracking/reference number
   subject: string;

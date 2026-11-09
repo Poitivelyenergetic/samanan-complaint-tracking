@@ -5,7 +5,6 @@ import {
   doc,
   DocumentData,
   getDoc,
-  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -15,10 +14,10 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { auth, db } from "./firebase";
 import { resolveServerNowIso } from "./serverTime";
 import { notifyByEmail } from "./notify";
-import type { Complaint, ComplaintHistoryEntry, ComplaintInput } from "./types";
+import type { Complaint, ComplaintHistoryEntry, ComplaintInput, OrderDuplicate } from "./types";
 
 const COLLECTION = "complaints";
 // Complaint IDs are sequential integers ("1", "2", "3", ...), not Firestore's
@@ -108,19 +107,21 @@ export async function getComplaint(id: string): Promise<Complaint | null> {
 }
 
 // Every complaint already filed against this customer order number, newest
-// first — for warning someone about to log another one. Only callable with
-// complaints.viewAll: Firestore denies a query that could return complaints
-// the caller can't read (see canReadComplaint() in firestore.rules).
-// The form now always stores Latin digits, but older complaints kept
-// whatever was typed — so the same number spelled with Arabic-Indic (٠-٩) or
-// Eastern Arabic-Indic (۰-۹) digits is matched too.
-export async function findComplaintsByOrderNumber(orderNumber: string): Promise<Complaint[]> {
+// first — for warning someone about to log another one. Asked of the server
+// (see /api/complaints/order-duplicates), so it works for anyone who can file
+// a complaint, not only those who can read everyone's.
+export async function findOrderDuplicates(orderNumber: string): Promise<OrderDuplicate[]> {
   const value = orderNumber.trim();
   if (!value) return [];
-  const spell = (zero: number) => value.replace(/[0-9]/g, (d) => String.fromCharCode(zero + Number(d)));
-  const spellings = [...new Set([value, spell(0x0660), spell(0x06f0)])];
-  const snap = await getDocs(query(collection(db, COLLECTION), where("customerOrderNumber", "in", spellings)));
-  return snap.docs.map((d) => fromDoc(d.id, d.data())).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error("not_authenticated");
+  const res = await fetch("/api/complaints/order-duplicates", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ orderNumber: value }),
+  });
+  if (!res.ok) throw new Error(`order_check_failed_${res.status}`);
+  return ((await res.json()) as { complaints: OrderDuplicate[] }).complaints;
 }
 
 export async function createComplaint(input: ComplaintInput): Promise<string> {
