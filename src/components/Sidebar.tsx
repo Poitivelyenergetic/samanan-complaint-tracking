@@ -278,7 +278,9 @@ function SidebarContents({
   }, [canReviewAccountRequests]);
 
   const complaintsItems: NavItem[] = [
-    ...(canViewAllComplaints
+    // Everyone who can see complaints: their own, and anyone's found by the
+    // customer's full phone number (see the Complaints page's search).
+    ...(canViewAllComplaints || canViewOwnComplaints
       ? [{ href: "/dashboard", label: t("dashboard"), icon: <IconClipboardList />, iconColor: "#6366f1" }]
       : []),
     ...(canViewOwnComplaints

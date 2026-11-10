@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations, useFormatter } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { deleteComplaint, subscribeToComplaint, updateComplaint } from "@/lib/complaints";
+import { deleteComplaint, getComplaintByPhone, subscribeToComplaint, updateComplaint } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { subscribeToCompanies } from "@/lib/companies";
 import { subscribeToComplaintTypes } from "@/lib/complaintTypes";
@@ -40,9 +40,14 @@ export default function ComplaintDetailPage({
   // order number (see OrderDuplicatesDialog): just to look at — nothing
   // editable, no status change or delete — except reassigning it (or
   // assigning it, if nobody has it yet).
-  const viewOnly = useSearchParams().get("view") === "1";
+  const paramViewOnly = useSearchParams().get("view") === "1";
 
   const [complaint, setComplaint] = useState<Complaint | null | undefined>(undefined);
+  // Someone else's complaint, found by its customer's phone number on the
+  // Complaints page: fetched through the server instead, and only to read —
+  // no editing, status change, reassigning or deleting at all.
+  const [foundByPhone, setFoundByPhone] = useState(false);
+  const viewOnly = paramViewOnly || foundByPhone;
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [complaintTypes, setComplaintTypes] = useState<ComplaintType[]>([]);
@@ -64,7 +69,7 @@ export default function ComplaintDetailPage({
   // Without viewAll (a plain Employee, not Call center/Admin/Super Admin),
   // reassign only ever applies to a complaint currently assigned to you —
   // matches the same restriction in firestore.rules' isReassignWrite() check.
-  const canReassign = hasPermission(profile, "complaints", "reassign") && (canViewAllComplaints || isAssignee);
+  const canReassign = !foundByPhone && hasPermission(profile, "complaints", "reassign") && (canViewAllComplaints || isAssignee);
   const canEditStatus = !viewOnly && (canEdit || isAssignee);
 
   useEffect(
@@ -73,7 +78,14 @@ export default function ComplaintDetailPage({
       // it (or who somehow reaches an ID that isn't theirs) gets a
       // Firestore permission-denied here — treat that the same as "not
       // found" rather than surfacing a raw error.
-      subscribeToComplaint(id, setComplaint, () => setComplaint(null)),
+      subscribeToComplaint(id, setComplaint, () =>
+        getComplaintByPhone(id)
+          .catch(() => null)
+          .then((found) => {
+            setFoundByPhone(!!found);
+            setComplaint(found);
+          })
+      ),
     [id]
   );
   useEffect(() => subscribeToStaff(setStaff), []);

@@ -124,6 +124,53 @@ export async function findOrderDuplicates(orderNumber: string): Promise<OrderDup
   return ((await res.json()) as { complaints: OrderDuplicate[] }).complaints;
 }
 
+// Other people's complaints, found by the customer's full phone number (see
+// /api/complaints/by-phone) — to read, never to change. The number each one
+// was found by is remembered on this browser, so opening it can ask the
+// server for it again (the browser itself isn't allowed to read it).
+const PHONE_LOOKUPS = "samnan.phoneLookups";
+
+async function askByPhone(body: { phone: string; id?: string }): Promise<Response> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error("not_authenticated");
+  return fetch("/api/complaints/by-phone", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+}
+
+function readPhoneLookups(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(PHONE_LOOKUPS) ?? "{}") as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+export async function findComplaintsByPhone(phone: string): Promise<Complaint[]> {
+  const res = await askByPhone({ phone });
+  if (!res.ok) throw new Error(`phone_lookup_failed_${res.status}`);
+  const found = ((await res.json()) as { complaints: (DocumentData & { id: string })[] }).complaints.map((c) => fromDoc(c.id, c));
+  try {
+    const lookups = readPhoneLookups();
+    found.forEach((c) => (lookups[c.id] = phone));
+    localStorage.setItem(PHONE_LOOKUPS, JSON.stringify(lookups));
+  } catch {}
+  return found;
+}
+
+// A complaint this browser found by phone number, fetched again — or null if
+// it wasn't, or its number has since changed.
+export async function getComplaintByPhone(id: string): Promise<Complaint | null> {
+  const phone = readPhoneLookups()[id];
+  if (!phone) return null;
+  const res = await askByPhone({ phone, id });
+  if (!res.ok) return null;
+  const { complaint } = (await res.json()) as { complaint: DocumentData & { id: string } };
+  return fromDoc(complaint.id, complaint);
+}
+
 export async function createComplaint(input: ComplaintInput): Promise<string> {
   const newId = await runTransaction(db, async (transaction) => {
     const counterSnap = await transaction.get(COUNTER_REF());

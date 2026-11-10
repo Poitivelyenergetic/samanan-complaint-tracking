@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations, useFormatter } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { subscribeToComplaints } from "@/lib/complaints";
+import { findComplaintsByPhone, subscribeToComplaints } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { subscribeToComplaintSources } from "@/lib/complaintSources";
+import { fullPhoneKey } from "@/lib/phoneLookup";
 import { subscribeToComplaintTypes } from "@/lib/complaintTypes";
 import { subscribeToCompanies } from "@/lib/companies";
 import { subscribeToAdministrations } from "@/lib/administrations";
@@ -164,6 +165,25 @@ export default function DashboardPage() {
     if (!profile || !canView) return;
     return subscribeToComplaints(setComplaints, undefined, canViewAll ? undefined : profile.id);
   }, [profile, canView, canViewAll]);
+  // A full customer phone number in the search box also finds complaints
+  // that aren't this person's own — to read only (see findComplaintsByPhone).
+  const phoneKey = fullPhoneKey(search);
+  const [phoneResults, setPhoneResults] = useState<{ key: string; complaints: Complaint[] } | null>(null);
+  useEffect(() => {
+    if (!phoneKey || !canView) return;
+    let stale = false;
+    const timer = setTimeout(() => {
+      findComplaintsByPhone(search)
+        .then((found) => !stale && setPhoneResults({ key: phoneKey, complaints: found }))
+        .catch(() => {});
+    }, 350);
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+    };
+    // (Looked up again only when the number itself changes.)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phoneKey, canView]);
   useEffect(() => subscribeToStaff(setStaff), []);
   useEffect(() => subscribeToComplaintSources(setComplaintSources), []);
   useEffect(() => subscribeToComplaintTypes(setComplaintTypes), []);
@@ -239,9 +259,12 @@ export default function DashboardPage() {
 
   const visibleComplaints = useMemo(() => {
     if (!canView) return [];
-    if (!managerScope || complaints === null) return complaints;
-    return complaints.filter((c) => c.assignedTo && scopedStaffIds.has(c.assignedTo));
-  }, [canView, complaints, managerScope, scopedStaffIds]);
+    const own = !managerScope || complaints === null ? complaints : complaints.filter((c) => c.assignedTo && scopedStaffIds.has(c.assignedTo));
+    const extra = phoneKey && phoneResults?.key === phoneKey ? phoneResults.complaints : [];
+    if (own === null || !extra.length) return own;
+    const ids = new Set(own.map((c) => c.id));
+    return [...own, ...extra.filter((c) => !ids.has(c.id))];
+  }, [canView, complaints, managerScope, scopedStaffIds, phoneKey, phoneResults]);
 
   // Every filter except status — feeds the stat cards, so their counts
   // track whichever assignee/type/source/date/search filters are active
