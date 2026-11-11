@@ -659,7 +659,9 @@ export default function HomePage() {
     const base = complaints ?? [];
     const { from, to } = dateRangeFor(complaintsDatePreset, complaintsDateFrom, complaintsDateTo);
     return base.filter((c) => {
-      if (managerScope && (!c.assignedTo || !scopedStaffIds.has(c.assignedTo))) return false;
+      // (Their own always count — a manager needn't be on the team they manage.)
+      const own = c.assignedTo === user?.uid || c.createdBy === user?.uid;
+      if (managerScope && !own && (!c.assignedTo || !scopedStaffIds.has(c.assignedTo))) return false;
       if (employeeFilter && c.assignedTo !== employeeFilter) return false;
       if (from || to) {
         const created = new Date(c.createdAt);
@@ -668,7 +670,7 @@ export default function HomePage() {
       }
       return true;
     });
-  }, [complaints, employeeFilter, managerScope, scopedStaffIds, complaintsDatePreset, complaintsDateFrom, complaintsDateTo]);
+  }, [complaints, employeeFilter, managerScope, scopedStaffIds, complaintsDatePreset, complaintsDateFrom, complaintsDateTo, user?.uid]);
 
   // Drives the top stat row (Total + one card per status) — always
   // all-time, since date filtering now lives on the Status Breakdown card

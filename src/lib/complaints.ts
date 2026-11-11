@@ -75,18 +75,39 @@ export function subscribeToComplaints(
   onError?: (error: unknown) => void,
   scopeToUid?: string
 ) {
-  const q = scopeToUid
-    ? query(collection(db, COLLECTION), where("assignedTo", "==", scopeToUid))
-    : query(collection(db, COLLECTION), orderBy("createdAt", "desc"));
-  return onSnapshot(
-    q,
-    (snap) => {
-      const complaints = snap.docs.map((d) => fromDoc(d.id, d.data()));
-      if (scopeToUid) complaints.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-      callback(complaints);
-    },
-    onError
+  if (!scopeToUid) {
+    return onSnapshot(
+      query(collection(db, COLLECTION), orderBy("createdAt", "desc")),
+      (snap) => callback(snap.docs.map((d) => fromDoc(d.id, d.data()))),
+      onError
+    );
+  }
+  // Someone's own: assigned to them, and the ones they filed themselves —
+  // two queries (Firestore can't "or" these under the read rule), merged.
+  const parts: (Complaint[] | null)[] = [null, null];
+  const send = () => {
+    if (!parts[0] || !parts[1]) return;
+    const byId = new Map<string, Complaint>();
+    [...parts[0], ...parts[1]].forEach((c) => byId.set(c.id, c));
+    callback([...byId.values()].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)));
+  };
+  const unsubs = (["assignedTo", "createdBy"] as const).map((field, i) =>
+    onSnapshot(
+      query(collection(db, COLLECTION), where(field, "==", scopeToUid)),
+      (snap) => {
+        parts[i] = snap.docs.map((d) => fromDoc(d.id, d.data()));
+        send();
+      },
+      (error) => {
+        // Never let the ones they filed hide the ones assigned to them.
+        if (i === 1) {
+          parts[1] = [];
+          send();
+        } else onError?.(error);
+      }
+    )
   );
+  return () => unsubs.forEach((u) => u());
 }
 
 export function subscribeToComplaint(

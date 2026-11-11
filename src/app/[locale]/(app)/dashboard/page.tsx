@@ -259,12 +259,17 @@ export default function DashboardPage() {
 
   const visibleComplaints = useMemo(() => {
     if (!canView) return [];
-    const own = !managerScope || complaints === null ? complaints : complaints.filter((c) => c.assignedTo && scopedStaffIds.has(c.assignedTo));
+    // (Their own always count — a manager needn't be on the team they manage.)
+    const mine = (c: Complaint) => c.assignedTo === profile?.id || c.createdBy === profile?.id;
+    const own =
+      !managerScope || complaints === null
+        ? complaints
+        : complaints.filter((c) => mine(c) || (c.assignedTo && scopedStaffIds.has(c.assignedTo)));
     const extra = phoneKey && phoneResults?.key === phoneKey ? phoneResults.complaints : [];
     if (own === null || !extra.length) return own;
     const ids = new Set(own.map((c) => c.id));
     return [...own, ...extra.filter((c) => !ids.has(c.id))];
-  }, [canView, complaints, managerScope, scopedStaffIds, phoneKey, phoneResults]);
+  }, [canView, complaints, managerScope, scopedStaffIds, phoneKey, phoneResults, profile?.id]);
 
   // Every filter except status — feeds the stat cards, so their counts
   // track whichever assignee/type/source/date/search filters are active
