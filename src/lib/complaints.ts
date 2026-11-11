@@ -145,7 +145,7 @@ export async function findOrderDuplicates(orderNumber: string): Promise<OrderDup
   return ((await res.json()) as { complaints: OrderDuplicate[] }).complaints;
 }
 
-// Other people's complaints, found by the customer's full phone number (see
+// Other people's complaints, found by the customer's full phone number or name (see
 // /api/complaints/by-phone) — to read, never to change. The number each one
 // was found by is remembered on this browser, so opening it can ask the
 // server for it again (the browser itself isn't allowed to read it).

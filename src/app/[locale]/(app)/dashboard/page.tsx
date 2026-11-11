@@ -7,7 +7,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { findComplaintsByPhone, subscribeToComplaints } from "@/lib/complaints";
 import { subscribeToStaff } from "@/lib/users";
 import { subscribeToComplaintSources } from "@/lib/complaintSources";
-import { fullPhoneKey } from "@/lib/phoneLookup";
+import { lookupKey } from "@/lib/phoneLookup";
 import { subscribeToComplaintTypes } from "@/lib/complaintTypes";
 import { subscribeToCompanies } from "@/lib/companies";
 import { subscribeToAdministrations } from "@/lib/administrations";
@@ -165,9 +165,10 @@ export default function DashboardPage() {
     if (!profile || !canView) return;
     return subscribeToComplaints(setComplaints, undefined, canViewAll ? undefined : profile.id);
   }, [profile, canView, canViewAll]);
-  // A full customer phone number in the search box also finds complaints
-  // that aren't this person's own — to read only (see findComplaintsByPhone).
-  const phoneKey = fullPhoneKey(search);
+  // A customer's full phone number or full name in the search box also
+  // finds complaints that aren't this person's own — to read only (see
+  // findComplaintsByPhone).
+  const phoneKey = lookupKey(search);
   const [phoneResults, setPhoneResults] = useState<{ key: string; complaints: Complaint[] } | null>(null);
   useEffect(() => {
     if (!phoneKey || !canView) return;
